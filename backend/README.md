@@ -8,6 +8,13 @@ Proto models are stored in the proto/ folder, and the protoc command is used to 
 
 ## Developing Locally
 
+Setup your environment for local protobuf generation
+
+```
+brew install protoc-gen-go
+brew install protoc-gen-go-grpc
+```
+
 Navigate to the `./backend` directory, and run `sh generate_protos.sh` to generate the golang files in the pb/ directory from the
 proto files. 
 
