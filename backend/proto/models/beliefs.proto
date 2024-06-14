@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+option go_package = "epistemic-me-backend/pb/models";
+
+// A confidence rating on a belief represents
+// a score that determines how likely the system
+// evaluates the belief to be given available evidence.
+message ConfidenceRating {
+    double confidence_score = 1; // The confidence score of the belief.
+    bool default = 2;            // Whether this confidence rating is the default.
+}
+
+// A Source of a belief represents
+// the data or object from which the belief
+// was generated.
+message Source {
+    // Additional fields can be added here as needed.
+}
+
+// The content of a belief represents 
+// what that belief is about, through
+// natural language.
+message Content {
+    string raw_str = 1; // The raw string representation of the belief content.
+}
+
+// The evidence associated with a belief
+// is some external object that can be used
+// to update the confidence in a belief.
+message Evidence {   
+    // Additional fields can be added here as needed.
+}
+
+// A belief represents some synthesis
+// or general model of what the user believes.
+// It originates from some source. A belief is 
+// by its nature temporal information with a 
+// start and end time during which it can be
+// considered effective. A belief can be versioned
+// over time as it is updated by a user. All updates
+// to a belief are set with some backdated older date
+// overlapping prior dates and (typically) a future
+// facing forward date that represents unbounded future 
+// time. A belief can be made explicitly inactive
+// using the is_active field through an explicit action.
+message Belief {
+    string id = 1;                              // Unique identifier for the belief.
+    string user_id = 2;                         // Identifier for the user who holds the belief.
+    int32 version = 3;                          // Version number of the belief.
+    string dialectic_id = 4;                    // Identifier for the associated dialectic.
+    repeated ConfidenceRating confidence_ratings = 5; // Confidence ratings of the belief.
+    int64 start_time_millis_utc = 6;   // Start time of the belief's validity.
+    int64 end_time_millis_utc = 7;     // End time of the belief's validity.
+    repeated Source sources = 8;                // Sources from which the belief is derived.
+    repeated Content content = 9;               // Content of the belief.
+    repeated Evidence evidence = 10;            // Evidence supporting the belief.
+    bool is_active = 11;                        // Indicates if the belief is currently active.
+}
+
+// A belief system represents a quick synthesis of a user's
+// beliefs into a compressed natural language representation
+// of the user's worldview. This belief system can be used
+// to initiate further dialectical questions to gain better
+// understanding of a user's beliefs.
+message BeliefSystem {
+    string raw_str = 1; // The raw string representation of the belief system.
+}

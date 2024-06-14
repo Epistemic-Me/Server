@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+import "proto/models/beliefs.proto";
+import "proto/models/dialectic.proto";
+
+option go_package = "epistemic-me-backend/pb/";
+
+service EpistemicMeService {
+    rpc CreateBelief(CreateBeliefRequest) returns (CreateBeliefResponse) {}
+    rpc ListBeliefs(ListBeliefsRequest) returns (ListBeliefsResponse) {}
+    rpc CreateDialectic(CreateDialecticRequest) returns (CreateDialecticResponse) {}
+    rpc ListDialectics(ListDialecticsRequest) returns (ListDialecticsResponse) {}
+    rpc UpdateDialectic(UpdateDialecticRequest) returns (UpdateDialecticResponse) {}
+}
+
+// Request message for listing beliefs.
+message ListBeliefsRequest {
+    string user_id = 1;                          // The ID of the user whose beliefs are being listed.
+    repeated string belief_ids = 2;              // Optional list of belief IDs to filter by.
+    // TODO (@deen): Allow filtering by belief attributes / types.
+}
+
+// Response message for listing beliefs.
+message ListBeliefsResponse {
+    repeated Belief beliefs = 1;                 // List of beliefs for the user.
+    BeliefSystem belief_system = 2;              // The belief system summary.
+}
+
+// Request message for creating a new belief.
+message CreateBeliefRequest {
+    string user_id = 1;                          // The ID of the user creating the belief.
+    Belief belief = 2;                           // The belief being created.
+}
+
+// Response message for creating a new belief.
+message CreateBeliefResponse {
+    Belief belief = 1;                           // The created belief.
+    BeliefSystem belief_system = 2;              // The updated belief system summary.
+}
+
+// Request message for creating a new dialectic.
+message CreateDialecticRequest {
+    string user_id = 1;                          // The ID of the user for whom the dialectic is being created.
+    DialecticType dialectic_type = 2;            // The type of dialectic being created.
+}
+
+// Response message for creating a new dialectic.
+message CreateDialecticResponse {
+    string dialectic_id = 1;                     // Unique identifier for the created dialectic.
+    Dialectic dialectic = 2;                     // The created dialectic.
+}
+
+// Request message for listing dialectics.
+message ListDialecticsRequest {
+    string user_id = 1;                          // The ID of the user whose dialectics are being listed.
+}
+
+// Response message for listing dialectics.
+message ListDialecticsResponse {
+    repeated Dialectic dialectics = 1;           // List of dialectics for the user.
+}
+
+// Request message for updating an existing dialectic.
+message UpdateDialecticRequest {
+    string dialectic_id = 1;                     // The ID of the dialectic being updated.
+    UserAnswer answer = 2;                       // The user's answer to the dialectic.
+}
+
+// Response message for updating an existing dialectic.
+message UpdateDialecticResponse {
+    Dialectic dialectic = 1;                     // The updated dialectic.
+}
