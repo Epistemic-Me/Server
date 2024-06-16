@@ -45,8 +45,9 @@ RUN go mod tidy
 # Build the Go app
 RUN go build -o main .
 
-# Expose port 8080 to the outside world
+# Expose ports 8080 and 9090 to the outside world
 EXPOSE 8080
+EXPOSE 9090
 
 # Command to run the executable
 CMD ["./main"]
