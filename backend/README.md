@@ -36,4 +36,4 @@ Use Brew on Mac OS to download the grpcurl CLI command
 
 Test the server by querying an API
 
-`grpcurl -plaintext localhost:8080 EpistemicMeService/ListBeliefs`
+`grpcurl -plaintext localhost:9090 EpistemicMeService/ListBeliefs`

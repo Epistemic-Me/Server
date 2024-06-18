@@ -3,68 +3,89 @@ package main
 import (
 	"context"
 	"log"
-	"net"
+	"net/http"
+
+	"connectrpc.com/connect"
+	"github.com/rs/cors"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
 	pb "epistemic-me-backend/pb"
 	models "epistemic-me-backend/pb/models"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	"epistemic-me-backend/pb/pbconnect" // Import generated Connect Go code
 )
 
 // server is used to implement the EpistemicMeService.
-type server struct {
-	pb.EpistemicMeServiceServer
-}
+type server struct{}
 
-func (s *server) CreateBelief(ctx context.Context, req *pb.CreateBeliefRequest) (*pb.CreateBeliefResponse, error) {
+func (s *server) CreateBelief(
+	ctx context.Context,
+	req *connect.Request[pb.CreateBeliefRequest],
+) (*connect.Response[pb.CreateBeliefResponse], error) {
+	log.Println("CreateBelief called with request:", req.Msg)
 	// Mock response
-	return &pb.CreateBeliefResponse{
+	return connect.NewResponse(&pb.CreateBeliefResponse{
 		Belief: &models.Belief{
 			Id:     "mock-belief-id",
-			UserId: req.UserId,
+			UserId: req.Msg.UserId,
 		},
-	}, nil
+	}), nil
 }
 
-func (s *server) ListBeliefs(ctx context.Context, req *pb.ListBeliefsRequest) (*pb.ListBeliefsResponse, error) {
+func (s *server) ListBeliefs(
+	ctx context.Context,
+	req *connect.Request[pb.ListBeliefsRequest],
+) (*connect.Response[pb.ListBeliefsResponse], error) {
+	log.Println("ListBeliefs called with request:", req.Msg)
 	// Mock response
-	return &pb.ListBeliefsResponse{
+	return connect.NewResponse(&pb.ListBeliefsResponse{
 		Beliefs: []*models.Belief{
 			{
 				Id:     "mock-belief-id",
-				UserId: req.UserId,
+				UserId: req.Msg.UserId,
 			},
 		},
-	}, nil
+	}), nil
 }
 
-func (s *server) CreateDialectic(ctx context.Context, req *pb.CreateDialecticRequest) (*pb.CreateDialecticResponse, error) {
+func (s *server) CreateDialectic(
+	ctx context.Context,
+	req *connect.Request[pb.CreateDialecticRequest],
+) (*connect.Response[pb.CreateDialecticResponse], error) {
+	log.Println("CreateDialectic called with request:", req.Msg)
 	// Mock response
-	return &pb.CreateDialecticResponse{
+	return connect.NewResponse(&pb.CreateDialecticResponse{
 		DialecticId: "mock-dialectic-id",
 		Dialectic: &models.Dialectic{
 			Id:     "mock-dialectic-id",
-			UserId: req.UserId,
+			UserId: req.Msg.UserId,
 		},
-	}, nil
+	}), nil
 }
 
-func (s *server) ListDialectics(ctx context.Context, req *pb.ListDialecticsRequest) (*pb.ListDialecticsResponse, error) {
+func (s *server) ListDialectics(
+	ctx context.Context,
+	req *connect.Request[pb.ListDialecticsRequest],
+) (*connect.Response[pb.ListDialecticsResponse], error) {
+	log.Println("ListDialectics called with request:", req.Msg)
 	// Mock response
-	return &pb.ListDialecticsResponse{
+	return connect.NewResponse(&pb.ListDialecticsResponse{
 		Dialectics: []*models.Dialectic{
 			{
 				Id:     "mock-dialectic-id",
-				UserId: req.UserId,
+				UserId: req.Msg.UserId,
 			},
 		},
-	}, nil
+	}), nil
 }
 
-func (s *server) UpdateDialectic(ctx context.Context, req *pb.UpdateDialecticRequest) (*pb.UpdateDialecticResponse, error) {
+func (s *server) UpdateDialectic(
+	ctx context.Context,
+	req *connect.Request[pb.UpdateDialecticRequest],
+) (*connect.Response[pb.UpdateDialecticResponse], error) {
+	log.Println("UpdateDialectic called with request:", req.Msg)
 	// Mock response
-	return &pb.UpdateDialecticResponse{
+	return connect.NewResponse(&pb.UpdateDialecticResponse{
 		Dialectic: &models.Dialectic{
 			Id: "mock-dialectic-id",
 			UserInteractions: []*models.DialecticalInteraction{
@@ -78,22 +99,29 @@ func (s *server) UpdateDialectic(ctx context.Context, req *pb.UpdateDialecticReq
 				},
 			},
 		},
-	}, nil
+	}), nil
 }
 
 func main() {
-	lis, err := net.Listen("tcp", ":8080")
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	s := grpc.NewServer()
+	svc := &server{}
+	mux := http.NewServeMux()
+	path, handler := pbconnect.NewEpistemicMeServiceHandler(svc)
+	mux.Handle(path, handler)
 
-	// Register reflection service on gRPC server.
-	reflection.Register(s)
+	// Configure CORS
+	corsHandler := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:8081"},
+		AllowedMethods:   []string{"POST", "GET", "OPTIONS", "PUT", "DELETE"},
+		AllowedHeaders:   []string{"Accept", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization", "Connect-Protocol-Version"},
+		ExposedHeaders:   []string{"Content-Length", "Content-Type"},
+		AllowCredentials: true,
+		Debug:            true,
+	})
 
-	pb.RegisterEpistemicMeServiceServer(s, &server{})
-	log.Println("Server is running on port :8080")
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	log.Println("Server is running on port 8080 for Connect")
+	http.ListenAndServe(
+		":8080",
+		// Use h2c so we can serve HTTP/2 without TLS.
+		h2c.NewHandler(corsHandler.Handler(mux), &http2.Server{}),
+	)
 }
