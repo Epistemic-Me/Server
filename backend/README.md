@@ -28,7 +28,7 @@ Build the docker image
 
 Run the server and expose on port 8080 to mirror goland default port 8080
 
-`docker run -p 8080:8080 -p 9090:9090 epistemic-me-backend`
+`docker run -p 8080:8080 epistemic-me-backend`
 
 Use Brew on Mac OS to download the grpcurl CLI command
 

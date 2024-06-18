@@ -47,7 +47,6 @@ RUN go build -o main .
 
 # Expose ports 8080 and 9090 to the outside world
 EXPOSE 8080
-EXPOSE 9090
 
 # Command to run the executable
 CMD ["./main"]
