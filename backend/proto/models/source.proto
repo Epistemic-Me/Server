@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+option go_package = "epistemic-me-backend/pb/models";
+
+// Enum for the type of source
+enum SourceType {
+    OBSERVATION_CONTEXT = 0;
+    AUTHORITY = 1;
+}
+
+// Enum for the type of resource
+enum ResourceType {
+    SCIENTIFIC_RESULT = 0;
+    BOOK = 1;
+    TEACHER = 2;
+    OTHER = 3;
+}
+
+// A Resource associated with an authority
+message Resource {
+    string name = 1;           // Name of the resource
+    ResourceType type = 2;     // Type of the resource
+}
+
+message Resources {
+    repeated Resource resources = 1;
+}
+
+// A Source of a belief represents
+// the data or object from which the belief
+// was generated.
+message Source {
+    string name = 1;             // Name of the source
+    SourceType type = 2;         // Type of the source
+    oneof source_detail {
+        int32 observation_context_id = 3; // Reference to an observation context
+        Resources resources = 4;  // Resources associated with an authority
+    }
+}

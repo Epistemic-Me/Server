@@ -1,0 +1,203 @@
+observation_contexts: [
+  {
+    id: 1
+    name: "Hydration Levels"
+    description: "Measures the levels of hydration using qualitative scales like low, medium, and high."
+    temporal_information: {
+      start_time_millis_utc: 1609459200000
+      end_time_millis_utc: 1609545600000
+      is_active: true
+    }
+    possible_states: [
+      {
+        id: 1
+        context_id: 1
+        state: "low"
+        description: "Low level of hydration"
+      },
+      {
+        id: 2
+        context_id: 1
+        state: "medium"
+        description: "Medium level of hydration"
+      },
+      {
+        id: 3
+        context_id: 1
+        state: "high"
+        description: "High level of hydration"
+      }
+    ]
+    conditional_probabilities: [
+      {
+        id: 1
+        initial_state_id: 1
+        intervention_id: 1
+        intervention_name: "drinking water"
+        resulting_state_id: 2
+        probability: 0.6
+        description: "Probability of moving from low to medium hydration level after drinking water."
+      },
+      {
+        id: 2
+        initial_state_id: 1
+        intervention_id: 1
+        intervention_name: "drinking water"
+        resulting_state_id: 3
+        probability: 0.3
+        description: "Probability of moving from low to high hydration level after drinking water."
+      }
+    ]
+    inputs: [
+      {
+        name: "Drink Water Upon Waking"
+        type: HABIT
+        habit_id: 1
+      }
+    ]
+    outputs: [
+      {
+        name: "Hydration Study 2021"
+        type: RESOURCE
+        resource: {
+          name: "Hydration Study 2021"
+          type: SCIENTIFIC_RESULT
+        }
+      }
+    ]
+  },
+  {
+    id: 2
+    name: "Mental Clarity"
+    description: "Evaluates mental clarity levels using qualitative scales."
+    temporal_information: {
+      start_time_millis_utc: 1609459200000
+      end_time_millis_utc: 1609545600000
+      is_active: true
+    }
+    possible_states: [
+      {
+        id: 4
+        context_id: 2
+        state: "low"
+        description: "Low level of mental clarity"
+      },
+      {
+        id: 5
+        context_id: 2
+        state: "medium"
+        description: "Medium level of mental clarity"
+      },
+      {
+        id: 6
+        context_id: 2
+        state: "high"
+        description: "High level of mental clarity"
+      }
+    ]
+    conditional_probabilities: [
+      {
+        id: 3
+        initial_state_id: 4
+        intervention_id: 1
+        intervention_name: "drinking water"
+        resulting_state_id: 5
+        probability: 0.5
+        description: "Probability of moving from low to medium mental clarity level after drinking water."
+      },
+      {
+        id: 4
+        initial_state_id: 4
+        intervention_id: 1
+        intervention_name: "drinking water"
+        resulting_state_id: 6
+        probability: 0.4
+        description: "Probability of moving from low to high mental clarity level after drinking water."
+      }
+    ]
+    inputs: [
+      {
+        name: "Drink Water Upon Waking"
+        type: HABIT
+        habit_id: 1
+      }
+    ]
+    outputs: [
+      {
+        name: "Mental Clarity Research 2021"
+        type: RESOURCE
+        resource: {
+          name: "Mental Clarity Research 2021"
+          type: SCIENTIFIC_RESULT
+        }
+      }
+    ]
+  },
+  {
+    id: 3
+    name: "Energy Levels"
+    description: "Measures the levels of energy using qualitative scales like low, medium, and high."
+    temporal_information: {
+      start_time_millis_utc: 1609459200000
+      end_time_millis_utc: 1609545600000
+      is_active: true
+    }
+    possible_states: [
+      {
+        id: 7
+        context_id: 3
+        state: "low"
+        description: "Low level of energy"
+      },
+      {
+        id: 8
+        context_id: 3
+        state: "medium"
+        description: "Medium level of energy"
+      },
+      {
+        id: 9
+        context_id: 3
+        state: "high"
+        description: "High level of energy"
+      }
+    ]
+    conditional_probabilities: [
+      {
+        id: 5
+        initial_state_id: 7
+        intervention_id: 2
+        intervention_name: "exercise"
+        resulting_state_id: 8
+        probability: 0.6
+        description: "Probability of moving from low to medium energy level after exercise."
+      },
+      {
+        id: 6
+        initial_state_id: 7
+        intervention_id: 2
+        intervention_name: "exercise"
+        resulting_state_id: 9
+        probability: 0.3
+        description: "Probability of moving from low to high energy level after exercise."
+      }
+    ]
+    inputs: [
+      {
+        name: "Exercise Daily"
+        type: HABIT
+        habit_id: 2
+      }
+    ]
+    outputs: [
+      {
+        name: "Energy Study 2021"
+        type: RESOURCE
+        resource: {
+          name: "Energy Study 2021"
+          type: SCIENTIFIC_RESULT
+        }
+      }
+    ]
+  }
+]
