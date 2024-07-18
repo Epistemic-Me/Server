@@ -2,14 +2,14 @@ package models
 
 // ListBeliefsOutput represents an output containing a list of beliefs.
 type ListBeliefsOutput struct {
-	Beliefs      []Belief     `json:"beliefs"`
-	BeliefSystem BeliefSystem `json:"belief_system"`
+	Beliefs      []Belief      `json:"beliefs"`
+	BeliefSystem *BeliefSystem `json:"belief_system"`
 }
 
 // CreateBeliefOutput represents an output after creating a new belief.
 type CreateBeliefOutput struct {
-	Belief       Belief       `json:"belief"`
-	BeliefSystem BeliefSystem `json:"belief_system"`
+	Belief       Belief        `json:"belief"`
+	BeliefSystem *BeliefSystem `json:"belief_system"`
 }
 
 // CreateDialecticOutput represents an output after creating a new dialectic.
