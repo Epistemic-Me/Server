@@ -1,14 +1,13 @@
 package ai_helper
 
 import (
-    "encoding/json"
-    "fmt"
-    "log"
+	"encoding/json"
+	"fmt"
 
-    openai "github.com/openai/go-openai"
+	openai "github.com/openai/go-openai"
 )
 
-const DEFINITIONS = `What is a Question?
+const DIALECTICAL_STRATEGY = `What is a Question?
 In the BC dialectic context, a question creates a conceptual framework for learning. It acts as a container for prior beliefs, evidence collection, and answer verification.
 
 It is an inference of the world based on prior beliefs that guides evidence collection and observation. A good question can shape knowledge that is valuable to our future experiences. The question provides the boundaries of an unambiguous explanation for a causal pattern.
@@ -55,64 +54,80 @@ while maintaining allostasis in the organism
 how does the preservation of an epigenetic possibility affect the population-level genetics?
 `
 
-func generateQuestion(client *openai.Client, model string, beliefSystem string, previousEvents []map[string]interface{}) (string, error) {
-    systemContext := fmt.Sprintf("Given these definitions %s. Generate a single question to further understand the user's belief system.", DEFINITIONS)
-    if len(beliefSystem) > 0 {
-        systemContext += fmt.Sprintf(" The user's current belief system is %s", beliefSystem)
-    }
-    if len(previousEvents) > 0 {
-        events, err := json.Marshal(previousEvents)
-        if err != nil {
-            return "", err
-        }
-        systemContext += fmt.Sprintf(" Ask a single novel question given the existing questions asked: %s", events)
-    }
+type LLMModel string
 
-    response, err := client.Chat.Completions.Create(openai.ChatCompletionRequest{
-        Model: model,
-        Messages: []openai.ChatCompletionMessage{
-            {Role: "system", Content: systemContext},
-            {Role: "user", Content: "Please ask me a question to further inquire into my belief system, just respond with the question directly."},
-        },
-    })
-    if err != nil {
-        return "", err
-    }
+// Define the constants
+const (
+	GPT_LATEST LLMModel = "gpt4-o-mini"
+)
 
-    return response.Choices[0].Message.Content, nil
+type AIHelper struct {
+	client *openai.Client
 }
 
-func getEventAsBelief(client *openai.Client, model string, event map[string]interface{}) (string, error) {
-    response, err := client.Chat.Completions.Create(openai.ChatCompletionRequest{
-        Model: model,
-        Messages: []openai.ChatCompletionMessage{
-            {Role: "system", Content: fmt.Sprintf("Given these definitions %s. Construct a belief that underlies the information present in the user event", DEFINITIONS)},
-            {Role: "user", Content: fmt.Sprintf("Please just respond curtly with the belief summary, %s", event)},
-        },
-    })
-    if err != nil {
-        return "", err
-    }
-
-    return response.Choices[0].Message.Content, nil
+type InteractionEvent struct {
+	Question string `json:"question"`
+	Answer   string `json:"answer"`
 }
 
-func generateBeliefSystem(client *openai.Client, model string, activeBeliefs []string) (string, error) {
-    beliefs, err := json.Marshal(activeBeliefs)
-    if err != nil {
-        return "", err
-    }
+func (aih *AIHelper) GenerateQuestion(beliefSystem string, previousEvents []InteractionEvent) (string, error) {
+	systemContext := fmt.Sprintf("Given these definitions %s. Generate a single question to further understand the user's belief system.", DIALECTICAL_STRATEGY)
+	if len(beliefSystem) > 0 {
+		systemContext += fmt.Sprintf(" The user's current belief system is %s", beliefSystem)
+	}
+	if len(previousEvents) > 0 {
+		events, err := json.Marshal(previousEvents)
+		if err != nil {
+			return "", err
+		}
+		systemContext += fmt.Sprintf(" Ask a single novel question given the existing questions asked: %s", events)
+	}
 
-    response, err := client.Chat.Completions.Create(openai.ChatCompletionRequest{
-        Model: model,
-        Messages: []openai.ChatCompletionMessage{
-            {Role: "system", Content: fmt.Sprintf("Given these definitions %s. Construct a belief system based on these events", DEFINITIONS)},
-            {Role: "user", Content: fmt.Sprintf("Please respond curtly with just a concise representation of my belief system, %s", beliefs)},
-        },
-    })
-    if err != nil {
-        return "", err
-    }
+	response, err := aih.client.Chat.Completions.Create(openai.ChatCompletionRequest{
+		Model: string(GPT_LATEST),
+		Messages: []openai.ChatCompletionMessage{
+			{Role: "system", Content: systemContext},
+			{Role: "user", Content: "Please ask me a question to further inquire into my belief system, just respond with the question directly."},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
 
-    return response.Choices[0].Message.Content, nil
+	return response.Choices[0].Message.Content, nil
+}
+
+func (aih *AIHelper) GenerateBeliefSystem(activeBeliefs []string) (string, error) {
+	beliefs, err := json.Marshal(activeBeliefs)
+	if err != nil {
+		return "", err
+	}
+
+	response, err := aih.client.Chat.Completions.Create(openai.ChatCompletionRequest{
+		Model: string(GPT_LATEST),
+		Messages: []openai.ChatCompletionMessage{
+			{Role: "system", Content: fmt.Sprintf("Given these definitions %s. Construct a belief system based on these events", DIALECTICAL_STRATEGY)},
+			{Role: "user", Content: fmt.Sprintf("Please respond curtly with just a concise representation of my belief system, %s", beliefs)},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return response.Choices[0].Message.Content, nil
+}
+
+func (aih *AIHelper) GetInteractionEventAsBelief(event InteractionEvent) (string, error) {
+	response, err := aih.client.Chat.Completions.Create(openai.ChatCompletionRequest{
+		Model: string(GPT_LATEST),
+		Messages: []openai.ChatCompletionMessage{
+			{Role: "system", Content: fmt.Sprintf("Given these definitions %s. Construct a belief that underlies the information present in the user event", DIALECTICAL_STRATEGY)},
+			{Role: "user", Content: fmt.Sprintf("Please just respond curtly with the belief summary, %s", event)},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return response.Choices[0].Message.Content, nil
 }

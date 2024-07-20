@@ -8,8 +8,8 @@ type ListBeliefsInput struct {
 
 // CreateBeliefInput represents an input to create a new belief.
 type CreateBeliefInput struct {
-	UserID string `json:"user_id"`
-	Belief Belief `json:"belief"`
+	UserID        string `json:"user_id"`
+	BeliefContent string `json:"belief_content"`
 }
 
 // CreateDialecticInput represents an input to create a new dialectic.
@@ -25,6 +25,7 @@ type ListDialecticsInput struct {
 
 // UpdateDialecticInput represents an input to update an existing dialectic.
 type UpdateDialecticInput struct {
+	UserID      string     `json:"user_id"`
 	DialecticID string     `json:"dialectic_id"`
 	Answer      UserAnswer `json:"answer"`
 }
