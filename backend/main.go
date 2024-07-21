@@ -4,12 +4,15 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 
 	"connectrpc.com/connect"
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	ai "epistemic-me-backend/ai"
+	db "epistemic-me-backend/db"
 	pb "epistemic-me-backend/pb"
 	models "epistemic-me-backend/pb/models"
 	"epistemic-me-backend/pb/pbconnect" // Import generated Connect Go code
@@ -140,9 +143,22 @@ func (s *server) UpdateDialectic(
 }
 
 func main() {
+
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		log.Fatalf("OPENAI_API_KEY environment variable not set")
+		os.Exit(1)
+	}
+
+	aih := ai.NewAIHelper(apiKey)
+
+	kv := db.NewKeyValueStore()
+
+	bsvc := svc.NewBeliefService(kv, aih) // Initialize the BeliefService
+
 	svc := &server{
-		bsvc: svc.NewBeliefService(),    // Initialize the BeliefService
-		dsvc: svc.NewDialecticService(), // Initialize the DialecticService
+		bsvc: bsvc,
+		dsvc: svc.NewDialecticService(kv, bsvc, aih), // Initialize the DialecticService
 	}
 	mux := http.NewServeMux()
 	path, handler := pbconnect.NewEpistemicMeServiceHandler(svc)

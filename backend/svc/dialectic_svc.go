@@ -9,9 +9,18 @@ import (
 )
 
 type DialecticService struct {
-	kv   db.KeyValueStore
+	kv   *db.KeyValueStore
 	bsvc *BeliefService
-	aih  ai.AIHelper
+	aih  *ai.AIHelper
+}
+
+// NewDialecticService initializes and returns a new DialecticService.
+func NewDialecticService(kv *db.KeyValueStore, bsvc *BeliefService, aih *ai.AIHelper) *DialecticService {
+	return &DialecticService{
+		kv:   kv,
+		bsvc: bsvc,
+		aih:  aih,
+	}
 }
 
 func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput) (*models.CreateDialecticOutput, error) {

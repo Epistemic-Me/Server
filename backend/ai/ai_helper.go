@@ -70,6 +70,14 @@ type InteractionEvent struct {
 	Answer   string `json:"answer"`
 }
 
+// Constructor for AIHelper
+func NewAIHelper(apiKey string) *AIHelper {
+	client := openai.NewClient(apiKey)
+	return &AIHelper{
+		client: client,
+	}
+}
+
 func (aih *AIHelper) GenerateQuestion(beliefSystem string, previousEvents []InteractionEvent) (string, error) {
 	systemContext := fmt.Sprintf("Given these definitions %s. Generate a single question to further understand the user's belief system.", DIALECTICAL_STRATEGY)
 	if len(beliefSystem) > 0 {

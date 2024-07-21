@@ -8,8 +8,16 @@ import (
 )
 
 type BeliefService struct {
-	kv db.KeyValueStore
-	ai ai.AIHelper
+	kv *db.KeyValueStore
+	ai *ai.AIHelper
+}
+
+// NewBeliefService initializes and returns a new BeliefService.
+func NewBeliefService(kv *db.KeyValueStore, ai *ai.AIHelper) *BeliefService {
+	return &BeliefService{
+		kv: kv,
+		ai: ai,
+	}
 }
 
 func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*models.CreateBeliefOutput, error) {
@@ -76,7 +84,7 @@ func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.
 
 func (bsvc *BeliefService) getBeliefSystemFromBeliefs(beliefs []models.Belief) (*models.BeliefSystem, error) {
 	var belief_strs []string
-	for _, belief := beliefs {
+	for _, belief := range beliefs {
 		var beliefContent string
 		for _, content := belief.Content {
 			beliefContent += content.raw_str + "."
