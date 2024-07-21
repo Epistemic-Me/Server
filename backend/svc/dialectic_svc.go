@@ -5,6 +5,7 @@ import (
 	db "epistemic-me-backend/db"
 	"epistemic-me-backend/svc/models"
 	"fmt"
+	"reflect"
 )
 
 type DialecticService struct {
@@ -44,6 +45,25 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 	return &models.CreateDialecticOutput{
 		DialecticID: dialectic.ID,
 		Dialectic:   *dialectic,
+	}, nil
+}
+
+func (dsvc *DialecticService) ListDialectics(input *models.ListDialecticsInput) (*models.ListDialecticsOutput, error) {
+	// Retrieve all dialectics for the user
+	dialectics, err := dsvc.kv.ListByType(input.UserID, reflect.TypeOf(models.Dialectic{}))
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert the retrieved dialectics to the required type
+	var dialecticModels []models.Dialectic
+	for _, dialectic := range dialectics {
+		storedDialectic := dialectic.(*models.Dialectic)
+		dialecticModels = append(dialecticModels, *storedDialectic)
+	}
+
+	return &models.ListDialecticsOutput{
+		Dialectics: dialecticModels,
 	}, nil
 }
 

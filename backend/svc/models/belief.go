@@ -1,14 +1,29 @@
 package models
 
+import pbmodels "epistemic-me-backend/pb/models"
+
 // ConfidenceRating represents a confidence score for a belief.
 type ConfidenceRating struct {
 	ConfidenceScore float64 `json:"confidence_score"`
 	Default         bool    `json:"default"`
 }
 
+func (cr ConfidenceRating) ToProto() *pbmodels.ConfidenceRating {
+	return &pbmodels.ConfidenceRating{
+		ConfidenceScore: cr.ConfidenceScore,
+		Default:         cr.Default,
+	}
+}
+
 // Content represents the content of a belief in natural language.
 type Content struct {
 	RawStr string `json:"raw_str"`
+}
+
+func (c Content) ToProto() *pbmodels.Content {
+	return &pbmodels.Content{
+		RawStr: c.RawStr,
+	}
 }
 
 // BeliefType represents the type of belief, either causal or statement.
@@ -18,6 +33,17 @@ const (
 	Causal    BeliefType = 0
 	Statement BeliefType = 1
 )
+
+func (bt BeliefType) ToProto() pbmodels.BeliefType {
+	switch bt {
+	case Causal:
+		return pbmodels.BeliefType_CAUSAL
+	case Statement:
+		return pbmodels.BeliefType_STATEMENT
+	default:
+		return pbmodels.BeliefType_STATEMENT // Default case
+	}
+}
 
 // Belief represents a user's belief.
 type Belief struct {
@@ -32,6 +58,40 @@ type Belief struct {
 	TemporalInformation *TemporalInformation `json:"temporal_information,omitempty"`
 }
 
+func (b Belief) ToProto() *pbmodels.Belief {
+	confidenceRatingsPb := make([]*pbmodels.ConfidenceRating, len(b.ConfidenceRatings))
+	for i, cr := range b.ConfidenceRatings {
+		confidenceRatingsPb[i] = cr.ToProto()
+	}
+
+	sourcesPb := make([]*pbmodels.Source, len(b.Sources))
+	for i, s := range b.Sources {
+		sourcesPb[i] = s.ToProto()
+	}
+
+	contentPb := make([]*pbmodels.Content, len(b.Content))
+	for i, c := range b.Content {
+		contentPb[i] = c.ToProto()
+	}
+
+	var causalBeliefPb *pbmodels.Belief_CausalBelief
+	if b.CausalBelief != nil {
+		causalBeliefPb = b.CausalBelief.ToProto()
+	}
+
+	return &pbmodels.Belief{
+		Id:                  b.ID,
+		UserId:              b.UserID,
+		Version:             b.Version,
+		ConfidenceRatings:   confidenceRatingsPb,
+		Sources:             sourcesPb,
+		Content:             contentPb,
+		Type:                b.Type.ToProto(),
+		CausalBelief:        causalBeliefPb,
+		TemporalInformation: b.TemporalInformation.ToProto(), // Assuming ToProto is defined
+	}
+}
+
 // CausalBelief represents the details of a causal belief.
 type CausalBelief struct {
 	InterventionID         int32  `json:"intervention_id"`
@@ -40,9 +100,45 @@ type CausalBelief struct {
 	ObservationContextName string `json:"observation_context_name"`
 }
 
+func (cb CausalBelief) ToProto() *pbmodels.Belief_CausalBelief {
+	return &pbmodels.Belief_CausalBelief{
+		InterventionId:         cb.InterventionID,
+		InterventionName:       cb.InterventionName,
+		ObservationContextId:   cb.ObservationContextID,
+		ObservationContextName: cb.ObservationContextName,
+	}
+}
+
 // BeliefSystem represents a summary of a user's beliefs.
 type BeliefSystem struct {
 	RawStr                  string  `json:"raw_str"`
 	OverallConfidenceRating float64 `json:"overall_confidence_rating"`
 	ConflictScore           float64 `json:"conflict_score"`
+}
+
+func (bs BeliefSystem) ToProto() *pbmodels.BeliefSystem {
+	return &pbmodels.BeliefSystem{
+		RawStr:                  bs.RawStr,
+		OverallConfidenceRating: bs.OverallConfidenceRating,
+		ConflictScore:           bs.ConflictScore,
+	}
+}
+
+// Assuming Source and TemporalInformation are defined elsewhere
+type Source struct {
+	// Fields for Source
+}
+
+func (s Source) ToProto() *pbmodels.Source {
+	// Implement the conversion
+	return &pbmodels.Source{}
+}
+
+type TemporalInformation struct {
+	// Fields for TemporalInformation
+}
+
+func (ti TemporalInformation) ToProto() *pbmodels.TemporalInformation {
+	// Implement the conversion
+	return &pbmodels.TemporalInformation{}
 }
