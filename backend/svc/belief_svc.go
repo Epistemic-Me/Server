@@ -29,7 +29,7 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 	})
 
 	belief := models.Belief{
-		UserID: input.UserID,
+		UserID:  input.UserID,
 		Content: beliefContent,
 		Version: 0,
 	}
@@ -41,7 +41,8 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 		return nil, err
 	}
 
-	belief_system, err := bsvc.getBeliefSystemFromBeliefs(filteredBeliefs)
+	var empty_beliefs []models.Belief
+	belief_system, err := bsvc.getBeliefSystemFromBeliefs(empty_beliefs)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +79,7 @@ func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.
 
 	return &models.ListBeliefsOutput{
 		Beliefs:      filteredBeliefs,
-		BeliefSystem: *belief_system, 
+		BeliefSystem: *belief_system,
 	}, nil
 }
 
@@ -86,8 +87,8 @@ func (bsvc *BeliefService) getBeliefSystemFromBeliefs(beliefs []models.Belief) (
 	var belief_strs []string
 	for _, belief := range beliefs {
 		var beliefContent string
-		for _, content := belief.Content {
-			beliefContent += content.raw_str + "."
+		for _, content := range belief.Content {
+			beliefContent += content.RawStr + "."
 		}
 		belief_strs = append(belief_strs, beliefContent)
 	}
@@ -99,5 +100,5 @@ func (bsvc *BeliefService) getBeliefSystemFromBeliefs(beliefs []models.Belief) (
 
 	return &models.BeliefSystem{
 		RawStr: belief_system_str,
-	}
+	}, nil
 }
