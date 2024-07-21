@@ -5,6 +5,8 @@ import (
 	db "epistemic-me-backend/db"
 	"epistemic-me-backend/svc/models"
 	"reflect"
+
+	"github.com/google/uuid"
 )
 
 type BeliefService struct {
@@ -28,7 +30,10 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 		RawStr: input.BeliefContent,
 	})
 
+	newBeliefId := "bi_" + uuid.New().String()
+
 	belief := models.Belief{
+		ID:      newBeliefId,
 		UserID:  input.UserID,
 		Content: beliefContent,
 		Version: 0,

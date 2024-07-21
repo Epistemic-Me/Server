@@ -6,6 +6,8 @@ import (
 	"epistemic-me-backend/svc/models"
 	"fmt"
 	"reflect"
+
+	"github.com/google/uuid"
 )
 
 type DialecticService struct {
@@ -35,9 +37,11 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 	// append the first pending question to the dialectic
 	userInteractions = append(userInteractions, *newInteraction)
 
+	newDialecticId := "di_" + uuid.New().String()
+
 	// instantiate the dialectic
 	dialectic := &models.Dialectic{
-		ID:     uuid.uuid4(),
+		ID:     newDialecticId,
 		UserID: input.UserID,
 		Agent: models.Agent{
 			AgentType:     models.AgentTypeGPTLatest,
