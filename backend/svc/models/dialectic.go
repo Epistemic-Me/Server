@@ -100,7 +100,18 @@ func (di DialecticalInteraction) ToProto() *pbmodels.DialecticalInteraction {
 		protoBeliefs[i] = belief.ToProto()
 	}
 
+	var protoStatus pbmodels.DialecticalInteraction_STATUS
+	switch di.Status {
+	case StatusPendingAnswer:
+		protoStatus = pbmodels.DialecticalInteraction_STATUS_PENDING_ANSWER
+	case StatusAnswered:
+		protoStatus = pbmodels.DialecticalInteraction_STATUS_ANSWERED
+	default:
+		protoStatus = pbmodels.DialecticalInteraction_STATUS_INVALID
+	}
+
 	return &pbmodels.DialecticalInteraction{
+		Status:             protoStatus,
 		Question:           di.Question.ToProto(),
 		UserAnswer:         di.UserAnswer.ToProto(),
 		Beliefs:            protoBeliefs,

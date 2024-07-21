@@ -41,6 +41,7 @@ message DialecticalInteraction {
     UserAnswer userAnswer = 2;            // The user's answer in the interaction.
     repeated Belief beliefs = 3;          // Beliefs extracted from the interaction.
     int64 updated_at_millis_utc = 4; // Timestamp when the interaction was last updated.
+    STATUS status = 5;
 }
 
 // The Dialectic Type informs the "strategy" of how the 
@@ -72,6 +73,7 @@ message Agent {
     AgentType agent_type = 1;             // The type of the agent.
     DialecticType dialectic_type = 2;     // The dialectic strategy used by the agent.
 }
+
 
 // The dialectic can be seen as a session that gets created
 // and presents a user with a series of questions designed to 
