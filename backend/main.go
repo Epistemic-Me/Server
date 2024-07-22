@@ -30,21 +30,29 @@ func (s *server) CreateBelief(
 	ctx context.Context,
 	req *connect.Request[pb.CreateBeliefRequest],
 ) (*connect.Response[pb.CreateBeliefResponse], error) {
-	log.Println("CreateBelief called with request:", req.Msg)
+	log.Printf("CreateBelief called with request: %+v", req.Msg)
 
-	response, err := s.bsvc.CreateBelief(&svcmodels.CreateBeliefInput{
+	input := &svcmodels.CreateBeliefInput{
 		UserID:        req.Msg.UserId,
 		BeliefContent: req.Msg.BeliefContent,
-	})
+	}
+	log.Printf("CreateBelief input: %+v", input)
 
+	response, err := s.bsvc.CreateBelief(input)
 	if err != nil {
+		log.Printf("CreateBelief ERROR: %v", err)
 		return nil, err
 	}
 
-	return connect.NewResponse(&pb.CreateBeliefResponse{
+	log.Printf("CreateBelief response: %+v", response)
+
+	protoResponse := &pb.CreateBeliefResponse{
 		Belief:       response.Belief.ToProto(),
 		BeliefSystem: response.BeliefSystem.ToProto(),
-	}), nil
+	}
+	log.Printf("CreateBelief proto response: %+v", protoResponse)
+
+	return connect.NewResponse(protoResponse), nil
 }
 
 func (s *server) ListBeliefs(

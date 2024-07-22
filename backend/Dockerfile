@@ -1,7 +1,7 @@
 # Start with the official Golang 1.22 image
 FROM golang:1.22.4-alpine
 
-RUN apk update && apk add --no-cache make protobuf-dev
+RUN apk update && apk add --no-cache make protobuf-dev git
 
 # Install Go plugins for protoc and connectrpc
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28 && \

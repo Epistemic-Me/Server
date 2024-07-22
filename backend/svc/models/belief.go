@@ -79,6 +79,11 @@ func (b Belief) ToProto() *pbmodels.Belief {
 		causalBeliefPb = b.CausalBelief.ToProto()
 	}
 
+	var temporalInfoPb *pbmodels.TemporalInformation
+	if b.TemporalInformation != nil {
+		temporalInfoPb = b.TemporalInformation.ToProto()
+	}
+
 	return &pbmodels.Belief{
 		Id:                  b.ID,
 		UserId:              b.UserID,
@@ -88,7 +93,7 @@ func (b Belief) ToProto() *pbmodels.Belief {
 		Content:             contentPb,
 		Type:                b.Type.ToProto(),
 		CausalBelief:        causalBeliefPb,
-		TemporalInformation: b.TemporalInformation.ToProto(), // Assuming ToProto is defined
+		TemporalInformation: temporalInfoPb,
 	}
 }
 
