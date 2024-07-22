@@ -4,31 +4,46 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 
 	"connectrpc.com/connect"
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	ai "epistemic-me-backend/ai"
+	db "epistemic-me-backend/db"
 	pb "epistemic-me-backend/pb"
 	models "epistemic-me-backend/pb/models"
 	"epistemic-me-backend/pb/pbconnect" // Import generated Connect Go code
+	svc "epistemic-me-backend/svc"
+	svcmodels "epistemic-me-backend/svc/models"
 )
 
 // server is used to implement the EpistemicMeService.
-type server struct{}
+type server struct {
+	bsvc *svc.BeliefService
+	dsvc *svc.DialecticService
+}
 
 func (s *server) CreateBelief(
 	ctx context.Context,
 	req *connect.Request[pb.CreateBeliefRequest],
 ) (*connect.Response[pb.CreateBeliefResponse], error) {
 	log.Println("CreateBelief called with request:", req.Msg)
-	// Mock response
+
+	response, err := s.bsvc.CreateBelief(&svcmodels.CreateBeliefInput{
+		UserID:        req.Msg.UserId,
+		BeliefContent: req.Msg.BeliefContent,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
 	return connect.NewResponse(&pb.CreateBeliefResponse{
-		Belief: &models.Belief{
-			Id:     "mock-belief-id",
-			UserId: req.Msg.UserId,
-		},
+		Belief:       response.Belief.ToProto(),
+		BeliefSystem: response.BeliefSystem.ToProto(),
 	}), nil
 }
 
@@ -37,14 +52,24 @@ func (s *server) ListBeliefs(
 	req *connect.Request[pb.ListBeliefsRequest],
 ) (*connect.Response[pb.ListBeliefsResponse], error) {
 	log.Println("ListBeliefs called with request:", req.Msg)
-	// Mock response
+
+	response, err := s.bsvc.ListBeliefs(&svcmodels.ListBeliefsInput{
+		UserID:    req.Msg.UserId,
+		BeliefIDs: req.Msg.BeliefIds,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var beliefPbs []*models.Belief
+	for _, belief := range response.Beliefs {
+		beliefPbs = append(beliefPbs, belief.ToProto())
+	}
+
 	return connect.NewResponse(&pb.ListBeliefsResponse{
-		Beliefs: []*models.Belief{
-			{
-				Id:     "mock-belief-id",
-				UserId: req.Msg.UserId,
-			},
-		},
+		Beliefs:      beliefPbs,
+		BeliefSystem: response.BeliefSystem.ToProto(),
 	}), nil
 }
 
@@ -53,13 +78,19 @@ func (s *server) CreateDialectic(
 	req *connect.Request[pb.CreateDialecticRequest],
 ) (*connect.Response[pb.CreateDialecticResponse], error) {
 	log.Println("CreateDialectic called with request:", req.Msg)
-	// Mock response
+
+	response, err := s.dsvc.CreateDialectic(&svcmodels.CreateDialecticInput{
+		UserID:        req.Msg.UserId,
+		DialecticType: svcmodels.DialecticType(req.Msg.DialecticType),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
 	return connect.NewResponse(&pb.CreateDialecticResponse{
-		DialecticId: "mock-dialectic-id",
-		Dialectic: &models.Dialectic{
-			Id:     "mock-dialectic-id",
-			UserId: req.Msg.UserId,
-		},
+		DialecticId: response.DialecticID,
+		Dialectic:   response.Dialectic.ToProto(),
 	}), nil
 }
 
@@ -68,14 +99,22 @@ func (s *server) ListDialectics(
 	req *connect.Request[pb.ListDialecticsRequest],
 ) (*connect.Response[pb.ListDialecticsResponse], error) {
 	log.Println("ListDialectics called with request:", req.Msg)
-	// Mock response
+
+	response, err := s.dsvc.ListDialectics(&svcmodels.ListDialecticsInput{
+		UserID: req.Msg.UserId,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var dialecticPbs []*models.Dialectic
+	for _, dialectic := range response.Dialectics {
+		dialecticPbs = append(dialecticPbs, dialectic.ToProto())
+	}
+
 	return connect.NewResponse(&pb.ListDialecticsResponse{
-		Dialectics: []*models.Dialectic{
-			{
-				Id:     "mock-dialectic-id",
-				UserId: req.Msg.UserId,
-			},
-		},
+		Dialectics: dialecticPbs,
 	}), nil
 }
 
@@ -84,26 +123,43 @@ func (s *server) UpdateDialectic(
 	req *connect.Request[pb.UpdateDialecticRequest],
 ) (*connect.Response[pb.UpdateDialecticResponse], error) {
 	log.Println("UpdateDialectic called with request:", req.Msg)
-	// Mock response
-	return connect.NewResponse(&pb.UpdateDialecticResponse{
-		Dialectic: &models.Dialectic{
-			Id: "mock-dialectic-id",
-			UserInteractions: []*models.DialecticalInteraction{
-				{
-					Question: &models.Question{
-						Question: "Mock question",
-					},
-					UserAnswer: &models.UserAnswer{
-						UserAnswer: "Mock answer",
-					},
-				},
-			},
+
+	response, err := s.dsvc.UpdateDialectic(&svcmodels.UpdateDialecticInput{
+		UserID:      req.Msg.UserId,
+		DialecticID: req.Msg.DialecticId,
+		Answer: svcmodels.UserAnswer{
+			UserAnswer:         req.Msg.Answer.UserAnswer,
+			CreatedAtMillisUTC: req.Msg.Answer.CreatedAtMillisUtc,
 		},
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&pb.UpdateDialecticResponse{
+		Dialectic: response.Dialectic.ToProto(),
 	}), nil
 }
 
 func main() {
-	svc := &server{}
+
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		log.Fatalf("OPENAI_API_KEY environment variable not set")
+		os.Exit(1)
+	}
+
+	aih := ai.NewAIHelper(apiKey)
+
+	kv := db.NewKeyValueStore()
+
+	bsvc := svc.NewBeliefService(kv, aih) // Initialize the BeliefService
+
+	svc := &server{
+		bsvc: bsvc,
+		dsvc: svc.NewDialecticService(kv, bsvc, aih), // Initialize the DialecticService
+	}
 	mux := http.NewServeMux()
 	path, handler := pbconnect.NewEpistemicMeServiceHandler(svc)
 	mux.Handle(path, handler)
