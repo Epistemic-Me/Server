@@ -26,38 +26,37 @@ func NewDialecticService(kv *db.KeyValueStore, bsvc *BeliefService, aih *ai.AIHe
 }
 
 func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput) (*models.CreateDialecticOutput, error) {
-
-	// dialectics begin with a system generated question
-	var userInteractions []models.DialecticalInteraction
-	newInteraction, err := dsvc.generatePendingDialecticalInteraction(input.UserID, userInteractions)
-	if err != nil {
-		return nil, err
-	}
-
-	// append the first pending question to the dialectic
-	userInteractions = append(userInteractions, *newInteraction)
-
 	newDialecticId := "di_" + uuid.New().String()
 
-	// instantiate the dialectic
-	dialectic := &models.Dialectic{
+	// Create a new Dialectic struct
+	dialectic := models.Dialectic{
 		ID:     newDialecticId,
 		UserID: input.UserID,
 		Agent: models.Agent{
 			AgentType:     models.AgentTypeGPTLatest,
 			DialecticType: input.DialecticType,
 		},
-		UserInteractions: userInteractions,
+		UserInteractions: []models.DialecticalInteraction{},
 	}
 
-	err = dsvc.kv.Store(input.UserID, dialectic.ID, &dialectic)
+	// Generate the first interaction
+	newInteraction, err := dsvc.generatePendingDialecticalInteraction(input.UserID, dialectic.UserInteractions)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the first interaction to the dialectic
+	dialectic.UserInteractions = append(dialectic.UserInteractions, *newInteraction)
+
+	// Store the dialectic
+	err = dsvc.kv.Store(input.UserID, dialectic.ID, dialectic)
 	if err != nil {
 		return nil, err
 	}
 
 	return &models.CreateDialecticOutput{
 		DialecticID: dialectic.ID,
-		Dialectic:   *dialectic,
+		Dialectic:   dialectic,
 	}, nil
 }
 

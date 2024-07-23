@@ -45,7 +45,7 @@ func main() {
 	// Wrap the customHttpClient's Do function to add headers
 	clientWithHeaders := &http.Client{
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-			req.Header.Add("Origin", "http://localhost:8081") // Replace example.com with the appropriate value
+			req.Header.Add("Origin", "http://localhost:8081") // emulating frontend CORS request
 			return customHttpClient.Do(req)
 		}),
 		Timeout: customHttpClient.Timeout,
@@ -80,8 +80,11 @@ func main() {
 	createDialecticReq := &pb.CreateDialecticRequest{UserId: "test-user-id"}
 	createDialecticResp, err := client.CreateDialectic(ctx, connect.NewRequest(createDialecticReq))
 	if err != nil {
+		log.Printf("CreateDialectic request: %+v\n", createDialecticReq)
+		log.Printf("Error details: %+v\n", err)
 		log.Fatalf("CreateDialectic failed: %v", err)
 	}
+
 	log.Printf("CreateDialectic response: %+v\n", createDialecticResp.Msg)
 
 	// Test ListDialectics

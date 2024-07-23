@@ -1,6 +1,9 @@
 package models
 
-import pbmodels "epistemic-me-backend/pb/models"
+import (
+	"encoding/json"
+	pbmodels "epistemic-me-backend/pb/models"
+)
 
 // Question represents a request for information from a user.
 type Question struct {
@@ -125,6 +128,14 @@ type Dialectic struct {
 	UserID           string                   `json:"user_id"`
 	Agent            Agent                    `json:"agent"`
 	UserInteractions []DialecticalInteraction `json:"user_interactions"`
+}
+
+func (d *Dialectic) MarshalBinary() ([]byte, error) {
+	return json.Marshal(d)
+}
+
+func (d *Dialectic) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, d)
 }
 
 func (d Dialectic) ToProto() *pbmodels.Dialectic {

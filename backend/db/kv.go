@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 	"sync"
 )
@@ -28,6 +29,8 @@ func NewKeyValueStore() *KeyValueStore {
 
 // Store checks if all fields in the given struct have JSON tags and stores the struct as JSON.
 func (kvs *KeyValueStore) Store(user, key string, value interface{}) error {
+	log.Printf("Storing value of type %T for user %s with key %s", value, user, key)
+
 	v := reflect.ValueOf(value)
 	if v.Kind() != reflect.Struct {
 		return fmt.Errorf("value must be a struct")
