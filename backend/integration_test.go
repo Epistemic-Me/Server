@@ -85,6 +85,8 @@ func main() {
 		log.Fatalf("CreateDialectic failed: %v", err)
 	}
 
+	dialecticId := createDialecticResp.Msg.DialecticId
+
 	log.Printf("CreateDialectic response: %+v\n", createDialecticResp.Msg)
 
 	// Test ListDialectics
@@ -95,14 +97,20 @@ func main() {
 	}
 	log.Printf("ListDialectics response: %+v\n", listDialecticsResp.Msg)
 
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+
 	// Test UpdateDialectic
 	updateDialecticReq := &pb.UpdateDialecticRequest{
-		DialecticId: "mock-dialectic-id",
+		DialecticId: dialecticId,
 		Answer: &models.UserAnswer{
 			UserAnswer:         "answer",
 			CreatedAtMillisUtc: 1000,
 		},
+		UserId: "test-user-id",
 	}
+
+	defer cancel()
+
 	updateDialecticResp, err := client.UpdateDialectic(ctx, connect.NewRequest(updateDialecticReq))
 	if err != nil {
 		log.Fatalf("UpdateDialectic failed: %v", err)

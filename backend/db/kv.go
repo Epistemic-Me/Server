@@ -64,11 +64,12 @@ func (kvs *KeyValueStore) Store(user, key string, value interface{}) error {
 }
 
 // Retrieve gets the stored value under the given user and key, and deserializes it into the original object type.
-func (kvs *KeyValueStore) Retrieve(user, key string) (interface{}, error) {
+func (kvs *KeyValueStore) Retrieve(userID string, key string) (interface{}, error) {
+	log.Printf("Retrieving key %s for user %s", key, userID)
 	kvs.mu.Lock()
 	defer kvs.mu.Unlock()
 
-	userStore, userExists := kvs.store[user]
+	userStore, userExists := kvs.store[userID]
 	if !userExists {
 		return nil, fmt.Errorf("user not found")
 	}
