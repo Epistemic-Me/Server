@@ -23,7 +23,7 @@ func NewBeliefService(kv *db.KeyValueStore, ai *ai.AIHelper) *BeliefService {
 }
 
 func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*models.CreateBeliefOutput, error) {
-	new_uuid := uuid.uuid4()
+	new_uuid := uuid.New().String()
 
 	var beliefContent []models.Content
 	beliefContent = append(beliefContent, models.Content{
@@ -41,7 +41,7 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 
 	belief.ID = new_uuid
 
-	err := bsvc.kv.Store(input.UserID, new_uuid, &belief)
+	err := bsvc.kv.Store(input.UserID, new_uuid, belief)
 	if err != nil {
 		return nil, err
 	}
@@ -69,11 +69,15 @@ func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.
 	var filteredBeliefs []models.Belief
 	for _, belief := range beliefs {
 		storedBelief := belief.(*models.Belief)
-		for _, id := range input.BeliefIDs {
-			if storedBelief.ID == id {
-				filteredBeliefs = append(filteredBeliefs, *storedBelief)
-				break
+		if len(input.BeliefIDs) > 0 {
+			for _, id := range input.BeliefIDs {
+				if storedBelief.ID == id {
+					filteredBeliefs = append(filteredBeliefs, *storedBelief)
+					break
+				}
 			}
+		} else {
+			filteredBeliefs = append(filteredBeliefs, *storedBelief)
 		}
 	}
 

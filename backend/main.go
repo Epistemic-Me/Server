@@ -30,21 +30,29 @@ func (s *server) CreateBelief(
 	ctx context.Context,
 	req *connect.Request[pb.CreateBeliefRequest],
 ) (*connect.Response[pb.CreateBeliefResponse], error) {
-	log.Println("CreateBelief called with request:", req.Msg)
+	log.Printf("CreateBelief called with request: %+v", req.Msg)
 
-	response, err := s.bsvc.CreateBelief(&svcmodels.CreateBeliefInput{
+	input := &svcmodels.CreateBeliefInput{
 		UserID:        req.Msg.UserId,
 		BeliefContent: req.Msg.BeliefContent,
-	})
+	}
+	log.Printf("CreateBelief input: %+v", input)
 
+	response, err := s.bsvc.CreateBelief(input)
 	if err != nil {
+		log.Printf("CreateBelief ERROR: %v", err)
 		return nil, err
 	}
 
-	return connect.NewResponse(&pb.CreateBeliefResponse{
+	log.Printf("CreateBelief response: %+v", response)
+
+	protoResponse := &pb.CreateBeliefResponse{
 		Belief:       response.Belief.ToProto(),
 		BeliefSystem: response.BeliefSystem.ToProto(),
-	}), nil
+	}
+	log.Printf("CreateBelief proto response: %+v", protoResponse)
+
+	return connect.NewResponse(protoResponse), nil
 }
 
 func (s *server) ListBeliefs(
@@ -73,25 +81,30 @@ func (s *server) ListBeliefs(
 	}), nil
 }
 
-func (s *server) CreateDialectic(
-	ctx context.Context,
-	req *connect.Request[pb.CreateDialecticRequest],
-) (*connect.Response[pb.CreateDialecticResponse], error) {
-	log.Println("CreateDialectic called with request:", req.Msg)
+func (s *server) CreateDialectic(ctx context.Context, req *connect.Request[pb.CreateDialecticRequest]) (*connect.Response[pb.CreateDialecticResponse], error) {
+	log.Printf("CreateDialectic called with request: %+v", req.Msg)
 
-	response, err := s.dsvc.CreateDialectic(&svcmodels.CreateDialecticInput{
+	input := &svcmodels.CreateDialecticInput{
 		UserID:        req.Msg.UserId,
 		DialecticType: svcmodels.DialecticType(req.Msg.DialecticType),
-	})
+	}
+	log.Printf("CreateDialectic input: %+v", input)
 
+	response, err := s.dsvc.CreateDialectic(input)
 	if err != nil {
+		log.Printf("CreateDialectic ERROR: %v", err)
 		return nil, err
 	}
 
-	return connect.NewResponse(&pb.CreateDialecticResponse{
+	log.Printf("CreateDialectic response: %+v", response)
+
+	protoResponse := &pb.CreateDialecticResponse{
 		DialecticId: response.DialecticID,
 		Dialectic:   response.Dialectic.ToProto(),
-	}), nil
+	}
+	log.Printf("CreateDialectic proto response: %+v", protoResponse)
+
+	return connect.NewResponse(protoResponse), nil
 }
 
 func (s *server) ListDialectics(

@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 	"sync"
 )
@@ -28,6 +29,8 @@ func NewKeyValueStore() *KeyValueStore {
 
 // Store checks if all fields in the given struct have JSON tags and stores the struct as JSON.
 func (kvs *KeyValueStore) Store(user, key string, value interface{}) error {
+	log.Printf("Storing value of type %T for user %s with key %s", value, user, key)
+
 	v := reflect.ValueOf(value)
 	if v.Kind() != reflect.Struct {
 		return fmt.Errorf("value must be a struct")
@@ -61,11 +64,12 @@ func (kvs *KeyValueStore) Store(user, key string, value interface{}) error {
 }
 
 // Retrieve gets the stored value under the given user and key, and deserializes it into the original object type.
-func (kvs *KeyValueStore) Retrieve(user, key string) (interface{}, error) {
+func (kvs *KeyValueStore) Retrieve(userID string, key string) (interface{}, error) {
+	log.Printf("Retrieving key %s for user %s", key, userID)
 	kvs.mu.Lock()
 	defer kvs.mu.Unlock()
 
-	userStore, userExists := kvs.store[user]
+	userStore, userExists := kvs.store[userID]
 	if !userExists {
 		return nil, fmt.Errorf("user not found")
 	}

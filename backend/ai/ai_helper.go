@@ -1,10 +1,11 @@
 package ai_helper
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
-	openai "github.com/openai/go-openai"
+	openai "github.com/sashabaranov/go-openai"
 )
 
 const DIALECTICAL_STRATEGY = `What is a Question?
@@ -58,7 +59,7 @@ type LLMModel string
 
 // Define the constants
 const (
-	GPT_LATEST LLMModel = "gpt4-o-mini"
+	GPT_LATEST LLMModel = openai.GPT4oMini
 )
 
 type AIHelper struct {
@@ -91,7 +92,7 @@ func (aih *AIHelper) GenerateQuestion(beliefSystem string, previousEvents []Inte
 		systemContext += fmt.Sprintf(" Ask a single novel question given the existing questions asked: %s", events)
 	}
 
-	response, err := aih.client.Chat.Completions.Create(openai.ChatCompletionRequest{
+	response, err := aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
 		Model: string(GPT_LATEST),
 		Messages: []openai.ChatCompletionMessage{
 			{Role: "system", Content: systemContext},
@@ -111,7 +112,7 @@ func (aih *AIHelper) GenerateBeliefSystem(activeBeliefs []string) (string, error
 		return "", err
 	}
 
-	response, err := aih.client.Chat.Completions.Create(openai.ChatCompletionRequest{
+	response, err := aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
 		Model: string(GPT_LATEST),
 		Messages: []openai.ChatCompletionMessage{
 			{Role: "system", Content: fmt.Sprintf("Given these definitions %s. Construct a belief system based on these events", DIALECTICAL_STRATEGY)},
@@ -126,7 +127,7 @@ func (aih *AIHelper) GenerateBeliefSystem(activeBeliefs []string) (string, error
 }
 
 func (aih *AIHelper) GetInteractionEventAsBelief(event InteractionEvent) (string, error) {
-	response, err := aih.client.Chat.Completions.Create(openai.ChatCompletionRequest{
+	response, err := aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
 		Model: string(GPT_LATEST),
 		Messages: []openai.ChatCompletionMessage{
 			{Role: "system", Content: fmt.Sprintf("Given these definitions %s. Construct a belief that underlies the information present in the user event", DIALECTICAL_STRATEGY)},

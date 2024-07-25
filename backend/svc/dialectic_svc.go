@@ -5,6 +5,7 @@ import (
 	db "epistemic-me-backend/db"
 	"epistemic-me-backend/svc/models"
 	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/google/uuid"
@@ -26,38 +27,37 @@ func NewDialecticService(kv *db.KeyValueStore, bsvc *BeliefService, aih *ai.AIHe
 }
 
 func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput) (*models.CreateDialecticOutput, error) {
-
-	// dialectics begin with a system generated question
-	var userInteractions []models.DialecticalInteraction
-	newInteraction, err := dsvc.generatePendingDialecticalInteraction(input.UserID, userInteractions)
-	if err != nil {
-		return nil, err
-	}
-
-	// append the first pending question to the dialectic
-	userInteractions = append(userInteractions, *newInteraction)
-
 	newDialecticId := "di_" + uuid.New().String()
 
-	// instantiate the dialectic
-	dialectic := &models.Dialectic{
+	// Create a new Dialectic struct
+	dialectic := models.Dialectic{
 		ID:     newDialecticId,
 		UserID: input.UserID,
 		Agent: models.Agent{
 			AgentType:     models.AgentTypeGPTLatest,
 			DialecticType: input.DialecticType,
 		},
-		UserInteractions: userInteractions,
+		UserInteractions: []models.DialecticalInteraction{},
 	}
 
-	err = dsvc.kv.Store(input.UserID, dialectic.ID, &dialectic)
+	// Generate the first interaction
+	newInteraction, err := dsvc.generatePendingDialecticalInteraction(input.UserID, dialectic.UserInteractions)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the first interaction to the dialectic
+	dialectic.UserInteractions = append(dialectic.UserInteractions, *newInteraction)
+
+	// Store the dialectic
+	err = dsvc.kv.Store(input.UserID, dialectic.ID, dialectic)
 	if err != nil {
 		return nil, err
 	}
 
 	return &models.CreateDialecticOutput{
 		DialecticID: dialectic.ID,
-		Dialectic:   *dialectic,
+		Dialectic:   dialectic,
 	}, nil
 }
 
@@ -81,8 +81,11 @@ func (dsvc *DialecticService) ListDialectics(input *models.ListDialecticsInput) 
 }
 
 func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput) (*models.UpdateDialecticOutput, error) {
+	log.Printf("UpdateDialectic called with input: %+v", input)
+
 	kvResponse, err := dsvc.kv.Retrieve(input.UserID, input.DialecticID)
 	if err != nil {
+		log.Printf("Error retrieving dialectic: %v", err)
 		return nil, err
 	}
 
@@ -94,18 +97,24 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 	interaction, err := getPendingInteraction(*dialectic)
 	if err != nil {
+		log.Printf("Error getting pending interaction: %v", err)
 		return nil, err
 	}
+	log.Printf("Pending interaction before update: %+v", interaction)
 
-	// update pending interaction with answer and mark it as answered
+	// Update pending interaction with answer and mark it as answered
 	interaction.UserAnswer = input.Answer
 	interaction.Status = models.StatusAnswered
+	log.Printf("Interaction after update: %+v", interaction)
 
 	// extract beliefs from the completed interaction
+	log.Printf("Calling getDialecticalInteractionAsEvent with interaction: %+v", interaction)
 	interactionEvent, err := getDialecticalInteractionAsEvent(*interaction)
 	if err != nil {
+		log.Printf("Error in getDialecticalInteractionAsEvent: %v", err)
 		return nil, err
 	}
+	log.Printf("Interaction event created: %+v", interactionEvent)
 
 	interpretedBeliefStr, err := dsvc.aih.GetInteractionEventAsBelief(*interactionEvent)
 	if err != nil {
@@ -130,7 +139,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 	dialectic.UserInteractions = append(dialectic.UserInteractions, *newInteraction)
 
-	err = dsvc.kv.Store(input.UserID, dialectic.ID, &dialectic)
+	err = dsvc.kv.Store(input.UserID, dialectic.ID, *dialectic)
 	if err != nil {
 		return nil, err
 	}
@@ -155,11 +164,13 @@ func (dsvc *DialecticService) generatePendingDialecticalInteraction(userID strin
 
 	var events []ai.InteractionEvent
 	for _, interaction := range previousInteractions {
-		interactionEvent, err := getDialecticalInteractionAsEvent(interaction)
-		if err != nil {
-			return nil, err
+		if interaction.Status == models.StatusAnswered {
+			interactionEvent, err := getDialecticalInteractionAsEvent(interaction)
+			if err != nil {
+				return nil, err
+			}
+			events = append(events, *interactionEvent)
 		}
-		events = append(events, *interactionEvent)
 	}
 
 	question, err := dsvc.aih.GenerateQuestion(user_belief_system.RawStr, events)
@@ -190,8 +201,9 @@ func getPendingInteraction(dialectic models.Dialectic) (*models.DialecticalInter
 }
 
 func getDialecticalInteractionAsEvent(interaction models.DialecticalInteraction) (*ai.InteractionEvent, error) {
+	log.Printf("getDialecticalInteractionAsEvent called with interaction status: %v", interaction.Status)
 	if interaction.Status != models.StatusAnswered {
-		return nil, fmt.Errorf("attempting to create interaction event from unanswered question")
+		return nil, fmt.Errorf("interaction is not answered yet")
 	}
 	return &ai.InteractionEvent{
 		Question: interaction.Question.Question,
