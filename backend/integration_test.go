@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"log"
 	"net"
 	"net/http"
+	"testing"
 	"time"
 
 	pb "epistemic-me-backend/pb"
@@ -25,10 +25,9 @@ func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-func main() {
+func createCustomHttpClient() *http.Client {
 	customHttpClient := &http.Client{
 		Timeout: 10 * time.Second, // Set a 10-second timeout for all requests
-		// Add a transport that allows us to modify request headers
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
@@ -42,7 +41,6 @@ func main() {
 		},
 	}
 
-	// Wrap the customHttpClient's Do function to add headers
 	clientWithHeaders := &http.Client{
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			req.Header.Add("Origin", "http://localhost:8081") // emulating frontend CORS request
@@ -51,9 +49,12 @@ func main() {
 		Timeout: customHttpClient.Timeout,
 	}
 
-	// Use this clientWithHeaders when creating your service client
+	return clientWithHeaders
+}
+
+func TestIntegration(t *testing.T) {
 	client := pbconnect.NewEpistemicMeServiceClient(
-		clientWithHeaders,
+		createCustomHttpClient(),
 		"http://localhost:8080",
 	)
 
@@ -64,40 +65,38 @@ func main() {
 	createBeliefReq := &pb.CreateBeliefRequest{UserId: "test-user-id", BeliefContent: "I believe that the earth revolves around the sun"}
 	createBeliefResp, err := client.CreateBelief(ctx, connect.NewRequest(createBeliefReq))
 	if err != nil {
-		log.Fatalf("CreateBelief failed: %v", err, createBeliefReq.String())
+		t.Fatalf("CreateBelief failed: %v %v", err, createBeliefReq.String())
 	}
-	log.Printf("CreateBelief response: %+v\n", createBeliefResp.Msg)
+	t.Logf("CreateBelief response: %+v\n", createBeliefResp.Msg)
 
 	// Test ListBeliefs
 	listBeliefsReq := &pb.ListBeliefsRequest{UserId: "test-user-id"}
 	listBeliefsResp, err := client.ListBeliefs(ctx, connect.NewRequest(listBeliefsReq))
 	if err != nil {
-		log.Fatalf("ListBeliefs failed: %v", err)
+		t.Fatalf("ListBeliefs failed: %v", err)
 	}
-	log.Printf("ListBeliefs response: %+v\n", listBeliefsResp.Msg)
+	t.Logf("ListBeliefs response: %+v\n", listBeliefsResp.Msg)
 
 	// Test CreateDialectic
 	createDialecticReq := &pb.CreateDialecticRequest{UserId: "test-user-id"}
 	createDialecticResp, err := client.CreateDialectic(ctx, connect.NewRequest(createDialecticReq))
 	if err != nil {
-		log.Printf("CreateDialectic request: %+v\n", createDialecticReq)
-		log.Printf("Error details: %+v\n", err)
-		log.Fatalf("CreateDialectic failed: %v", err)
+		t.Fatalf("CreateDialectic failed: %v", err)
 	}
+	t.Logf("CreateDialectic response: %+v\n", createDialecticResp.Msg)
 
 	dialecticId := createDialecticResp.Msg.DialecticId
-
-	log.Printf("CreateDialectic response: %+v\n", createDialecticResp.Msg)
 
 	// Test ListDialectics
 	listDialecticsReq := &pb.ListDialecticsRequest{UserId: "test-user-id"}
 	listDialecticsResp, err := client.ListDialectics(ctx, connect.NewRequest(listDialecticsReq))
 	if err != nil {
-		log.Fatalf("ListDialectics failed: %v", err)
+		t.Fatalf("ListDialectics failed: %v", err)
 	}
-	log.Printf("ListDialectics response: %+v\n", listDialecticsResp.Msg)
+	t.Logf("ListDialectics response: %+v\n", listDialecticsResp.Msg)
 
 	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// Test UpdateDialectic
 	updateDialecticReq := &pb.UpdateDialecticRequest{
@@ -109,11 +108,9 @@ func main() {
 		UserId: "test-user-id",
 	}
 
-	defer cancel()
-
 	updateDialecticResp, err := client.UpdateDialectic(ctx, connect.NewRequest(updateDialecticReq))
 	if err != nil {
-		log.Fatalf("UpdateDialectic failed: %v", err)
+		t.Fatalf("UpdateDialectic failed: %v", err)
 	}
-	log.Printf("UpdateDialectic response: %+v\n", updateDialecticResp.Msg)
+	t.Logf("UpdateDialectic response: %+v\n", updateDialecticResp.Msg)
 }
