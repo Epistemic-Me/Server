@@ -116,17 +116,9 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 	}
 	log.Printf("Interaction event created: %+v", interactionEvent)
 
-	interpretedBeliefStr, err := dsvc.aih.GetInteractionEventAsBelief(*interactionEvent)
-	if err != nil {
-		return nil, err
-	}
-
-	// store the interpeted belief as a user belief so it will be included in the belief system
-	_, err = dsvc.bsvc.CreateBelief(&models.CreateBeliefInput{
-		UserID:        input.UserID,
-		BeliefContent: interpretedBeliefStr,
-	})
-
+	// given the interaction event update the users existing belief system
+	// by updating old beleifs or creating new ones
+	err = dsvc.updateBeliefSystemForInteraction(*interactionEvent, input.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -148,6 +140,63 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		Dialectic: *dialectic,
 	}, nil
 
+}
+
+func (dsvc *DialecticService) updateBeliefSystemForInteraction(interactionEvent ai.InteractionEvent, userID string) error {
+	listBeliefsOutput, err := dsvc.bsvc.ListBeliefs(&models.ListBeliefsInput{
+		UserID: userID,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	updatedBeleifs := 0
+
+	// for each of the user beliefs, check to see if event has relevance and update accordingly
+	for _, existingBelief := range listBeliefsOutput.Beliefs {
+
+		shouldUpdate, interpretedBeliefStr, err := dsvc.aih.UpdateBeliefWithInteractionEvent(interactionEvent, existingBelief.GetContentAsString())
+		if err != nil {
+			return err
+		}
+
+		if shouldUpdate {
+			updatedBeleifs += 1
+			// store the interpeted belief as a user belief so it will be included in the belief system
+			_, err = dsvc.bsvc.UpdateBelief(&models.UpdateBeliefInput{
+				UserID:               userID,
+				BeliefID:             existingBelief.ID,
+				CurrentVersion:       existingBelief.Version,
+				UpdatedBeliefContent: interpretedBeliefStr,
+			})
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// if we've updated no existing beleifs, create a new one
+	// todo: @deen this may need to become more sophisticated in the future
+	if updatedBeleifs == 0 {
+		interpretedBeliefStr, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
+		if err != nil {
+			return err
+		}
+
+		// store the interpeted belief as a user belief so it will be included in the belief system
+		_, err = dsvc.bsvc.CreateBelief(&models.CreateBeliefInput{
+			UserID:        userID,
+			BeliefContent: interpretedBeliefStr,
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (dsvc *DialecticService) generatePendingDialecticalInteraction(userID string, previousInteractions []models.DialecticalInteraction) (*models.DialecticalInteraction, error) {

@@ -12,6 +12,12 @@ type CreateBeliefOutput struct {
 	BeliefSystem BeliefSystem `json:"belief_system"`
 }
 
+// UpdateBeliefOutput represents an output after updating a belief.
+type UpdateBeliefOutput struct {
+	Belief       Belief       `json:"belief"`
+	BeliefSystem BeliefSystem `json:"belief_system"`
+}
+
 // CreateDialecticOutput represents an output after creating a new dialectic.
 type CreateDialecticOutput struct {
 	DialecticID string    `json:"dialectic_id"`

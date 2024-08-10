@@ -1,6 +1,8 @@
 package models
 
-import pbmodels "epistemic-me-backend/pb/models"
+import (
+	pbmodels "epistemic-me-backend/pb/models"
+)
 
 // ConfidenceRating represents a confidence score for a belief.
 type ConfidenceRating struct {
@@ -56,6 +58,14 @@ type Belief struct {
 	Type                BeliefType           `json:"type"`
 	CausalBelief        *CausalBelief        `json:"causal_belief,omitempty"`
 	TemporalInformation *TemporalInformation `json:"temporal_information,omitempty"`
+}
+
+func (b Belief) GetContentAsString() string {
+	var contentStrings string
+	for _, content := range b.Content {
+		contentStrings += content.RawStr
+	}
+	return contentStrings
 }
 
 func (b Belief) ToProto() *pbmodels.Belief {

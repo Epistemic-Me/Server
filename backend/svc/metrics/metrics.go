@@ -1,0 +1,5 @@
+package metric
+
+func ComputeConflictMetric() {
+
+}

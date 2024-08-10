@@ -4,6 +4,7 @@ import (
 	ai "epistemic-me-backend/ai"
 	db "epistemic-me-backend/db"
 	"epistemic-me-backend/svc/models"
+	"fmt"
 	"reflect"
 
 	"github.com/google/uuid"
@@ -54,6 +55,41 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 
 	return &models.CreateBeliefOutput{
 		Belief:       belief,
+		BeliefSystem: *belief_system,
+	}, nil
+}
+
+func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*models.UpdateBeliefOutput, error) {
+
+	beliefResponse, err := bsvc.kv.Retrieve(input.UserID, input.BeliefID)
+	if err != nil {
+		return nil, err
+	}
+
+	existingBelief := beliefResponse.(*models.Belief)
+
+	if existingBelief.Version != input.CurrentVersion {
+		return nil, fmt.Errorf("Version mismatch. Version of the belief you are requesting to update is out of date. Requested: %s Actual: %s", input.CurrentVersion, existingBelief.Version)
+	}
+
+	existingBelief.Content[0].RawStr = input.UpdatedBeliefContent
+	existingBelief.Version += 1
+
+	// todo: @deen update temporal information
+
+	err = bsvc.kv.Store(input.UserID, existingBelief.ID, existingBelief)
+	if err != nil {
+		return nil, err
+	}
+
+	var empty_beliefs []models.Belief
+	belief_system, err := bsvc.getBeliefSystemFromBeliefs(empty_beliefs)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.UpdateBeliefOutput{
+		Belief:       *existingBelief,
 		BeliefSystem: *belief_system,
 	}, nil
 }
