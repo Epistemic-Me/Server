@@ -50,7 +50,7 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 	dialectic.UserInteractions = append(dialectic.UserInteractions, *newInteraction)
 
 	// Store the dialectic
-	err = dsvc.kv.Store(input.UserID, dialectic.ID, dialectic)
+	err = dsvc.kv.Store(input.UserID, dialectic.ID, dialectic, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 	dialectic.UserInteractions = append(dialectic.UserInteractions, *newInteraction)
 
-	err = dsvc.kv.Store(input.UserID, dialectic.ID, *dialectic)
+	err = dsvc.kv.Store(input.UserID, dialectic.ID, *dialectic, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +169,7 @@ func (dsvc *DialecticService) updateBeliefSystemForInteraction(interactionEvent 
 				BeliefID:             existingBelief.ID,
 				CurrentVersion:       existingBelief.Version,
 				UpdatedBeliefContent: interpretedBeliefStr,
+				BeliefType:           models.Clarification,
 			})
 
 			if err != nil {

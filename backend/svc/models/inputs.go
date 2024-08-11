@@ -14,10 +14,11 @@ type CreateBeliefInput struct {
 
 // UpdateBeliefInput represents an input to update an existing belieff
 type UpdateBeliefInput struct {
-	UserID               string `json:"user_id"`
-	BeliefID             string `json:"belief_id"`
-	CurrentVersion       int32  `json:"current_version"` // also utilized as idempotency key for update
-	UpdatedBeliefContent string `json:"updated_belief_content"`
+	UserID               string     `json:"user_id"`
+	BeliefID             string     `json:"belief_id"`
+	BeliefType           BeliefType `json:"belief_type"`
+	CurrentVersion       int32      `json:"current_version"` // also utilized as idempotency key for update
+	UpdatedBeliefContent string     `json:"updated_belief_content"`
 }
 
 // CreateDialecticInput represents an input to create a new dialectic.

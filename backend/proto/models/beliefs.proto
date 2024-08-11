@@ -55,5 +55,5 @@ message Belief {
 message BeliefSystem {
     string raw_str = 1; // The raw string representation of the belief system.
     double overall_confidence_rating = 2; // Overall confidence rating produced as a result of all beliefs it summarizes
-    double conflict_score = 3; // Score indicating how much beliefs conflict with each other
+    double clarification_score = 3; // Score indicating how much beliefs conflict with each other
 }

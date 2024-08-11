@@ -37,12 +37,13 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 		ID:      newBeliefId,
 		UserID:  input.UserID,
 		Content: beliefContent,
+		Type:    models.Statement,
 		Version: 0,
 	}
 
 	belief.ID = new_uuid
 
-	err := bsvc.kv.Store(input.UserID, new_uuid, belief)
+	err := bsvc.kv.Store(input.UserID, new_uuid, belief, int(belief.Version))
 	if err != nil {
 		return nil, err
 	}
@@ -74,10 +75,11 @@ func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*model
 
 	existingBelief.Content[0].RawStr = input.UpdatedBeliefContent
 	existingBelief.Version += 1
+	existingBelief.Type = models.BeliefType(input.BeliefType)
 
 	// todo: @deen update temporal information
 
-	err = bsvc.kv.Store(input.UserID, existingBelief.ID, existingBelief)
+	err = bsvc.kv.Store(input.UserID, existingBelief.ID, existingBelief, int(existingBelief.Version))
 	if err != nil {
 		return nil, err
 	}
@@ -128,9 +130,32 @@ func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.
 	}, nil
 }
 
+// Note this is an extremely expensive belief "materialization" over existing beleifs that should
+// only be performed if necessary. todo: @deen enable a parameter to be passed in ListBeliefs that
+// allows the client to control when this data is passed into the response.
 func (bsvc *BeliefService) getBeliefSystemFromBeliefs(beliefs []models.Belief) (*models.BeliefSystem, error) {
+
+	// a 2D matrix of beliefs x versions of those beliefs
+	var versionedBeliefs [][]models.Belief
+	// a string representation of the latest version of each belief
 	var belief_strs []string
+
 	for _, belief := range beliefs {
+
+		// query all versions of the belief and add to version matrix
+		beliefVersionsInterface, err := bsvc.kv.RetrieveAllVersions(belief.UserID, belief.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		var beliefVersions []models.Belief
+		for _, beliefInterface := range beliefVersionsInterface {
+			belief := beliefInterface.(*models.Belief)
+			beliefVersions = append(beliefVersions, *belief)
+		}
+		versionedBeliefs = append(versionedBeliefs, beliefVersions)
+
+		// add string representation
 		var beliefContent string
 		for _, content := range belief.Content {
 			beliefContent += content.RawStr + "."
