@@ -59,7 +59,7 @@ type LLMModel string
 
 // Define the constants
 const (
-	GPT_LATEST LLMModel = "gpt-4"
+	GPT_LATEST LLMModel = openai.GPT4oMini
 )
 
 type AIHelper struct {

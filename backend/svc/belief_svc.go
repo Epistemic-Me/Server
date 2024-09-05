@@ -5,6 +5,7 @@ import (
 	db "epistemic-me-backend/db"
 	"epistemic-me-backend/svc/models"
 	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/google/uuid"
@@ -64,12 +65,14 @@ func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*model
 
 	beliefResponse, err := bsvc.kv.Retrieve(input.UserID, input.BeliefID)
 	if err != nil {
+		log.Printf("Error in Retrieve: %v", err)
 		return nil, err
 	}
 
 	existingBelief := beliefResponse.(*models.Belief)
 
 	if existingBelief.Version != input.CurrentVersion {
+		log.Printf("Version mismatch.")
 		return nil, fmt.Errorf("Version mismatch. Version of the belief you are requesting to update is out of date. Requested: %s Actual: %s", input.CurrentVersion, existingBelief.Version)
 	}
 
@@ -79,14 +82,16 @@ func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*model
 
 	// todo: @deen update temporal information
 
-	err = bsvc.kv.Store(input.UserID, existingBelief.ID, existingBelief, int(existingBelief.Version))
+	err = bsvc.kv.Store(input.UserID, existingBelief.ID, *existingBelief, int(existingBelief.Version))
 	if err != nil {
+		log.Printf("Error in Store: %v", err)
 		return nil, err
 	}
 
 	var empty_beliefs []models.Belief
 	belief_system, err := bsvc.getBeliefSystemFromBeliefs(empty_beliefs)
 	if err != nil {
+		log.Printf("Error in getBeliefSystemFromBeliefs: %v", err)
 		return nil, err
 	}
 

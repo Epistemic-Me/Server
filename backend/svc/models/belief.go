@@ -2,7 +2,6 @@ package models
 
 import (
 	pbmodels "epistemic-me-backend/pb/models"
-	"epistemic-me-backend/svc/models"
 )
 
 // ConfidenceRating represents a confidence score for a belief.
@@ -134,9 +133,9 @@ func (cb CausalBelief) ToProto() *pbmodels.Belief_CausalBelief {
 
 // BeliefSystem represents a summary of a user's beliefs.
 type BeliefSystem struct {
-	RawStr                  string        `json:"raw_str"`
-	OverallConfidenceRating float64       `json:"overall_confidence_rating"`
-	ClarifiedMetric         models.Metric `json:"conflict_score"`
+	RawStr                  string  `json:"raw_str"`
+	OverallConfidenceRating float64 `json:"overall_confidence_rating"`
+	ClarifiedMetric         Metric  `json:"conflict_score"`
 }
 
 func (bs BeliefSystem) ToProto() *pbmodels.BeliefSystem {

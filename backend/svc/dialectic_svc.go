@@ -133,7 +133,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 	err = dsvc.kv.Store(input.UserID, dialectic.ID, *dialectic, 1)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to store updated dialectic: %w", err)
 	}
 
 	return &models.UpdateDialecticOutput{
@@ -158,6 +158,7 @@ func (dsvc *DialecticService) updateBeliefSystemForInteraction(interactionEvent 
 
 		shouldUpdate, interpretedBeliefStr, err := dsvc.aih.UpdateBeliefWithInteractionEvent(interactionEvent, existingBelief.GetContentAsString())
 		if err != nil {
+			log.Printf("Error in UpdateBeliefWithInteractionEvent: %v", err)
 			return err
 		}
 
@@ -173,6 +174,7 @@ func (dsvc *DialecticService) updateBeliefSystemForInteraction(interactionEvent 
 			})
 
 			if err != nil {
+				log.Printf("Error in UpdateBelief: %v", err)
 				return err
 			}
 		}
@@ -193,6 +195,7 @@ func (dsvc *DialecticService) updateBeliefSystemForInteraction(interactionEvent 
 		})
 
 		if err != nil {
+			log.Printf("Error in CreateBelief: %v", err)
 			return err
 		}
 	}
@@ -207,6 +210,7 @@ func (dsvc *DialecticService) generatePendingDialecticalInteraction(userID strin
 	})
 
 	if err != nil {
+		log.Printf("Error in ListBeliefs: %v", err)
 		return nil, err
 	}
 
@@ -217,6 +221,7 @@ func (dsvc *DialecticService) generatePendingDialecticalInteraction(userID strin
 		if interaction.Status == models.StatusAnswered {
 			interactionEvent, err := getDialecticalInteractionAsEvent(interaction)
 			if err != nil {
+				log.Printf("Error in getDialecticalInteractionAsEvent: %v", err)
 				return nil, err
 			}
 			events = append(events, *interactionEvent)
@@ -226,6 +231,7 @@ func (dsvc *DialecticService) generatePendingDialecticalInteraction(userID strin
 	question, err := dsvc.aih.GenerateQuestion(user_belief_system.RawStr, events)
 
 	if err != nil {
+		log.Printf("Error in GenerateQuestion: %v", err)
 		return nil, err
 	}
 
@@ -240,11 +246,13 @@ func (dsvc *DialecticService) generatePendingDialecticalInteraction(userID strin
 func getPendingInteraction(dialectic models.Dialectic) (*models.DialecticalInteraction, error) {
 	// Get the latest interaction
 	if len(dialectic.UserInteractions) == 0 {
+		log.Printf("No interactions found in the dialectic")
 		return nil, fmt.Errorf("no interactions found in the dialectic")
 	}
 	latestInteraction := dialectic.UserInteractions[len(dialectic.UserInteractions)-1]
 	// Check if the latest interaction is pending
 	if latestInteraction.Status != models.StatusPendingAnswer {
+		log.Printf("Latest interaction is not pending")
 		return nil, fmt.Errorf("latest interaction is not pending")
 	}
 	return &latestInteraction, nil
@@ -253,6 +261,7 @@ func getPendingInteraction(dialectic models.Dialectic) (*models.DialecticalInter
 func getDialecticalInteractionAsEvent(interaction models.DialecticalInteraction) (*ai.InteractionEvent, error) {
 	log.Printf("getDialecticalInteractionAsEvent called with interaction status: %v", interaction.Status)
 	if interaction.Status != models.StatusAnswered {
+		log.Printf("Interaction is not answered yet")
 		return nil, fmt.Errorf("interaction is not answered yet")
 	}
 	return &ai.InteractionEvent{
