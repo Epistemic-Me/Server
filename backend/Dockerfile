@@ -11,6 +11,9 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28 && \
 # Add GOPATH/bin to PATH
 ENV PATH=$PATH:/go/bin
 
+# Define build arguments
+ARG OPENAI_API_KEY
+
 # Set the Current Working Directory inside the container
 WORKDIR /app
 
@@ -25,6 +28,9 @@ COPY . .
 
 # Delete any trailing generated protobufs
 RUN rm -rf pb
+
+# Set environment variable for runtime
+ENV OPENAI_API_KEY=${OPENAI_API_KEY}
 
 # Generate protobufs
 RUN find ./proto -name "*.proto" -print0 | xargs -0 protoc \

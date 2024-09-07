@@ -26,7 +26,7 @@ func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 // createCustomHttpClient creates an HTTP client with custom settings.
 func createCustomHttpClient() *http.Client {
 	return &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 10 * time.Second, // Set a 10-second timeout for all requests
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
@@ -67,7 +67,9 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateBelief failed: %v %v", err, createBeliefReq.String())
 	}
+
 	assert.NotNil(t, createBeliefResp.Msg)
+	t.Logf("CreateBelief response: %+v\n", createBeliefResp.Msg)
 
 	// Test ListBeliefs
 	listBeliefsReq := &pb.ListBeliefsRequest{UserId: "test-user-id"}
@@ -75,7 +77,9 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListBeliefs failed: %v", err)
 	}
+
 	assert.NotNil(t, listBeliefsResp.Msg)
+	t.Logf("ListBeliefs response: %+v\n", listBeliefsResp.Msg)
 
 	// Test CreateDialectic
 	createDialecticReq := &pb.CreateDialecticRequest{UserId: "test-user-id"}
@@ -83,8 +87,10 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateDialectic failed: %v", err)
 	}
+
 	dialecticId := createDialecticResp.Msg.DialecticId
 	assert.NotEmpty(t, dialecticId)
+	t.Logf("CreateDialectic response: %+v\n", createDialecticResp.Msg)
 
 	// Test ListDialectics
 	listDialecticsReq := &pb.ListDialecticsRequest{UserId: "test-user-id"}
@@ -92,7 +98,10 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListDialectics failed: %v", err)
 	}
+
 	assert.NotNil(t, listDialecticsResp.Msg)
+	t.Logf("ListDialectics response: %+v\n", listDialecticsResp.Msg)
+
 
 	// Test UpdateDialectic
 	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
@@ -111,5 +120,7 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateDialectic failed: %v", err)
 	}
+
 	assert.NotNil(t, updateDialecticResp.Msg)
+	t.Logf("UpdateDialectic response: %+v\n", updateDialecticResp.Msg)
 }
