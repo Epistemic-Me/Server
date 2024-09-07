@@ -12,21 +12,20 @@ import (
 	"epistemic-me-backend/pb/pbconnect"
 
 	"connectrpc.com/connect"
+	"github.com/stretchr/testify/assert"
 )
 
-// Define roundTripperFunc type that takes an http.Request and returns an http.Response and error.
-// This type will implement the http.RoundTripper interface.
+// roundTripperFunc type defines a custom HTTP RoundTripper.
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
-// Implement the RoundTrip method for roundTripperFunc type.
-// This method is required to satisfy the http.RoundTripper interface.
-// It simply calls the function itself with the provided http.Request.
+// RoundTrip implements the RoundTripper interface for roundTripperFunc.
 func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
+// createCustomHttpClient creates an HTTP client with custom settings.
 func createCustomHttpClient() *http.Client {
-	customHttpClient := &http.Client{
+	return &http.Client{
 		Timeout: 10 * time.Second, // Set a 10-second timeout for all requests
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -40,23 +39,24 @@ func createCustomHttpClient() *http.Client {
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
+}
 
+// createServiceClient creates a new gRPC service client.
+func createServiceClient(customHttpClient *http.Client) pbconnect.EpistemicMeServiceClient {
 	clientWithHeaders := &http.Client{
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-			req.Header.Add("Origin", "http://localhost:8081") // emulating frontend CORS request
+			req.Header.Add("Origin", "http://localhost:8081")
 			return customHttpClient.Do(req)
 		}),
 		Timeout: customHttpClient.Timeout,
 	}
-
-	return clientWithHeaders
+	return pbconnect.NewEpistemicMeServiceClient(clientWithHeaders, "http://localhost:8080")
 }
 
+// TestIntegration runs an integration test for the gRPC methods.
 func TestIntegration(t *testing.T) {
-	client := pbconnect.NewEpistemicMeServiceClient(
-		createCustomHttpClient(),
-		"http://localhost:8080",
-	)
+	customHttpClient := createCustomHttpClient()
+	client := createServiceClient(customHttpClient)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -67,6 +67,8 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateBelief failed: %v %v", err, createBeliefReq.String())
 	}
+
+	assert.NotNil(t, createBeliefResp.Msg)
 	t.Logf("CreateBelief response: %+v\n", createBeliefResp.Msg)
 
 	// Test ListBeliefs
@@ -75,6 +77,8 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListBeliefs failed: %v", err)
 	}
+
+	assert.NotNil(t, listBeliefsResp.Msg)
 	t.Logf("ListBeliefs response: %+v\n", listBeliefsResp.Msg)
 
 	// Test CreateDialectic
@@ -83,9 +87,10 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateDialectic failed: %v", err)
 	}
-	t.Logf("CreateDialectic response: %+v\n", createDialecticResp.Msg)
 
 	dialecticId := createDialecticResp.Msg.DialecticId
+	assert.NotEmpty(t, dialecticId)
+	t.Logf("CreateDialectic response: %+v\n", createDialecticResp.Msg)
 
 	// Test ListDialectics
 	listDialecticsReq := &pb.ListDialecticsRequest{UserId: "test-user-id"}
@@ -93,12 +98,15 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListDialectics failed: %v", err)
 	}
+
+	assert.NotNil(t, listDialecticsResp.Msg)
 	t.Logf("ListDialectics response: %+v\n", listDialecticsResp.Msg)
 
+
+	// Test UpdateDialectic
 	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Test UpdateDialectic
 	updateDialecticReq := &pb.UpdateDialecticRequest{
 		DialecticId: dialecticId,
 		Answer: &models.UserAnswer{
@@ -112,5 +120,7 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateDialectic failed: %v", err)
 	}
+
+	assert.NotNil(t, updateDialecticResp.Msg)
 	t.Logf("UpdateDialectic response: %+v\n", updateDialecticResp.Msg)
 }

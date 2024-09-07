@@ -127,11 +127,16 @@ func (aih *AIHelper) GenerateBeliefSystem(activeBeliefs []string) (string, error
 }
 
 func (aih *AIHelper) GetInteractionEventAsBelief(event InteractionEvent) (string, error) {
+	eventJson, err := json.Marshal(event)
+	if err != nil {
+		return "", err
+	}
+
 	response, err := aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
 		Model: string(GPT_LATEST),
 		Messages: []openai.ChatCompletionMessage{
 			{Role: "system", Content: fmt.Sprintf("Given these definitions %s. Construct a belief that underlies the information present in the user event", DIALECTICAL_STRATEGY)},
-			{Role: "user", Content: fmt.Sprintf("Please just respond curtly with the belief summary, %s", event)},
+			{Role: "user", Content: fmt.Sprintf("Please just respond curtly with the belief summary, %s", eventJson)},
 		},
 	})
 	if err != nil {
@@ -139,4 +144,39 @@ func (aih *AIHelper) GetInteractionEventAsBelief(event InteractionEvent) (string
 	}
 
 	return response.Choices[0].Message.Content, nil
+}
+
+func (aih *AIHelper) UpdateBeliefWithInteractionEvent(event InteractionEvent, existingBeliefStr string) (bool, string, error) {
+	eventJson, err := json.Marshal(event)
+	if err != nil {
+		return false, "", err
+	}
+
+	response, err := aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Model: string(GPT_LATEST),
+		Messages: []openai.ChatCompletionMessage{
+			{Role: "system", Content: "Determine whether a user interaction and an existing belief have any relevance to each other or not."},
+			{Role: "user", Content: fmt.Sprintf("Curtly respond with 'yes' or 'no' if %s has a meaningful relevance to %s", eventJson, existingBeliefStr)},
+		},
+	})
+	if err != nil {
+		return false, "", err
+	}
+
+	if response.Choices[0].Message.Content == "no" {
+		return false, "", nil
+	}
+
+	response, err = aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Model: string(GPT_LATEST),
+		Messages: []openai.ChatCompletionMessage{
+			{Role: "system", Content: fmt.Sprintf("Given these definitions %s. Construct a belief that underlies the information present in the user event", DIALECTICAL_STRATEGY)},
+			{Role: "user", Content: fmt.Sprintf("Given the existing belief, %s, provide a curt summary of the new updated belief given the user interaction, %s", existingBeliefStr, eventJson)},
+		},
+	})
+	if err != nil {
+		return false, "", err
+	}
+
+	return true, response.Choices[0].Message.Content, nil
 }

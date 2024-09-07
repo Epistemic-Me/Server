@@ -1,6 +1,8 @@
 package models
 
-import pbmodels "epistemic-me-backend/pb/models"
+import (
+	pbmodels "epistemic-me-backend/pb/models"
+)
 
 // ConfidenceRating represents a confidence score for a belief.
 type ConfidenceRating struct {
@@ -29,9 +31,16 @@ func (c Content) ToProto() *pbmodels.Content {
 // BeliefType represents the type of belief, either causal or statement.
 type BeliefType int32
 
+// todo: @deen this may imply a state machine on beleifs
+// hypothesis -> revisit
+// a belief begins as a statement, may be clarified and updated, and
+// eventually instantiated as a habit. when a habit is instantiated
+// a belief is "locked" until the observation context associated with
+// a belief ends
 const (
-	Causal    BeliefType = 0
-	Statement BeliefType = 1
+	Causal        BeliefType = 0
+	Statement     BeliefType = 1
+	Clarification BeliefType = 2
 )
 
 func (bt BeliefType) ToProto() pbmodels.BeliefType {
@@ -56,6 +65,14 @@ type Belief struct {
 	Type                BeliefType           `json:"type"`
 	CausalBelief        *CausalBelief        `json:"causal_belief,omitempty"`
 	TemporalInformation *TemporalInformation `json:"temporal_information,omitempty"`
+}
+
+func (b Belief) GetContentAsString() string {
+	var contentStrings string
+	for _, content := range b.Content {
+		contentStrings += content.RawStr
+	}
+	return contentStrings
 }
 
 func (b Belief) ToProto() *pbmodels.Belief {
@@ -118,14 +135,14 @@ func (cb CausalBelief) ToProto() *pbmodels.Belief_CausalBelief {
 type BeliefSystem struct {
 	RawStr                  string  `json:"raw_str"`
 	OverallConfidenceRating float64 `json:"overall_confidence_rating"`
-	ConflictScore           float64 `json:"conflict_score"`
+	ClarifiedMetric         Metric  `json:"conflict_score"`
 }
 
 func (bs BeliefSystem) ToProto() *pbmodels.BeliefSystem {
 	return &pbmodels.BeliefSystem{
 		RawStr:                  bs.RawStr,
 		OverallConfidenceRating: bs.OverallConfidenceRating,
-		ConflictScore:           bs.ConflictScore,
+		ClarificationScore:      bs.ClarifiedMetric.ToPercentage(),
 	}
 }
 
