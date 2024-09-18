@@ -3,6 +3,7 @@ package ai_helper
 import (
 	"context"
 	"encoding/json"
+	"epistemic-me-backend/svc/models" // Change this import
 	"fmt"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -179,4 +180,25 @@ func (aih *AIHelper) UpdateBeliefWithInteractionEvent(event InteractionEvent, ex
 	}
 
 	return true, response.Choices[0].Message.Content, nil
+}
+
+func (h *AIHelper) GenerateBeliefAnalysis(beliefSystem string, interactionEvent InteractionEvent) (*models.BeliefAnalysis, error) {
+	// Implement AI logic to generate analysis
+	// This is a placeholder implementation
+	analysis := &models.BeliefAnalysis{
+		Coherence:      0.8,
+		Consistency:    0.7,
+		Falsifiability: 0.6,
+		OverallScore:   0.7,
+		Feedback:       "Your belief system is generally consistent, but could be more falsifiable.",
+		Recommendations: []string{
+			"Consider ways to test your beliefs empirically.",
+			"Explore potential counterarguments to strengthen your position.",
+		},
+		VerifiedBeliefs: []string{
+			"Your understanding of [specific topic] is well-grounded.",
+			"Your belief about [another topic] is supported by current evidence.",
+		},
+	}
+	return analysis, nil
 }

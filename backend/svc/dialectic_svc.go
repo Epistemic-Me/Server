@@ -123,6 +123,24 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		return nil, err
 	}
 
+	// After updating the belief system
+	beliefSystemOutput, err := dsvc.bsvc.ListBeliefs(&models.ListBeliefsInput{UserID: input.UserID})
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate belief analysis
+	analysis, err := dsvc.aih.GenerateBeliefAnalysis(beliefSystemOutput.BeliefSystem.RawStr, *interactionEvent)
+	if err != nil {
+		log.Printf("Error generating belief analysis: %v", err)
+		return nil, err
+	}
+	log.Printf("Generated analysis: %+v", analysis)
+
+	// Add the analysis to the dialectic
+	dialectic.Analysis = analysis
+	log.Printf("Updated dialectic with analysis: %+v", dialectic)
+
 	// generate a new interaction given updated state of dialectic and user belief system
 	newInteraction, err := dsvc.generatePendingDialecticalInteraction(input.UserID, dialectic.UserInteractions)
 	if err != nil {
@@ -136,6 +154,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		return nil, fmt.Errorf("failed to store updated dialectic: %w", err)
 	}
 
+	log.Printf("Final dialectic before returning: %+v", dialectic)
 	return &models.UpdateDialecticOutput{
 		Dialectic: *dialectic,
 	}, nil

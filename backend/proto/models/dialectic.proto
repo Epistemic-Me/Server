@@ -88,4 +88,16 @@ message Dialectic {
     string user_id = 2; 
     Agent agent = 3;                      // The agent conducting the dialectic.
     repeated DialecticalInteraction user_interactions = 4; // Interactions within the dialectic.
+    BeliefAnalysis analysis = 5;  // Add this line
+}
+
+// Add a new message for the analysis
+message BeliefAnalysis {
+    float coherence = 1;
+    float consistency = 2;
+    float falsifiability = 3;
+    float overall_score = 4;
+    string feedback = 5;
+    repeated string recommendations = 6;
+    repeated string verified_beliefs = 7;
 }

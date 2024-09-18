@@ -128,6 +128,7 @@ type Dialectic struct {
 	UserID           string                   `json:"user_id"`
 	Agent            Agent                    `json:"agent"`
 	UserInteractions []DialecticalInteraction `json:"user_interactions"`
+	Analysis         *BeliefAnalysis          `json:"analysis,omitempty"`
 }
 
 func (d *Dialectic) MarshalBinary() ([]byte, error) {
@@ -144,10 +145,38 @@ func (d Dialectic) ToProto() *pbmodels.Dialectic {
 		protoInteractions[i] = interaction.ToProto()
 	}
 
-	return &pbmodels.Dialectic{
+	protoDialectic := &pbmodels.Dialectic{
 		Id:               d.ID,
 		UserId:           d.UserID,
 		Agent:            d.Agent.ToProto(),
 		UserInteractions: protoInteractions,
+	}
+
+	if d.Analysis != nil {
+		protoDialectic.Analysis = d.Analysis.ToProto()
+	}
+
+	return protoDialectic
+}
+
+type BeliefAnalysis struct {
+	Coherence       float32  `json:"coherence"`
+	Consistency     float32  `json:"consistency"`
+	Falsifiability  float32  `json:"falsifiability"`
+	OverallScore    float32  `json:"overall_score"`
+	Feedback        string   `json:"feedback"`
+	Recommendations []string `json:"recommendations"`
+	VerifiedBeliefs []string `json:"verified_beliefs"`
+}
+
+func (ba BeliefAnalysis) ToProto() *pbmodels.BeliefAnalysis {
+	return &pbmodels.BeliefAnalysis{
+		Coherence:       ba.Coherence,
+		Consistency:     ba.Consistency,
+		Falsifiability:  ba.Falsifiability,
+		OverallScore:    ba.OverallScore,
+		Feedback:        ba.Feedback,
+		Recommendations: ba.Recommendations,
+		VerifiedBeliefs: ba.VerifiedBeliefs,
 	}
 }
