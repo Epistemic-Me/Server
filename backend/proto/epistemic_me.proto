@@ -1,9 +1,9 @@
 syntax = "proto3";
 
+option go_package = "epistemic-me-backend/pb/";
+
 import "proto/models/beliefs.proto";
 import "proto/models/dialectic.proto";
-
-option go_package = "epistemic-me-backend/pb/";
 
 service EpistemicMeService {
     rpc CreateBelief(CreateBeliefRequest) returns (CreateBeliefResponse) {}
@@ -29,7 +29,7 @@ message ListBeliefsResponse {
 // Request message for creating a new belief.
 message CreateBeliefRequest {
     string user_id = 1;                          // The ID of the user creating the belief.
-    string belief_content = 2;                           // The belief being created.
+    string belief_content = 2;                   // The belief being created.
 }
 
 // Response message for creating a new belief.

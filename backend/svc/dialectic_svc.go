@@ -38,6 +38,7 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 			DialecticType: input.DialecticType,
 		},
 		UserInteractions: []models.DialecticalInteraction{},
+		BeliefSystem:     &models.BeliefSystem{}, // Initialize with an empty BeliefSystem
 	}
 
 	// Generate the first interaction
@@ -89,7 +90,6 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		return nil, err
 	}
 
-	// Type assertion to convert kvResponse to *Dialectic
 	dialectic, ok := kvResponse.(*models.Dialectic)
 	if !ok {
 		return nil, fmt.Errorf("failed to assert kvResponse to *Dialectic")
@@ -100,48 +100,37 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		log.Printf("Error getting pending interaction: %v", err)
 		return nil, err
 	}
-	log.Printf("Pending interaction before update: %+v", interaction)
 
-	// Update pending interaction with answer and mark it as answered
 	interaction.UserAnswer = input.Answer
 	interaction.Status = models.StatusAnswered
-	log.Printf("Interaction after update: %+v", interaction)
 
-	// extract beliefs from the completed interaction
-	log.Printf("Calling getDialecticalInteractionAsEvent with interaction: %+v", interaction)
 	interactionEvent, err := getDialecticalInteractionAsEvent(*interaction)
 	if err != nil {
 		log.Printf("Error in getDialecticalInteractionAsEvent: %v", err)
 		return nil, err
 	}
-	log.Printf("Interaction event created: %+v", interactionEvent)
 
-	// given the interaction event update the users existing belief system
-	// by updating old beleifs or creating new ones
+	strategy := determineDialecticStrategy(dialectic.Agent.DialecticType)
+
+	beliefSystemOutput, err := dsvc.bsvc.ListBeliefs(&models.ListBeliefsInput{UserID: input.UserID})
+	if err != nil {
+		return nil, err
+	}
+	beliefSystem := beliefSystemOutput.BeliefSystem
+
+	analysis, err := dsvc.aih.GenerateAnalysisForStrategy(strategy, &beliefSystem, dialectic.UserInteractions, *interactionEvent)
+	if err != nil {
+		log.Printf("Error generating belief analysis: %v", err)
+		return nil, err
+	}
+
+	dialectic.Analysis = analysis
+
 	err = dsvc.updateBeliefSystemForInteraction(*interactionEvent, input.UserID)
 	if err != nil {
 		return nil, err
 	}
 
-	// After updating the belief system
-	beliefSystemOutput, err := dsvc.bsvc.ListBeliefs(&models.ListBeliefsInput{UserID: input.UserID})
-	if err != nil {
-		return nil, err
-	}
-
-	// Generate belief analysis
-	analysis, err := dsvc.aih.GenerateBeliefAnalysis(beliefSystemOutput.BeliefSystem.RawStr, *interactionEvent)
-	if err != nil {
-		log.Printf("Error generating belief analysis: %v", err)
-		return nil, err
-	}
-	log.Printf("Generated analysis: %+v", analysis)
-
-	// Add the analysis to the dialectic
-	dialectic.Analysis = analysis
-	log.Printf("Updated dialectic with analysis: %+v", dialectic)
-
-	// generate a new interaction given updated state of dialectic and user belief system
 	newInteraction, err := dsvc.generatePendingDialecticalInteraction(input.UserID, dialectic.UserInteractions)
 	if err != nil {
 		return nil, err
@@ -158,7 +147,6 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 	return &models.UpdateDialecticOutput{
 		Dialectic: *dialectic,
 	}, nil
-
 }
 
 func (dsvc *DialecticService) updateBeliefSystemForInteraction(interactionEvent ai.InteractionEvent, userID string) error {
@@ -287,4 +275,14 @@ func getDialecticalInteractionAsEvent(interaction models.DialecticalInteraction)
 		Question: interaction.Question.Question,
 		Answer:   interaction.UserAnswer.UserAnswer,
 	}, nil
+}
+
+func determineDialecticStrategy(dialecticType models.DialecticType) ai.DialecticStrategy {
+	switch dialecticType {
+	case models.DialecticTypeSleepDietExercise:
+		return ai.StrategySleepDietExercise
+	// Add more cases for other dialectic types
+	default:
+		return ai.StrategyDefault
+	}
 }

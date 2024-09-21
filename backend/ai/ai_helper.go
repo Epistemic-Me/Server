@@ -3,8 +3,11 @@ package ai_helper
 import (
 	"context"
 	"encoding/json"
-	"epistemic-me-backend/svc/models" // Change this import
+	"epistemic-me-backend/svc/models"
 	"fmt"
+	"log"
+	"regexp"
+	"strings"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -14,13 +17,13 @@ In the BC dialectic context, a question creates a conceptual framework for learn
 
 It is an inference of the world based on prior beliefs that guides evidence collection and observation. A good question can shape knowledge that is valuable to our future experiences. The question provides the boundaries of an unambiguous explanation for a causal pattern.
 
-If we ask the question, “What is a healthy day?” The first phase of our inquiry explores whether our prior beliefs create sufficient knowledge to predict that our next day can be healthy.
+If we ask the question, "What is a healthy day?" The first phase of our inquiry explores whether our prior beliefs create sufficient knowledge to predict that our next day can be healthy.
 
 Let's assume that our epistemic emotions find a gap in the predictability of our prior beliefs and guide curiosity. Now, the question will guide us to collect more evidence to either justify our beliefs more deeply or update them. In both cases, our curiosity guides a more accurate prediction of how we will make tomorrow a healthy day.
 
-In seeking evidence, we can look to the experiences of our ancestors or to the experiences of our contemporaries. In the former, we consider the synthesis of all people who have lived a healthy life and the “best practices” synthesized through our research and education systems. In the latter, we consider the direct experiences of others who share our beliefs.
+In seeking evidence, we can look to the experiences of our ancestors or to the experiences of our contemporaries. In the former, we consider the synthesis of all people who have lived a healthy life and the "best practices" synthesized through our research and education systems. In the latter, we consider the direct experiences of others who share our beliefs.
 
-Ultimately, we’re seeking evidence that is valuable to our learning process to answer the question.
+Ultimately, we're seeking evidence that is valuable to our learning process to answer the question.
 Who has beliefs that generate a predictive answer to this question?
 What evidence justifies their beliefs?
 Where are the beliefs predictive? (ie, in what observation context)
@@ -32,11 +35,11 @@ What is an Answer?
 An answer is an explanatory narrative that describes a causal pattern within a conceptual framework. Specifically, the answer is consistent with the possibilities of the belief systems (generative) and probabilities of value systems (discriminant) that contextualize an inquiry.
 
 What is a Belief?
-Prior beliefs are stated as an expectation for an observable causal change; each belief carries a level of certainty. For instance, “I believe that quality sleep is required for high energy the following day” (ie, Sleep Belief). This belief might carry a 90% certainty of being predictive.
+Prior beliefs are stated as an expectation for an observable causal change; each belief carries a level of certainty. For instance, "I believe that quality sleep is required for high energy the following day" (ie, Sleep Belief). This belief might carry a 90% certainty of being predictive.
 
 When beliefs are evidenced and certain above a certain threshold, they create knowledge. Beliefs can be evidenced by experience or by theory.
 
-The user’s Sleep Belief could be evidenced by their own experience with quality sleep and energy, the experience of others, theories, research, etc. Epistemologically, the user is seeking evidence that a belief is predictive.
+The user's Sleep Belief could be evidenced by their own experience with quality sleep and energy, the experience of others, theories, research, etc. Epistemologically, the user is seeking evidence that a belief is predictive.
 
 The user can take action to seek out further evidence to 
 
@@ -182,23 +185,115 @@ func (aih *AIHelper) UpdateBeliefWithInteractionEvent(event InteractionEvent, ex
 	return true, response.Choices[0].Message.Content, nil
 }
 
-func (h *AIHelper) GenerateBeliefAnalysis(beliefSystem string, interactionEvent InteractionEvent) (*models.BeliefAnalysis, error) {
-	// Implement AI logic to generate analysis
-	// This is a placeholder implementation
-	analysis := &models.BeliefAnalysis{
-		Coherence:      0.8,
-		Consistency:    0.7,
-		Falsifiability: 0.6,
-		OverallScore:   0.7,
-		Feedback:       "Your belief system is generally consistent, but could be more falsifiable.",
-		Recommendations: []string{
-			"Consider ways to test your beliefs empirically.",
-			"Explore potential counterarguments to strengthen your position.",
-		},
-		VerifiedBeliefs: []string{
-			"Your understanding of [specific topic] is well-grounded.",
-			"Your belief about [another topic] is supported by current evidence.",
-		},
+type DialecticStrategy int
+
+const (
+	StrategyDefault DialecticStrategy = iota
+	StrategySleepDietExercise
+	// Add more strategies as needed
+)
+
+func (h *AIHelper) GenerateAnalysisForStrategy(strategy DialecticStrategy, beliefSystem *models.BeliefSystem, userInteractions []models.DialecticalInteraction, interactionEvent InteractionEvent) (*models.BeliefAnalysis, error) {
+	switch strategy {
+	case StrategySleepDietExercise:
+		return h.generateSleepDietExerciseAnalysis(beliefSystem, userInteractions, interactionEvent)
+	default:
+		return h.generateDefaultAnalysis(beliefSystem, userInteractions, interactionEvent)
 	}
-	return analysis, nil
+}
+
+func (h *AIHelper) generateSleepDietExerciseAnalysis(beliefSystem *models.BeliefSystem, userInteractions []models.DialecticalInteraction, interactionEvent InteractionEvent) (*models.BeliefAnalysis, error) {
+	systemPrompt := fmt.Sprintf(`Analyze the following belief system related to sleep, diet, and exercise:
+%s
+
+Consider the latest interaction:
+Question: %s
+Answer: %s
+
+Provide an analysis focusing on:
+1. Coherence of beliefs related to sleep, diet, and exercise
+2. Consistency of beliefs with established health principles
+3. Falsifiability of the beliefs
+4. Overall understanding of the relationship between sleep, diet, exercise, metabolism, and energy
+
+Respond ONLY with a JSON object in the following structure:
+{
+  "coherence": float,
+  "consistency": float,
+  "falsifiability": float,
+  "overallScore": float,
+  "feedback": string,
+  "recommendations": [string],
+  "verifiedBeliefs": [string]
+}`, beliefSystemToString(beliefSystem), interactionEvent.Question, interactionEvent.Answer)
+
+	response, err := h.getCompletionFromAI(systemPrompt)
+	if err != nil {
+		return nil, err
+	}
+
+	// Log the full response for debugging
+	log.Printf("AI Response: %s", response)
+
+	// Try to extract JSON from the response
+	jsonStr := extractJSON(response)
+	if jsonStr == "" {
+		return nil, fmt.Errorf("no valid JSON found in the response")
+	}
+
+	var analysis models.BeliefAnalysis
+	err = json.Unmarshal([]byte(jsonStr), &analysis)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	return &analysis, nil
+}
+
+func extractJSON(s string) string {
+	// Find the first occurrence of '{' and the last occurrence of '}'
+	start := strings.Index(s, "{")
+	end := strings.LastIndex(s, "}")
+
+	if start == -1 || end == -1 || end <= start {
+		return ""
+	}
+
+	// Extract the substring between '{' and '}'
+	jsonCandidate := s[start : end+1]
+
+	// Use a regular expression to validate the JSON structure
+	re := regexp.MustCompile(`^\s*\{[\s\S]*\}\s*$`)
+	if !re.MatchString(jsonCandidate) {
+		return ""
+	}
+
+	return jsonCandidate
+}
+
+func (h *AIHelper) generateDefaultAnalysis(beliefSystem *models.BeliefSystem, userInteractions []models.DialecticalInteraction, interactionEvent InteractionEvent) (*models.BeliefAnalysis, error) {
+	// Implementation similar to generateSleepDietExerciseAnalysis, but with a more general focus
+	// ... (implement this method)
+	return nil, nil
+}
+
+func (h *AIHelper) getCompletionFromAI(systemPrompt string) (string, error) {
+	response, err := h.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Model: string(GPT_LATEST),
+		Messages: []openai.ChatCompletionMessage{
+			{Role: "system", Content: systemPrompt},
+			{Role: "user", Content: "Please respond with the analysis in the specified JSON format."},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return response.Choices[0].Message.Content, nil
+}
+
+func beliefSystemToString(bs *models.BeliefSystem) string {
+	// Convert BeliefSystem to a string representation
+	// ... (implement this method)
+	return ""
 }

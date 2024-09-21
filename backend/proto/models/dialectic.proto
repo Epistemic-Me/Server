@@ -48,9 +48,10 @@ message DialecticalInteraction {
 // agent will attempt to generate questions and interpret beliefs
 // from the user's responses.
 enum DialecticType {
-    DIALECTIC_TYPE_INVALID = 0;           // Invalid dialectic type.
-    DEFAULT = 1;                          // Default dialectic strategy.
-    HEGELIAN = 2;                         // Hegelian dialectic strategy.
+    INVALID = 0;
+    DEFAULT = 1;
+    HEGELIAN = 2;
+    SLEEP_DIET_EXERCISE = 3;
 }
 
 // The agent represents information about what underlying
@@ -88,7 +89,8 @@ message Dialectic {
     string user_id = 2; 
     Agent agent = 3;                      // The agent conducting the dialectic.
     repeated DialecticalInteraction user_interactions = 4; // Interactions within the dialectic.
-    BeliefAnalysis analysis = 5;  // Add this line
+    BeliefSystem belief_system = 5; // Add this line
+    BeliefAnalysis analysis = 6;  // Add this line
 }
 
 // Add a new message for the analysis

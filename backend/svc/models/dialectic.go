@@ -44,10 +44,32 @@ const (
 type DialecticType int32
 
 const (
-	DialecticTypeInvalid DialecticType = 0
-	Default              DialecticType = 1
-	Hegelian             DialecticType = 2
+	DialecticTypeInvalid DialecticType = iota
+	DialecticTypeDefault
+	DialecticTypeSleepDietExercise
 )
+
+func (d DialecticType) ToProto() pbmodels.DialecticType {
+	switch d {
+	case DialecticTypeDefault:
+		return pbmodels.DialecticType_DEFAULT
+	case DialecticTypeSleepDietExercise:
+		return pbmodels.DialecticType_SLEEP_DIET_EXERCISE
+	default:
+		return pbmodels.DialecticType_INVALID
+	}
+}
+
+func DialecticTypeFromProto(d pbmodels.DialecticType) DialecticType {
+	switch d {
+	case pbmodels.DialecticType_DEFAULT:
+		return DialecticTypeDefault
+	case pbmodels.DialecticType_SLEEP_DIET_EXERCISE:
+		return DialecticTypeSleepDietExercise
+	default:
+		return DialecticTypeInvalid
+	}
+}
 
 // AgentType represents the type of agent.
 type AgentType int32
@@ -74,12 +96,12 @@ func (a Agent) ToProto() *pbmodels.Agent {
 
 	var protoDialecticType pbmodels.DialecticType
 	switch a.DialecticType {
-	case Default:
+	case DialecticTypeDefault:
 		protoDialecticType = pbmodels.DialecticType_DEFAULT
-	case Hegelian:
-		protoDialecticType = pbmodels.DialecticType_HEGELIAN
+	case DialecticTypeSleepDietExercise:
+		protoDialecticType = pbmodels.DialecticType_SLEEP_DIET_EXERCISE
 	default:
-		protoDialecticType = pbmodels.DialecticType_DIALECTIC_TYPE_INVALID
+		protoDialecticType = pbmodels.DialecticType_INVALID
 	}
 
 	return &pbmodels.Agent{
@@ -128,6 +150,7 @@ type Dialectic struct {
 	UserID           string                   `json:"user_id"`
 	Agent            Agent                    `json:"agent"`
 	UserInteractions []DialecticalInteraction `json:"user_interactions"`
+	BeliefSystem     *BeliefSystem            `json:"belief_system"`
 	Analysis         *BeliefAnalysis          `json:"analysis,omitempty"`
 }
 
@@ -152,6 +175,10 @@ func (d Dialectic) ToProto() *pbmodels.Dialectic {
 		UserInteractions: protoInteractions,
 	}
 
+	if d.BeliefSystem != nil {
+		protoDialectic.BeliefSystem = d.BeliefSystem.ToProto()
+	}
+
 	if d.Analysis != nil {
 		protoDialectic.Analysis = d.Analysis.ToProto()
 	}
@@ -159,6 +186,7 @@ func (d Dialectic) ToProto() *pbmodels.Dialectic {
 	return protoDialectic
 }
 
+// BeliefAnalysis represents the analysis of a belief system.
 type BeliefAnalysis struct {
 	Coherence       float32  `json:"coherence"`
 	Consistency     float32  `json:"consistency"`
