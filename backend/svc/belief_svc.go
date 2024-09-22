@@ -82,14 +82,16 @@ func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*model
 
 	// todo: @deen update temporal information
 
-	err = bsvc.kv.Store(input.UserID, existingBelief.ID, *existingBelief, int(existingBelief.Version))
-	if err != nil {
-		log.Printf("Error in Store: %v", err)
-		return nil, err
+	if !input.DryRun {
+		err = bsvc.kv.Store(input.UserID, existingBelief.ID, *existingBelief, int(existingBelief.Version))
+		if err != nil {
+			log.Printf("Error in Store: %v", err)
+			return nil, err
+		}
 	}
 
 	var empty_beliefs []models.Belief
-	belief_system, err := bsvc.getBeliefSystemFromBeliefs(empty_beliefs)
+	belief_system, err := bsvc.GetBeliefSystemFromBeliefs(empty_beliefs)
 	if err != nil {
 		log.Printf("Error in getBeliefSystemFromBeliefs: %v", err)
 		return nil, err
@@ -118,13 +120,13 @@ func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.
 					filteredBeliefs = append(filteredBeliefs, *storedBelief)
 					break
 				}
-			}
+			}e
 		} else {
 			filteredBeliefs = append(filteredBeliefs, *storedBelief)
 		}
 	}
 
-	belief_system, err := bsvc.getBeliefSystemFromBeliefs(filteredBeliefs)
+	belief_system, err := bsvc.GetBeliefSystemFromBeliefs(filteredBeliefs)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +140,7 @@ func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.
 // Note this is an extremely expensive belief "materialization" over existing beleifs that should
 // only be performed if necessary. todo: @deen enable a parameter to be passed in ListBeliefs that
 // allows the client to control when this data is passed into the response.
-func (bsvc *BeliefService) getBeliefSystemFromBeliefs(beliefs []models.Belief) (*models.BeliefSystem, error) {
+func (bsvc *BeliefService) GetBeliefSystemFromBeliefs(beliefs []models.Belief) (*models.BeliefSystem, error) {
 
 	// a 2D matrix of beliefs x versions of those beliefs
 	var versionedBeliefs [][]models.Belief
