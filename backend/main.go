@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -15,12 +16,11 @@ import (
 	db "epistemic-me-backend/db"
 	pb "epistemic-me-backend/pb"
 	models "epistemic-me-backend/pb/models"
-	"epistemic-me-backend/pb/pbconnect" // Import generated Connect Go code
+	"epistemic-me-backend/pb/pbconnect"
 	svc "epistemic-me-backend/svc"
 	svcmodels "epistemic-me-backend/svc/models"
 )
 
-// server is used to implement the EpistemicMeService.
 type server struct {
 	bsvc *svc.BeliefService
 	dsvc *svc.DialecticService
@@ -46,6 +46,11 @@ func (s *server) CreateBelief(
 
 	log.Printf("CreateBelief response: %+v", response)
 
+	// Ensure belief system is created
+	if response.BeliefSystem.Beliefs == nil {
+		response.BeliefSystem.Beliefs = []*svcmodels.Belief{&response.Belief}
+	}
+
 	protoResponse := &pb.CreateBeliefResponse{
 		Belief:       response.Belief.ToProto(),
 		BeliefSystem: response.BeliefSystem.ToProto(),
@@ -67,7 +72,11 @@ func (s *server) ListBeliefs(
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	if response == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unexpected nil response"))
 	}
 
 	var beliefPbs []*models.Belief
@@ -75,10 +84,12 @@ func (s *server) ListBeliefs(
 		beliefPbs = append(beliefPbs, belief.ToProto())
 	}
 
-	return connect.NewResponse(&pb.ListBeliefsResponse{
+	protoResponse := &pb.ListBeliefsResponse{
 		Beliefs:      beliefPbs,
 		BeliefSystem: response.BeliefSystem.ToProto(),
-	}), nil
+	}
+
+	return connect.NewResponse(protoResponse), nil
 }
 
 func (s *server) CreateDialectic(ctx context.Context, req *connect.Request[pb.CreateDialecticRequest]) (*connect.Response[pb.CreateDialecticResponse], error) {
@@ -118,7 +129,11 @@ func (s *server) ListDialectics(
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	if response == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unexpected nil response"))
 	}
 
 	var dialecticPbs []*models.Dialectic
@@ -147,40 +162,101 @@ func (s *server) UpdateDialectic(
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	return connect.NewResponse(&pb.UpdateDialecticResponse{
+	if response == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unexpected nil response"))
+	}
+
+	protoResponse := &pb.UpdateDialecticResponse{
 		Dialectic: response.Dialectic.ToProto(),
+	}
+
+	return connect.NewResponse(protoResponse), nil
+}
+
+func (s *server) GetBeliefSystemDetail(
+	ctx context.Context,
+	req *connect.Request[pb.GetBeliefSystemDetailRequest],
+) (*connect.Response[pb.GetBeliefSystemDetailResponse], error) {
+	log.Printf("GetBeliefSystemDetail called for user: %s", req.Msg.UserId)
+
+	response, err := s.bsvc.GetBeliefSystemDetail(&svcmodels.GetBeliefSystemDetailInput{
+		UserID:                       req.Msg.UserId,
+		CurrentObservationContextIds: req.Msg.CurrentObservationContextIds,
+	})
+
+	if err != nil {
+		log.Printf("Error in GetBeliefSystemDetail: %v", err)
+		if err.Error() == "no belief systems found for user" {
+			// Return an empty belief system instead of an error
+			return connect.NewResponse(&pb.GetBeliefSystemDetailResponse{
+				BeliefSystemDetail: &models.BeliefSystemDetail{
+					ExampleName:  "Empty Belief System",
+					BeliefSystem: &models.BeliefSystem{},
+				},
+			}), nil
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	if response == nil {
+		log.Println("GetBeliefSystemDetail response is nil")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unexpected nil response"))
+	}
+
+	log.Printf("Retrieved belief system for user %s: %+v", req.Msg.UserId, response)
+
+	return connect.NewResponse(&pb.GetBeliefSystemDetailResponse{
+		BeliefSystemDetail: response.ToProto(),
 	}), nil
 }
 
-func main() {
+// Add this method to your server type
+func (s *server) UpdateKeyValueStore(ctx context.Context, req *connect.Request[pb.UpdateKeyValueStoreRequest]) (*connect.Response[pb.UpdateKeyValueStoreResponse], error) {
+	// Implement the logic for updating the key-value store
+	// For now, return a placeholder response
+	return connect.NewResponse(&pb.UpdateKeyValueStoreResponse{}), nil
+}
 
+func main() {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
 		log.Fatalf("OPENAI_API_KEY environment variable not set")
-		os.Exit(1)
 	}
 
 	aih := ai.NewAIHelper(apiKey)
 
-	kv := db.NewKeyValueStore()
-
-	bsvc := svc.NewBeliefService(kv, aih) // Initialize the BeliefService
-
-	svc := &server{
-		bsvc: bsvc,
-		dsvc: svc.NewDialecticService(kv, bsvc, aih), // Initialize the DialecticService
+	// Create a new KeyValueStore
+	kvStore, err := db.NewKeyValueStore("./epistemic_me.json") // Use a JSON file for persistence
+	if err != nil {
+		log.Printf("Warning: Failed to create KeyValueStore: %v", err)
+		log.Println("Continuing with in-memory storage. Data will not be persisted.")
+		// Create an in-memory store as a fallback
+		kvStore, err = db.NewKeyValueStore("")
+		if err != nil {
+			log.Fatalf("Failed to create in-memory KeyValueStore: %v", err)
+		}
 	}
+	log.Println("Successfully created KeyValueStore")
+
+	bsvc := svc.NewBeliefService(kvStore, aih)
+	dsvc := svc.NewDialecticService(kvStore, bsvc, aih)
+
+	svcServer := &server{
+		bsvc: bsvc,
+		dsvc: dsvc,
+	}
+
 	mux := http.NewServeMux()
-	path, handler := pbconnect.NewEpistemicMeServiceHandler(svc)
+	path, handler := pbconnect.NewEpistemicMeServiceHandler(svcServer)
 	mux.Handle(path, handler)
 
 	// Configure CORS
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:8081"},
-		AllowedMethods:   []string{"POST", "GET", "OPTIONS", "PUT", "DELETE"},
+		AllowedOrigins:   []string{"http://localhost:8081", "http://localhost:3000"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization", "Connect-Protocol-Version"},
 		ExposedHeaders:   []string{"Content-Length", "Content-Type"},
 		AllowCredentials: true,

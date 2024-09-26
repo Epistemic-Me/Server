@@ -162,7 +162,7 @@ func (d *Dialectic) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, d)
 }
 
-func (d Dialectic) ToProto() *pbmodels.Dialectic {
+func (d *Dialectic) ToProto() *pbmodels.Dialectic {
 	protoInteractions := make([]*pbmodels.DialecticalInteraction, len(d.UserInteractions))
 	for i, interaction := range d.UserInteractions {
 		protoInteractions[i] = interaction.ToProto()
