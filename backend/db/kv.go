@@ -4,14 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"reflect"
 	"sync"
 )
 
 // KeyValueStore holds the in-memory store and a mutex for thread-safe access.
 type KeyValueStore struct {
-	store map[string]map[string][]storedValue // user -> key -> []storedValue (slice to hold different versions)
-	mu    sync.Mutex
+	store    map[string]map[string][]storedValue // user -> key -> []storedValue (slice to hold different versions)
+	mu       sync.RWMutex
+	filePath string     // New field for persistence
+	diskMu   sync.Mutex // New mutex for disk operations
 }
 
 // storedValue holds the JSON string, the type of the original object, and the version.
@@ -21,11 +24,138 @@ type storedValue struct {
 	Version  int
 }
 
+// serializableStoredValue is a serializable version of storedValue
+type serializableStoredValue struct {
+	JsonData string
+	Type     string
+	Version  int
+}
+
 // NewKeyValueStore initializes and returns a new KeyValueStore.
-func NewKeyValueStore() *KeyValueStore {
-	return &KeyValueStore{
-		store: make(map[string]map[string][]storedValue),
+// If filePath is provided, it attempts to load the store from the file.
+func NewKeyValueStore(filePath string) (*KeyValueStore, error) {
+	log.Printf("Creating new KeyValueStore with filePath: %s", filePath)
+	kvs := &KeyValueStore{
+		store:    make(map[string]map[string][]storedValue),
+		filePath: filePath,
 	}
+
+	if filePath != "" {
+		// Check if the file exists
+		_, err := os.Stat(filePath)
+		if os.IsNotExist(err) {
+			// File doesn't exist, create it
+			log.Printf("File %s doesn't exist. Creating it.", filePath)
+			err = kvs.SaveToDisk()
+			if err != nil {
+				return nil, fmt.Errorf("failed to create initial file: %v", err)
+			}
+		} else if err != nil {
+			// Some other error occurred
+			return nil, fmt.Errorf("failed to check file status: %v", err)
+		} else {
+			// File exists, load it
+			err = kvs.LoadFromDisk()
+			if err != nil {
+				return nil, fmt.Errorf("failed to load from disk: %v", err)
+			}
+		}
+	}
+
+	return kvs, nil
+}
+
+// SaveToDisk persists the current state of the store to the file specified by filePath.
+func (kvs *KeyValueStore) SaveToDisk() error {
+	if kvs.filePath == "" {
+		return nil // No persistence requested
+	}
+
+	kvs.diskMu.Lock()
+	defer kvs.diskMu.Unlock()
+
+	kvs.mu.RLock()
+	defer kvs.mu.RUnlock()
+
+	// Create a snapshot of the store while holding the read lock
+	snapshot := make(map[string]map[string][]storedValue)
+	for user, userStore := range kvs.store {
+		snapshot[user] = make(map[string][]storedValue)
+		for key, values := range userStore {
+			snapshot[user][key] = make([]storedValue, len(values))
+			copy(snapshot[user][key], values)
+		}
+	}
+
+	// Work with the snapshot to create the serializable store
+	serializableStore := make(map[string]map[string][]serializableStoredValue)
+	for user, userStore := range snapshot {
+		serializableStore[user] = make(map[string][]serializableStoredValue)
+		for key, values := range userStore {
+			serializableValues := make([]serializableStoredValue, len(values))
+			for i, v := range values {
+				serializableValues[i] = serializableStoredValue{
+					JsonData: v.JsonData,
+					Type:     v.Type.String(),
+					Version:  v.Version,
+				}
+			}
+			serializableStore[user][key] = serializableValues
+		}
+	}
+
+	// Marshal the serializable store to JSON
+	jsonData, err := json.Marshal(serializableStore)
+	if err != nil {
+		return fmt.Errorf("failed to marshal store: %w", err)
+	}
+
+	// Write to the file
+	err = os.WriteFile(kvs.filePath, jsonData, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write to file: %w", err)
+	}
+
+	return nil
+}
+
+// LoadFromDisk loads the store state from the file specified by filePath.
+func (kvs *KeyValueStore) LoadFromDisk() error {
+	data, err := os.ReadFile(kvs.filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	var serializableStore map[string]map[string][]serializableStoredValue
+	err = json.Unmarshal(data, &serializableStore)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+
+	kvs.mu.Lock()
+	defer kvs.mu.Unlock()
+
+	kvs.store = make(map[string]map[string][]storedValue)
+	for user, userStore := range serializableStore {
+		kvs.store[user] = make(map[string][]storedValue)
+		for key, values := range userStore {
+			storedValues := make([]storedValue, len(values))
+			for i, v := range values {
+				t, err := getTypeFromName(v.Type)
+				if err != nil {
+					return fmt.Errorf("failed to get type from name: %w", err)
+				}
+				storedValues[i] = storedValue{
+					JsonData: v.JsonData,
+					Type:     t,
+					Version:  v.Version,
+				}
+			}
+			kvs.store[user][key] = storedValues
+		}
+	}
+
+	return nil
 }
 
 // Store checks if all fields in the given struct have JSON tags and stores the struct as JSON.
@@ -52,11 +182,10 @@ func (kvs *KeyValueStore) Store(user, key string, value interface{}, version int
 	if err != nil {
 		return err
 	}
-
-	// Store in memory with the given version
 	kvs.mu.Lock()
 	defer kvs.mu.Unlock()
 
+	// Perform in-memory store operation
 	if _, exists := kvs.store[user]; !exists {
 		kvs.store[user] = make(map[string][]storedValue)
 	}
@@ -70,22 +199,77 @@ func (kvs *KeyValueStore) Store(user, key string, value interface{}, version int
 			// Replace the existing version
 			kvs.store[user][key][i] = storedValue{
 				JsonData: string(jsonData),
-				Type:     t,
+				Type:     reflect.TypeOf(value),
 				Version:  version,
 			}
 			return nil
 		}
 	}
 
-	// If the version does not exist, append it to the slice
 	kvs.store[user][key] = append(existingValues, storedValue{
 		JsonData: string(jsonData),
-		Type:     t,
+		Type:     reflect.TypeOf(value),
 		Version:  version,
 	})
 
 	// Sort by version (in case versions are added out of order)
 	kvs.sortByVersion(user, key)
+
+	// Create a copy of the data to be persisted
+	var dataToPersist map[string]map[string][]storedValue
+	if kvs.filePath != "" {
+		dataToPersist = make(map[string]map[string][]storedValue)
+		for u, userStore := range kvs.store {
+			dataToPersist[u] = make(map[string][]storedValue)
+			for k, values := range userStore {
+				dataToPersist[u][k] = make([]storedValue, len(values))
+				copy(dataToPersist[u][k], values)
+			}
+		}
+	}
+
+	// Perform disk persistence outside of the lock
+	if kvs.filePath != "" {
+		err := kvs.saveToDiskWithData(dataToPersist)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (kvs *KeyValueStore) saveToDiskWithData(data map[string]map[string][]storedValue) error {
+	kvs.diskMu.Lock()
+	defer kvs.diskMu.Unlock()
+
+	// Convert to serializable format
+	serializableStore := make(map[string]map[string][]serializableStoredValue)
+	for user, userStore := range data {
+		serializableStore[user] = make(map[string][]serializableStoredValue)
+		for key, values := range userStore {
+			serializableValues := make([]serializableStoredValue, len(values))
+			for i, v := range values {
+				serializableValues[i] = serializableStoredValue{
+					JsonData: v.JsonData,
+					Type:     v.Type.String(),
+					Version:  v.Version,
+				}
+			}
+			serializableStore[user][key] = serializableValues
+		}
+	}
+
+	// Marshal and write to disk
+	jsonData, err := json.Marshal(serializableStore)
+	if err != nil {
+		return fmt.Errorf("failed to marshal store: %w", err)
+	}
+
+	err = os.WriteFile(kvs.filePath, jsonData, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write to file: %w", err)
+	}
 
 	return nil
 }
@@ -103,8 +287,8 @@ func (kvs *KeyValueStore) sortByVersion(user, key string) {
 // Retrieve gets the latest stored value under the given user and key, and deserializes it into the original object type.
 func (kvs *KeyValueStore) Retrieve(userID string, key string) (interface{}, error) {
 	log.Printf("Retrieving key %s for user %s", key, userID)
-	kvs.mu.Lock()
-	defer kvs.mu.Unlock()
+	kvs.mu.RLock()
+	defer kvs.mu.RUnlock()
 
 	userStore, userExists := kvs.store[userID]
 	if !userExists {
@@ -127,6 +311,7 @@ func (kvs *KeyValueStore) Retrieve(userID string, key string) (interface{}, erro
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("Retrieved value: %+v", v)
 
 	return v, nil
 }
@@ -134,8 +319,8 @@ func (kvs *KeyValueStore) Retrieve(userID string, key string) (interface{}, erro
 // RetrieveAllVersions retrieves all versions of the stored value under the given user and key.
 func (kvs *KeyValueStore) RetrieveAllVersions(userID string, key string) ([]interface{}, error) {
 	log.Printf("Retrieving all versions for key %s for user %s", key, userID)
-	kvs.mu.Lock()
-	defer kvs.mu.Unlock()
+	kvs.mu.RLock()
+	defer kvs.mu.RUnlock()
 
 	userStore, userExists := kvs.store[userID]
 	if !userExists {
@@ -167,8 +352,8 @@ func (kvs *KeyValueStore) RetrieveAllVersions(userID string, key string) ([]inte
 // ListByType lists all objects of a given type associated with a user.
 // It ensures that only the latest versions are returned.
 func (kvs *KeyValueStore) ListByType(user string, objType reflect.Type) ([]interface{}, error) {
-	kvs.mu.Lock()
-	defer kvs.mu.Unlock()
+	kvs.mu.RLock()
+	defer kvs.mu.RUnlock()
 
 	userStore, userExists := kvs.store[user]
 	if !userExists {
@@ -177,17 +362,24 @@ func (kvs *KeyValueStore) ListByType(user string, objType reflect.Type) ([]inter
 
 	var result []interface{}
 	for _, storedValues := range userStore {
-		if len(storedValues) > 0 && storedValues[len(storedValues)-1].Type == objType {
-			// Get the latest version
+		if len(storedValues) > 0 {
 			latestValue := storedValues[len(storedValues)-1]
-			v := reflect.New(latestValue.Type).Interface()
-			err := json.Unmarshal([]byte(latestValue.JsonData), v)
-			if err != nil {
-				return nil, err
+			if latestValue.Type == objType {
+				v := reflect.New(latestValue.Type).Interface()
+				err := json.Unmarshal([]byte(latestValue.JsonData), v)
+				if err != nil {
+					return nil, err
+				}
+				result = append(result, v)
 			}
-			result = append(result, v)
 		}
 	}
 
 	return result, nil
+}
+
+// ClearStore removes all data from the KeyValueStore
+func (kvs *KeyValueStore) ClearStore() {
+	kvs.store = make(map[string]map[string][]storedValue)
+	kvs.SaveToDisk() // If you want to clear the persistent storage as well
 }
