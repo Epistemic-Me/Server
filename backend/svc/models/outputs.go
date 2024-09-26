@@ -1,8 +1,12 @@
 package models
 
+import (
+	pbmodels "epistemic-me-backend/pb/models"
+)
+
 // ListBeliefsOutput represents an output containing a list of beliefs.
 type ListBeliefsOutput struct {
-	Beliefs      []Belief     `json:"beliefs"`
+	Beliefs      []*Belief    `json:"beliefs"`
 	BeliefSystem BeliefSystem `json:"belief_system"`
 }
 
@@ -32,4 +36,18 @@ type ListDialecticsOutput struct {
 // UpdateDialecticOutput represents an output after updating a dialectic.
 type UpdateDialecticOutput struct {
 	Dialectic Dialectic `json:"dialectic"`
+}
+
+// GetBeliefSystemDetailOutput represents an output containing belief system details.
+type GetBeliefSystemDetailOutput struct {
+	BeliefSystem *BeliefSystem `json:"belief_system"`
+	ExampleName  string        `json:"example_name"`
+}
+
+// Add this method to the GetBeliefSystemDetailOutput struct
+func (o *GetBeliefSystemDetailOutput) ToProto() *pbmodels.BeliefSystemDetail {
+	return &pbmodels.BeliefSystemDetail{
+		BeliefSystem: o.BeliefSystem.ToProto(),
+		ExampleName:  o.ExampleName,
+	}
 }

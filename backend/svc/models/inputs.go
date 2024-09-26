@@ -38,3 +38,9 @@ type UpdateDialecticInput struct {
 	DialecticID string     `json:"dialectic_id"`
 	Answer      UserAnswer `json:"answer"`
 }
+
+// GetBeliefSystemDetailInput represents an input to get belief system details.
+type GetBeliefSystemDetailInput struct {
+	UserID                       string   `json:"user_id"`
+	CurrentObservationContextIds []string `json:"current_observation_context_ids,omitempty"`
+}
