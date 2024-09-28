@@ -50,7 +50,7 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 	}
 
 	var empty_beliefs []models.Belief
-	belief_system, err := bsvc.getBeliefSystemFromBeliefs(empty_beliefs)
+	belief_system, err := bsvc.GetBeliefSystemFromBeliefs(empty_beliefs)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.
 					filteredBeliefs = append(filteredBeliefs, *storedBelief)
 					break
 				}
-			}e
+			}
 		} else {
 			filteredBeliefs = append(filteredBeliefs, *storedBelief)
 		}
