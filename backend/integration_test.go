@@ -6,17 +6,21 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	db "epistemic-me-backend/db"
+	fixture_models "epistemic-me-backend/db/fixtures"
 	pb "epistemic-me-backend/pb"
 	models "epistemic-me-backend/pb/models"
 	"epistemic-me-backend/pb/pbconnect"
+	svc_models "epistemic-me-backend/svc/models"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -66,7 +70,14 @@ func createServiceClient(customHttpClient *http.Client) pbconnect.EpistemicMeSer
 // Update TestMain to use KeyValueStore
 func TestMain(m *testing.M) {
 	var err error
-	kvStore, err = db.NewKeyValueStore("") // Use in-memory store for tests
+	tempDir, err := os.MkdirTemp("", "test_kv_store")
+	if err != nil {
+		log.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	kvStorePath := filepath.Join(tempDir, "test_kv_store.json")
+	kvStore, err = db.NewKeyValueStore(kvStorePath)
 	if err != nil {
 		log.Fatalf("Failed to create KeyValueStore: %v", err)
 	}
@@ -290,6 +301,9 @@ func TestGetBeliefSystemDetail(t *testing.T) {
 
 	userId := "test-user-id"
 
+	// Clear the store before the test
+	clearStore()
+
 	// Create a belief to ensure a belief system exists
 	createBeliefReq := &pb.CreateBeliefRequest{
 		UserId:        userId,
@@ -314,8 +328,7 @@ func TestGetBeliefSystemDetail(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		getBeliefSystemDetailResp, err = client.GetBeliefSystemDetail(ctx, connect.NewRequest(getBeliefSystemDetailReq))
 		if err == nil && getBeliefSystemDetailResp.Msg.BeliefSystemDetail != nil &&
-			(len(getBeliefSystemDetailResp.Msg.BeliefSystemDetail.BeliefSystem.Beliefs) > 0 ||
-				len(getBeliefSystemDetailResp.Msg.BeliefSystemDetail.BeliefSystem.ObservationContexts) > 0) {
+			len(getBeliefSystemDetailResp.Msg.BeliefSystemDetail.BeliefSystem.Beliefs) > 0 {
 			break
 		}
 		testLogf(t, "Attempt %d: GetBeliefSystemDetail failed or returned empty: %v", i+1, err)
@@ -328,39 +341,87 @@ func TestGetBeliefSystemDetail(t *testing.T) {
 
 	assert.NotNil(t, getBeliefSystemDetailResp.Msg)
 	assert.NotNil(t, getBeliefSystemDetailResp.Msg.BeliefSystemDetail)
+	assert.NotNil(t, getBeliefSystemDetailResp.Msg.BeliefSystemDetail.BeliefSystem)
 
 	beliefSystemDetail := getBeliefSystemDetailResp.Msg.BeliefSystemDetail
-
 	assert.NotEmpty(t, beliefSystemDetail.ExampleName, "Example name should not be empty")
 	assert.NotNil(t, beliefSystemDetail.BeliefSystem, "Belief system should not be nil")
 
-	// Check if beliefs or observation contexts are present
-	beliefsPresent := len(beliefSystemDetail.BeliefSystem.Beliefs) > 0
-	contextsPresent := len(beliefSystemDetail.BeliefSystem.ObservationContexts) > 0
-
-	assert.True(t, beliefsPresent || contextsPresent, "Either beliefs or observation contexts should be present")
+	// Check if beliefs are present
+	assert.NotEmpty(t, beliefSystemDetail.BeliefSystem.Beliefs, "Beliefs should not be empty")
 
 	testLogf(t, "Retrieved BeliefSystemDetail: %+v", beliefSystemDetail)
 	testLogf(t, "Number of beliefs: %d", len(beliefSystemDetail.BeliefSystem.Beliefs))
 	testLogf(t, "Number of observation contexts: %d", len(beliefSystemDetail.BeliefSystem.ObservationContexts))
-
-	if beliefsPresent {
-		firstBelief := beliefSystemDetail.BeliefSystem.Beliefs[0]
-		testLogf(t, "First belief: %+v", firstBelief)
-		assert.NotEmpty(t, firstBelief.Id)
-		assert.NotEmpty(t, firstBelief.Content)
-	}
-
-	if contextsPresent {
-		firstContext := beliefSystemDetail.BeliefSystem.ObservationContexts[0]
-		testLogf(t, "First observation context: %+v", firstContext)
-		assert.NotEmpty(t, firstContext.Id)
-		assert.NotEmpty(t, firstContext.Name)
-	}
 }
 
 func testLogf(t *testing.T, format string, v ...interface{}) {
 	if testing.Verbose() {
 		t.Logf(format, v...)
 	}
+}
+
+func TestIntegrationWithFixtures(t *testing.T) {
+	// Clear the store before running the test
+	clearStore()
+
+	// Import fixtures
+	err := fixture_models.ImportFixtures(kvStore)
+	if err != nil {
+		t.Fatalf("Failed to import fixtures: %v", err)
+	}
+
+	// Read the fixture file to get the expected data
+	yamlFile, err := os.ReadFile("db/fixtures/belief_system_fixture.yaml")
+	if err != nil {
+		t.Fatalf("Failed to read fixture file: %v", err)
+	}
+
+	var fixture fixture_models.BeliefSystemFixture
+	err = yaml.Unmarshal(yamlFile, &fixture)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal fixture: %v", err)
+	}
+
+	fixtureUserID := "fixture-user-id"
+
+	// Retrieve the stored BeliefSystem
+	storedBeliefSystem, err := kvStore.Retrieve(fixtureUserID, "BeliefSystemId")
+	if err != nil {
+		t.Fatalf("Failed to retrieve stored belief system: %v", err)
+	}
+
+	bs, ok := storedBeliefSystem.(*svc_models.BeliefSystem)
+	if !ok {
+		t.Fatalf("Stored belief system is not of the expected type. Got: %T", storedBeliefSystem)
+	}
+
+	// Verify the structure of the retrieved BeliefSystem
+	assert.NotEmpty(t, bs.Beliefs, "BeliefSystem should have beliefs")
+	assert.NotEmpty(t, bs.ObservationContexts, "BeliefSystem should have observation contexts")
+
+	// Verify the number of beliefs and observation contexts
+	assert.Equal(t, 12, len(bs.Beliefs), "Number of beliefs should match")
+	assert.Equal(t, 16, len(bs.ObservationContexts), "Number of observation contexts should match")
+
+	// Verify the content of beliefs
+	for _, belief := range bs.Beliefs {
+		assert.NotEmpty(t, belief.ID, "Belief ID should not be empty")
+		assert.Equal(t, fixtureUserID, belief.UserID, "Belief UserID should match fixture user ID")
+		assert.NotEmpty(t, belief.Content, "Belief Content should not be empty")
+		assert.NotEmpty(t, belief.ObservationContextIDs, "Belief ObservationContextIDs should not be empty")
+		assert.NotEmpty(t, belief.Probabilities, "Belief Probabilities should not be empty")
+		assert.NotEmpty(t, belief.Result, "Belief Result should not be empty")
+	}
+
+	// Verify the content of observation contexts
+	for _, context := range bs.ObservationContexts {
+		assert.NotEmpty(t, context.ID, "ObservationContext ID should not be empty")
+		assert.NotEmpty(t, context.Name, "ObservationContext Name should not be empty")
+	}
+
+	t.Logf("Successfully verified BeliefSystem with %d beliefs and %d observation contexts", len(bs.Beliefs), len(bs.ObservationContexts))
+
+	// Clean up
+	clearStore()
 }

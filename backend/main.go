@@ -189,12 +189,16 @@ func (s *server) GetBeliefSystemDetail(
 
 	if err != nil {
 		log.Printf("Error in GetBeliefSystemDetail: %v", err)
-		if err.Error() == "no belief systems found for user" {
+		if err.Error() == "no belief systems found for user" || err.Error() == "error retrieving beliefs: user not found" {
+			log.Printf("No belief system found for user: %s", req.Msg.UserId)
 			// Return an empty belief system instead of an error
 			return connect.NewResponse(&pb.GetBeliefSystemDetailResponse{
 				BeliefSystemDetail: &models.BeliefSystemDetail{
-					ExampleName:  "Empty Belief System",
-					BeliefSystem: &models.BeliefSystem{},
+					ExampleName: "Empty Belief System",
+					BeliefSystem: &models.BeliefSystem{
+						Beliefs:             []*models.Belief{},
+						ObservationContexts: []*models.ObservationContext{},
+					},
 				},
 			}), nil
 		}
@@ -202,7 +206,7 @@ func (s *server) GetBeliefSystemDetail(
 	}
 
 	if response == nil {
-		log.Println("GetBeliefSystemDetail response is nil")
+		log.Printf("GetBeliefSystemDetail response is nil for user: %s", req.Msg.UserId)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unexpected nil response"))
 	}
 
