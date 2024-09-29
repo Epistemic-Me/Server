@@ -102,7 +102,6 @@ func TestIntegration(t *testing.T) {
 	assert.NotNil(t, listDialecticsResp.Msg)
 	t.Logf("ListDialectics response: %+v\n", listDialecticsResp.Msg)
 
-
 	// Test UpdateDialectic
 	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -114,9 +113,31 @@ func TestIntegration(t *testing.T) {
 			CreatedAtMillisUtc: 1000,
 		},
 		UserId: "test-user-id",
+		DryRun: true,
 	}
 
 	updateDialecticResp, err := client.UpdateDialectic(ctx, connect.NewRequest(updateDialecticReq))
+	if err != nil {
+		t.Fatalf("UpdateDialectic failed: %v", err)
+	}
+
+	// Test UpdateDialectic
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	assert.NotNil(t, updateDialecticResp.Msg)
+	t.Logf("UpdateDialectic response for Draft: %+v\n", updateDialecticResp.Msg)
+
+	updateDialecticReq = &pb.UpdateDialecticRequest{
+		DialecticId: dialecticId,
+		Answer: &models.UserAnswer{
+			UserAnswer:         "answer",
+			CreatedAtMillisUtc: 1000,
+		},
+		UserId: "test-user-id",
+	}
+
+	updateDialecticResp, err = client.UpdateDialectic(ctx, connect.NewRequest(updateDialecticReq))
 	if err != nil {
 		t.Fatalf("UpdateDialectic failed: %v", err)
 	}
