@@ -11,6 +11,8 @@ service EpistemicMeService {
     rpc CreateDialectic(CreateDialecticRequest) returns (CreateDialecticResponse) {}
     rpc ListDialectics(ListDialecticsRequest) returns (ListDialecticsResponse) {}
     rpc UpdateDialectic(UpdateDialecticRequest) returns (UpdateDialecticResponse) {}
+    rpc GetBeliefSystemDetail(GetBeliefSystemDetailRequest) returns (GetBeliefSystemDetailResponse) {}
+    rpc UpdateKeyValueStore(UpdateKeyValueStoreRequest) returns (UpdateKeyValueStoreResponse) {}
 }
 
 // Request message for listing beliefs.
@@ -70,4 +72,23 @@ message UpdateDialecticRequest {
 // Response message for updating an existing dialectic.
 message UpdateDialecticResponse {
     Dialectic dialectic = 1;                     // The updated dialectic.
+}
+
+// Add these new messages
+message GetBeliefSystemDetailRequest {
+    string user_id = 1;  // Use snake_case here to match Go conventions
+    repeated string current_observation_context_ids = 2;
+}
+
+message GetBeliefSystemDetailResponse {
+    BeliefSystemDetail belief_system_detail = 1;
+}
+
+// New messages for UpdateKeyValueStore RPC
+message UpdateKeyValueStoreRequest {
+    bytes serialized_kv_store = 1;
+}
+
+message UpdateKeyValueStoreResponse {
+    bool success = 1;
 }

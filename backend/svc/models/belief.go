@@ -50,21 +50,23 @@ func (bt BeliefType) ToProto() pbmodels.BeliefType {
 	case Statement:
 		return pbmodels.BeliefType_STATEMENT
 	default:
-		return pbmodels.BeliefType_STATEMENT // Default case
+		return pbmodels.BeliefType_STATEMENT
 	}
 }
 
 // Belief represents a user's belief.
 type Belief struct {
-	ID                  string               `json:"id"`
-	UserID              string               `json:"user_id"`
-	Version             int32                `json:"version"`
-	ConfidenceRatings   []ConfidenceRating   `json:"confidence_ratings"`
-	Sources             []Source             `json:"sources"`
-	Content             []Content            `json:"content"`
-	Type                BeliefType           `json:"type"`
-	CausalBelief        *CausalBelief        `json:"causal_belief,omitempty"`
-	TemporalInformation *TemporalInformation `json:"temporal_information,omitempty"`
+	ID                    string             `json:"id"`
+	UserID                string             `json:"user_id"`
+	Version               int32              `json:"version"`
+	ConfidenceRatings     []ConfidenceRating `json:"confidence_ratings"`
+	Content               []Content          `json:"content"`
+	Type                  BeliefType         `json:"type"`
+	CausalBelief          *CausalBelief      `json:"causal_belief,omitempty"`
+	ObservationContextIDs []string           `json:"observation_context_ids"`
+	Probabilities         map[string]float32 `json:"probabilities"`
+	Action                string             `json:"action"`
+	Result                string             `json:"result"`
 }
 
 func (b Belief) GetContentAsString() string {
@@ -81,11 +83,6 @@ func (b Belief) ToProto() *pbmodels.Belief {
 		confidenceRatingsPb[i] = cr.ToProto()
 	}
 
-	sourcesPb := make([]*pbmodels.Source, len(b.Sources))
-	for i, s := range b.Sources {
-		sourcesPb[i] = s.ToProto()
-	}
-
 	contentPb := make([]*pbmodels.Content, len(b.Content))
 	for i, c := range b.Content {
 		contentPb[i] = c.ToProto()
@@ -96,21 +93,18 @@ func (b Belief) ToProto() *pbmodels.Belief {
 		causalBeliefPb = b.CausalBelief.ToProto()
 	}
 
-	var temporalInfoPb *pbmodels.TemporalInformation
-	if b.TemporalInformation != nil {
-		temporalInfoPb = b.TemporalInformation.ToProto()
-	}
-
 	return &pbmodels.Belief{
-		Id:                  b.ID,
-		UserId:              b.UserID,
-		Version:             b.Version,
-		ConfidenceRatings:   confidenceRatingsPb,
-		Sources:             sourcesPb,
-		Content:             contentPb,
-		Type:                b.Type.ToProto(),
-		CausalBelief:        causalBeliefPb,
-		TemporalInformation: temporalInfoPb,
+		Id:                    b.ID,
+		UserId:                b.UserID,
+		Version:               b.Version,
+		ConfidenceRatings:     confidenceRatingsPb,
+		Content:               contentPb,
+		Type:                  b.Type.ToProto(),
+		CausalBelief:          causalBeliefPb,
+		ObservationContextIds: b.ObservationContextIDs,
+		Probabilities:         b.Probabilities,
+		Action:                b.Action,
+		Result:                b.Result,
 	}
 }
 
@@ -133,16 +127,22 @@ func (cb CausalBelief) ToProto() *pbmodels.Belief_CausalBelief {
 
 // BeliefSystem represents a summary of a user's beliefs.
 type BeliefSystem struct {
-	RawStr                  string  `json:"raw_str"`
-	OverallConfidenceRating float64 `json:"overall_confidence_rating"`
-	ClarifiedMetric         Metric  `json:"conflict_score"`
+	Beliefs             []*Belief             `json:"beliefs"`
+	ObservationContexts []*ObservationContext `json:"observation_contexts"`
 }
 
 func (bs BeliefSystem) ToProto() *pbmodels.BeliefSystem {
+	protoBeliefs := make([]*pbmodels.Belief, len(bs.Beliefs))
+	for i, belief := range bs.Beliefs {
+		protoBeliefs[i] = belief.ToProto()
+	}
+	protoObservationContexts := make([]*pbmodels.ObservationContext, len(bs.ObservationContexts))
+	for i, oc := range bs.ObservationContexts {
+		protoObservationContexts[i] = oc.ToProto()
+	}
 	return &pbmodels.BeliefSystem{
-		RawStr:                  bs.RawStr,
-		OverallConfidenceRating: bs.OverallConfidenceRating,
-		ClarificationScore:      bs.ClarifiedMetric.ToPercentage(),
+		Beliefs:             protoBeliefs,
+		ObservationContexts: protoObservationContexts,
 	}
 }
 
@@ -163,4 +163,35 @@ type TemporalInformation struct {
 func (ti TemporalInformation) ToProto() *pbmodels.TemporalInformation {
 	// Implement the conversion
 	return &pbmodels.TemporalInformation{}
+}
+
+type ObservationContext struct {
+	ID             string   `json:"id"`
+	Name           string   `json:"name"`
+	ParentID       string   `json:"parent_id"`
+	PossibleValues []string `json:"possible_values"`
+}
+
+func (oc ObservationContext) ToProto() *pbmodels.ObservationContext {
+	return &pbmodels.ObservationContext{
+		Id:             oc.ID,
+		Name:           oc.Name,
+		ParentId:       oc.ParentID,
+		PossibleValues: oc.PossibleValues,
+	}
+}
+
+// BeliefSystemDetail represents a detailed view of a belief system
+type BeliefSystemDetail struct {
+	BeliefSystem                 *BeliefSystem `json:"belief_system"`
+	ExampleName                  string        `json:"example_name"`
+	CurrentObservationContextIds []string      `json:"current_observation_context_ids"`
+}
+
+func (bsd *BeliefSystemDetail) ToProto() *pbmodels.BeliefSystemDetail {
+	return &pbmodels.BeliefSystemDetail{
+		BeliefSystem:                 bsd.BeliefSystem.ToProto(),
+		ExampleName:                  bsd.ExampleName,
+		CurrentObservationContextIds: bsd.CurrentObservationContextIds,
+	}
 }

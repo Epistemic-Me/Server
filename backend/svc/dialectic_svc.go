@@ -7,30 +7,53 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/google/uuid"
 )
 
 type DialecticService struct {
-	kv   *db.KeyValueStore
-	bsvc *BeliefService
-	aih  *ai.AIHelper
+	kvStore *db.KeyValueStore
+	bsvc    *BeliefService
+	aih     *ai.AIHelper
 }
 
 // NewDialecticService initializes and returns a new DialecticService.
-func NewDialecticService(kv *db.KeyValueStore, bsvc *BeliefService, aih *ai.AIHelper) *DialecticService {
+func NewDialecticService(kvStore *db.KeyValueStore, bsvc *BeliefService, aih *ai.AIHelper) *DialecticService {
 	return &DialecticService{
-		kv:   kv,
-		bsvc: bsvc,
-		aih:  aih,
+		kvStore: kvStore,
+		bsvc:    bsvc,
+		aih:     aih,
+	}
+}
+
+// Add this method to DialecticService
+func (dsvc *DialecticService) storeDialecticValue(userID string, dialectic *models.Dialectic) error {
+	log.Printf("Storing dialectic: %+v", dialectic)
+	return dsvc.kvStore.Store(userID, dialectic.ID, *dialectic, len(dialectic.UserInteractions))
+}
+
+// Add this method to DialecticService
+func (dsvc *DialecticService) retrieveDialecticValue(userID, dialecticID string) (*models.Dialectic, error) {
+	value, err := dsvc.kvStore.Retrieve(userID, dialecticID)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Retrieved dialectic value: %+v", value)
+	switch d := value.(type) {
+	case models.Dialectic:
+		return &d, nil
+	case *models.Dialectic:
+		return d, nil
+	default:
+		return nil, fmt.Errorf("retrieved value is not a Dialectic: %T", value)
 	}
 }
 
 func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput) (*models.CreateDialecticOutput, error) {
 	newDialecticId := "di_" + uuid.New().String()
 
-	// Create a new Dialectic struct
-	dialectic := models.Dialectic{
+	dialectic := &models.Dialectic{
 		ID:     newDialecticId,
 		UserID: input.UserID,
 		Agent: models.Agent{
@@ -38,7 +61,6 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 			DialecticType: input.DialecticType,
 		},
 		UserInteractions: []models.DialecticalInteraction{},
-		BeliefSystem:     &models.BeliefSystem{}, // Initialize with an empty BeliefSystem
 	}
 
 	// Generate the first interaction
@@ -50,49 +72,54 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 	// Add the first interaction to the dialectic
 	dialectic.UserInteractions = append(dialectic.UserInteractions, *newInteraction)
 
-	// Store the dialectic
-	err = dsvc.kv.Store(input.UserID, dialectic.ID, dialectic, 1)
+	err = dsvc.storeDialecticValue(input.UserID, dialectic)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to store new dialectic: %w", err)
 	}
 
 	return &models.CreateDialecticOutput{
-		DialecticID: dialectic.ID,
-		Dialectic:   dialectic,
+		DialecticID: newDialecticId,
+		Dialectic:   *dialectic,
 	}, nil
 }
 
 func (dsvc *DialecticService) ListDialectics(input *models.ListDialecticsInput) (*models.ListDialecticsOutput, error) {
-	// Retrieve all dialectics for the user
-	dialectics, err := dsvc.kv.ListByType(input.UserID, reflect.TypeOf(models.Dialectic{}))
+	log.Printf("ListDialectics called for user: %s", input.UserID)
+
+	dialectics, err := dsvc.kvStore.ListByType(input.UserID, reflect.TypeOf(models.Dialectic{}))
 	if err != nil {
+		log.Printf("Error in ListByType: %v", err)
 		return nil, err
 	}
 
-	// Convert the retrieved dialectics to the required type
-	var dialecticModels []models.Dialectic
+	log.Printf("Retrieved %d dialectics from storage", len(dialectics))
+
+	var dialecticValues []models.Dialectic
 	for _, dialectic := range dialectics {
-		storedDialectic := dialectic.(*models.Dialectic)
-		dialecticModels = append(dialecticModels, *storedDialectic)
+		switch d := dialectic.(type) {
+		case models.Dialectic:
+			dialecticValues = append(dialecticValues, d)
+		case *models.Dialectic:
+			dialecticValues = append(dialecticValues, *d)
+		default:
+			log.Printf("Unexpected type for dialectic: %T", dialectic)
+		}
 	}
 
+	log.Printf("Converted %d dialectics to values", len(dialecticValues))
+
 	return &models.ListDialecticsOutput{
-		Dialectics: dialecticModels,
+		Dialectics: dialecticValues,
 	}, nil
 }
 
 func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput) (*models.UpdateDialecticOutput, error) {
 	log.Printf("UpdateDialectic called with input: %+v", input)
 
-	kvResponse, err := dsvc.kv.Retrieve(input.UserID, input.DialecticID)
+	dialectic, err := dsvc.retrieveDialecticValue(input.UserID, input.DialecticID)
 	if err != nil {
 		log.Printf("Error retrieving dialectic: %v", err)
 		return nil, err
-	}
-
-	dialectic, ok := kvResponse.(*models.Dialectic)
-	if !ok {
-		return nil, fmt.Errorf("failed to assert kvResponse to *Dialectic")
 	}
 
 	interaction, err := getPendingInteraction(*dialectic)
@@ -138,7 +165,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 	dialectic.UserInteractions = append(dialectic.UserInteractions, *newInteraction)
 
-	err = dsvc.kv.Store(input.UserID, dialectic.ID, *dialectic, 1)
+	err = dsvc.storeDialecticValue(input.UserID, dialectic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store updated dialectic: %w", err)
 	}
@@ -235,7 +262,13 @@ func (dsvc *DialecticService) generatePendingDialecticalInteraction(userID strin
 		}
 	}
 
-	question, err := dsvc.aih.GenerateQuestion(user_belief_system.RawStr, events)
+	beliefStrings := make([]string, len(user_belief_system.Beliefs))
+	for i, belief := range user_belief_system.Beliefs {
+		beliefStrings[i] = belief.GetContentAsString()
+	}
+
+	// Update this line:
+	question, err := dsvc.aih.GenerateQuestion(strings.Join(beliefStrings, " "), events)
 
 	if err != nil {
 		log.Printf("Error in GenerateQuestion: %v", err)
