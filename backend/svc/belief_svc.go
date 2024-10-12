@@ -49,7 +49,10 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 		return nil, err
 	}
 
+	// var empty_beliefs []models.Belief
+	// beliefSystem, err := bsvc.GetBeliefSystemFromBeliefs(empty_beliefs)
 	beliefSystem, err := bsvc.getBeliefSystemFromBeliefs([]*models.Belief{&belief})
+
 	if err != nil {
 		return nil, err
 	}
@@ -71,13 +74,19 @@ func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*model
 	existingBelief.Version++
 	existingBelief.Type = models.BeliefType(input.BeliefType)
 
-	err = bsvc.storeBeliefValue(input.UserID, existingBelief)
-	if err != nil {
-		logf(LogLevelError, "Error in Store: %v", err)
-		return nil, err
+	// todo: @deen update temporal information
+	if !input.DryRun {
+		err = bsvc.storeBeliefValue(input.UserID, existingBelief)
+		if err != nil {
+			log.Printf("Error in Store: %v", err)
+			return nil, err
+		}
 	}
 
+	// var empty_beliefs []models.Belief
+	// beliefSystem, err := bsvc.getBeliefSystemFromBeliefs(empty_beliefs)
 	beliefSystem, err := bsvc.getBeliefSystemFromBeliefs([]*models.Belief{existingBelief})
+
 	if err != nil {
 		logf(LogLevelError, "Error in getBeliefSystemFromBeliefs: %v", err)
 		return nil, err
@@ -98,20 +107,15 @@ func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.
 		return nil, fmt.Errorf("error retrieving beliefs: %v", err)
 	}
 
-	logf(LogLevelDebug, "Retrieved %d beliefs", len(beliefSystem.Beliefs))
+	// TODO: Filter beliefs by the IDs specified in the input
+
+	if err != nil {
+		return nil, err
+	}
 
 	return &models.ListBeliefsOutput{
 		BeliefSystem: *beliefSystem,
 	}, nil
-}
-
-func contains(slice []string, item string) bool {
-	for _, a := range slice {
-		if a == item {
-			return true
-		}
-	}
-	return false
 }
 
 func (bsvc *BeliefService) getBeliefSystemFromBeliefs(beliefs []*models.Belief) (*models.BeliefSystem, error) {

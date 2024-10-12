@@ -67,6 +67,7 @@ message UpdateDialecticRequest {
     string dialectic_id = 1;                     // The ID of the dialectic being updated.
     UserAnswer answer = 2;                       // The user's answer to the dialectic.
     string user_id = 3;                          // The ID of the user whose dialectic is being updated.
+    bool dry_run = 4;                           // Whether to perform a dry run of the dialectic.
 }
 
 // Response message for updating an existing dialectic.

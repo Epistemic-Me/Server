@@ -10,6 +10,7 @@ type ListBeliefsInput struct {
 type CreateBeliefInput struct {
 	UserID        string `json:"user_id"`
 	BeliefContent string `json:"belief_content"`
+	DryRun        bool   `json:"dry_run"`
 }
 
 // UpdateBeliefInput represents an input to update an existing belieff
@@ -19,6 +20,7 @@ type UpdateBeliefInput struct {
 	BeliefType           BeliefType `json:"belief_type"`
 	CurrentVersion       int32      `json:"current_version"` // also utilized as idempotency key for update
 	UpdatedBeliefContent string     `json:"updated_belief_content"`
+	DryRun               bool       `json:"dry_run"`
 }
 
 // CreateDialecticInput represents an input to create a new dialectic.
@@ -37,6 +39,7 @@ type UpdateDialecticInput struct {
 	UserID      string     `json:"user_id"`
 	DialecticID string     `json:"dialectic_id"`
 	Answer      UserAnswer `json:"answer"`
+	DryRun      bool       `json:"dry_run"`
 }
 
 // GetBeliefSystemDetailInput represents an input to get belief system details.

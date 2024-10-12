@@ -163,6 +163,7 @@ func (s *Server) UpdateDialectic(
 			UserAnswer:         req.Msg.Answer.UserAnswer,
 			CreatedAtMillisUTC: req.Msg.Answer.CreatedAtMillisUtc,
 		},
+		DryRun: req.Msg.DryRun,
 	})
 
 	if err != nil {
