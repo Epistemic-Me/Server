@@ -160,7 +160,7 @@ func (kvs *KeyValueStore) LoadFromDisk() error {
 
 // Store checks if all fields in the given struct have JSON tags and stores the struct as JSON.
 // It stores the value with the specified version number.
-func (kvs *KeyValueStore) Store(user, key string, value interface{}, version int) error {
+func (kvs *KeyValueStore) Store(user string, key string, value interface{}, version int) error {
 	log.Printf("Storing value of type %T for user %s with key %s and version %d", value, user, key, version)
 
 	v := reflect.ValueOf(value)

@@ -3,6 +3,8 @@ package fixture_models
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 
 	"epistemic-me-backend/db"
 	"epistemic-me-backend/svc/models"
@@ -12,11 +14,27 @@ import (
 
 // ImportFixtures imports the belief system fixtures into the given KeyValueStore
 func ImportFixtures(kvStore *db.KeyValueStore) error {
+	// Get the directory of this source file
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		return fmt.Errorf("failed to get current file path")
+	}
+	currentDir := filepath.Dir(filename)
+
+	// Construct the path to the fixture file
+	yamlFilePath := filepath.Join(currentDir, "belief_system_fixture.yaml")
+
 	// Read the YAML file
-	yamlFile, err := os.ReadFile("db/fixtures/belief_system_fixture.yaml")
+	yamlFile, err := os.ReadFile(yamlFilePath)
 	if err != nil {
 		return fmt.Errorf("error reading YAML file: %v", err)
 	}
+
+	// Read the YAML file
+	// yamlFile, err := os.ReadFile("db/fixtures/belief_system_fixture.yaml")
+	// if err != nil {
+	// 	return fmt.Errorf("error reading YAML file: %v", err)
+	// }
 
 	var fixture BeliefSystemFixture
 	err = yaml.Unmarshal(yamlFile, &fixture)

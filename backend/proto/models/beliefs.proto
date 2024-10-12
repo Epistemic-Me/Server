@@ -2,8 +2,7 @@ syntax = "proto3";
 
 option go_package = "epistemic-me-backend/pb/models";
 
-import "proto/models/source.proto";
-import "proto/models/temporal.proto";
+import "proto/models/observation_context.proto";
 
 // A confidence rating on a belief represents
 // a score that determines how likely the system
@@ -22,8 +21,9 @@ message Content {
 
 // Enum to distinguish between causal and statement beliefs
 enum BeliefType {
-    CAUSAL = 0;
-    STATEMENT = 1;
+    BELIEF_TYPE_INVALID = 0;
+    CAUSAL = 1;
+    STATEMENT = 2;
 }
 
 // Message representing a belief
@@ -32,11 +32,13 @@ message Belief {
     string user_id = 2;                         // Identifier for the user who holds the belief.
     int32 version = 3;                          // Version number of the belief.
     repeated ConfidenceRating confidence_ratings = 4; // Confidence ratings of the belief.
-    repeated Source sources = 5;                // Sources from which the belief is derived.
-    repeated Content content = 6;               // Content of the belief.
-    BeliefType type = 7;                        // Type of the belief.
-    CausalBelief causal_belief = 8;             // Optional field for causal beliefs.
-    TemporalInformation temporal_information = 9; // Temporal information
+    repeated Content content = 5;               // Content of the belief.
+    BeliefType type = 6;                        // Type of the belief.
+    CausalBelief causal_belief = 7;             // Optional field for causal beliefs.
+    repeated string observation_context_ids = 8; // IDs of related observation contexts
+    map<string, float> probabilities = 9;        // Maps observation context value to probability
+    string action = 10;                          // Action associated with the belief
+    string result = 11;                          // Expected result of the action
 
     // Nested message for causal belief details
     message CausalBelief {
@@ -53,7 +55,15 @@ message Belief {
 // to initiate further dialectical questions to gain better
 // understanding of a user's beliefs.
 message BeliefSystem {
-    string raw_str = 1; // The raw string representation of the belief system.
-    double overall_confidence_rating = 2; // Overall confidence rating produced as a result of all beliefs it summarizes
-    double clarification_score = 3; // Score indicating how much beliefs conflict with each other
+    repeated Belief beliefs = 1;
+    repeated ObservationContext observation_contexts = 2;
+    string raw_str = 3; // The raw string representation of the belief system.
+    double overall_confidence_rating = 4; // Overall confidence rating produced as a result of all beliefs it summarizes
+    double clarification_score = 5; // Score indicating how much beliefs conflict with each other
+}
+
+message BeliefSystemDetail {
+    BeliefSystem belief_system = 1;
+    repeated string current_observation_context_ids = 2;
+    string example_name = 3;
 }
