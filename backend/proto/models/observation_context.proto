@@ -1,8 +1,6 @@
 syntax = "proto3";
 
 import "proto/models/source.proto";
-import "proto/models/temporal.proto";
-
 
 option go_package = "epistemic-me-backend/pb/models";
 
@@ -44,14 +42,10 @@ message Output {
 
 // Message representing an observation context
 message ObservationContext {
-    int32 id = 1;
+    string id = 1;
     string name = 2;
-    string description = 3;
-    repeated PossibleState possible_states = 4;
-    repeated ConditionalProbability conditional_probabilities = 5; // Conditional probabilities
-    repeated Input inputs = 6; // Inputs for this context
-    repeated Output outputs = 7; // Outputs for this context
-    TemporalInformation temporal_information = 8; // Temporal information
+    string parent_id = 3;
+    repeated string possible_values = 4;
 }
 
 // Message representing a possible state for an observation context

@@ -92,18 +92,13 @@ func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*model
 func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.ListBeliefsOutput, error) {
 	logf(LogLevelDebug, "ListBeliefs called with input: %+v", input)
 
-	beliefs, err := bsvc.getAllBeliefs(input.UserID)
+	beliefSystem, err := bsvc.retrieveBeliefSystem(input.UserID)
 	if err != nil {
 		logf(LogLevelError, "Error in ListBeliefs: %v", err)
 		return nil, fmt.Errorf("error retrieving beliefs: %v", err)
 	}
 
-	beliefSystem := &models.BeliefSystem{
-		Beliefs:             beliefs,
-		ObservationContexts: []*models.ObservationContext{},
-	}
-
-	logf(LogLevelDebug, "Retrieved %d beliefs", len(beliefs))
+	logf(LogLevelDebug, "Retrieved %d beliefs", len(beliefSystem.Beliefs))
 
 	return &models.ListBeliefsOutput{
 		BeliefSystem: *beliefSystem,
@@ -134,26 +129,20 @@ func (bsvc *BeliefService) getBeliefSystemFromBeliefs(beliefs []*models.Belief) 
 func (bsvc *BeliefService) GetBeliefSystemDetail(input *models.GetBeliefSystemDetailInput) (*models.GetBeliefSystemDetailOutput, error) {
 	logf(LogLevelDebug, "GetBeliefSystemDetail called for user: %s", input.UserID)
 
-	beliefs, err := bsvc.getAllBeliefs(input.UserID)
+	beliefSystem, err := bsvc.retrieveBeliefSystem(input.UserID)
 	if err != nil {
-		logf(LogLevelError, "Error retrieving beliefs: %v", err)
-		return nil, fmt.Errorf("error retrieving beliefs: %v", err)
+		logf(LogLevelError, "Error in GetBeliefSystemDetail: %v", err)
+		return nil, err
 	}
 
-	// TODO: Implement logic to retrieve observation contexts
-	observationContexts := []*models.ObservationContext{}
-
-	beliefSystem := &models.BeliefSystem{
-		Beliefs:             beliefs,
-		ObservationContexts: observationContexts,
-	}
+	logf(LogLevelDebug, "Retrieved BeliefSystem: %+v", beliefSystem)
+	logf(LogLevelDebug, "Number of beliefs: %d", len(beliefSystem.Beliefs))
+	logf(LogLevelDebug, "Number of observation contexts: %d", len(beliefSystem.ObservationContexts))
 
 	output := &models.GetBeliefSystemDetailOutput{
 		BeliefSystem: beliefSystem,
 		ExampleName:  "User's Belief System",
 	}
-
-	logf(LogLevelDebug, "Retrieved belief system for user %s: %+v", input.UserID, output)
 
 	return output, nil
 }
@@ -220,4 +209,21 @@ func logf(level int, format string, v ...interface{}) {
 	if level >= currentLogLevel {
 		log.Printf(format, v...)
 	}
+}
+
+// Add this method to BeliefService
+func (bsvc *BeliefService) retrieveBeliefSystem(userID string) (*models.BeliefSystem, error) {
+	value, err := bsvc.kvStore.Retrieve(userID, "BeliefSystemId")
+	if err != nil {
+		logf(LogLevelError, "Error retrieving belief system: %v", err)
+		return nil, fmt.Errorf("error retrieving belief system: %v", err)
+	}
+
+	beliefSystem, ok := value.(*models.BeliefSystem)
+	if !ok {
+		logf(LogLevelError, "Retrieved value is not a BeliefSystem. Type: %T", value)
+		return nil, fmt.Errorf("invalid belief system data type")
+	}
+
+	return beliefSystem, nil
 }
