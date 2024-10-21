@@ -231,3 +231,20 @@ func (bsvc *BeliefService) retrieveBeliefSystem(userID string) (*models.BeliefSy
 
 	return beliefSystem, nil
 }
+
+// Add this method to the BeliefService
+func (bsvc *BeliefService) GetBeliefSystem(userID string) (*models.BeliefSystem, error) {
+	listBeliefsOutput, err := bsvc.ListBeliefs(&models.ListBeliefsInput{
+		UserID: userID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving beliefs: %v", err)
+	}
+
+	beliefSystem := &models.BeliefSystem{
+		Beliefs:             listBeliefsOutput.Beliefs,
+		ObservationContexts: []*models.ObservationContext{}, // You might want to populate this if needed
+	}
+
+	return beliefSystem, nil
+}

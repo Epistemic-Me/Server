@@ -55,7 +55,7 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 
 	dialectic := &models.Dialectic{
 		ID:     newDialecticId,
-		UserID: input.UserID,
+		UserID: input.UserID, // This will be the SelfAgent ID
 		Agent: models.Agent{
 			AgentType:     models.AgentTypeGPTLatest,
 			DialecticType: input.DialecticType,
@@ -63,16 +63,8 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 		UserInteractions: []models.DialecticalInteraction{},
 	}
 
-	beliefOutput, err := dsvc.bsvc.ListBeliefs(&models.ListBeliefsInput{
-		UserID: input.UserID,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
 	// Generate the first interaction
-	newInteraction, err := dsvc.generatePendingDialecticalInteraction(input.UserID, dialectic.UserInteractions, *&beliefOutput.BeliefSystem)
+	newInteraction, err := dsvc.generatePendingDialecticalInteraction(input.UserID, dialectic.UserInteractions, models.BeliefSystem{})
 	if err != nil {
 		return nil, err
 	}
@@ -92,29 +84,17 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 }
 
 func (dsvc *DialecticService) ListDialectics(input *models.ListDialecticsInput) (*models.ListDialecticsOutput, error) {
-	log.Printf("ListDialectics called for user: %s", input.UserID)
-
 	dialectics, err := dsvc.kvStore.ListByType(input.UserID, reflect.TypeOf(models.Dialectic{}))
 	if err != nil {
-		log.Printf("Error in ListByType: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve dialectics: %v", err)
 	}
-
-	log.Printf("Retrieved %d dialectics from storage", len(dialectics))
 
 	var dialecticValues []models.Dialectic
-	for _, dialectic := range dialectics {
-		switch d := dialectic.(type) {
-		case models.Dialectic:
-			dialecticValues = append(dialecticValues, d)
-		case *models.Dialectic:
-			dialecticValues = append(dialecticValues, *d)
-		default:
-			log.Printf("Unexpected type for dialectic: %T", dialectic)
+	for _, d := range dialectics {
+		if dialectic, ok := d.(*models.Dialectic); ok && dialectic.UserID == input.UserID {
+			dialecticValues = append(dialecticValues, *dialectic)
 		}
 	}
-
-	log.Printf("Converted %d dialectics to values", len(dialecticValues))
 
 	return &models.ListDialecticsOutput{
 		Dialectics: dialecticValues,

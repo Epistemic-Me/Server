@@ -4,6 +4,7 @@ option go_package = "epistemic-me-backend/pb/";
 
 import "proto/models/beliefs.proto";
 import "proto/models/dialectic.proto";
+import "proto/models/self_agent.proto";
 
 service EpistemicMeService {
     rpc CreateBelief(CreateBeliefRequest) returns (CreateBeliefResponse) {}
@@ -13,6 +14,10 @@ service EpistemicMeService {
     rpc UpdateDialectic(UpdateDialecticRequest) returns (UpdateDialecticResponse) {}
     rpc GetBeliefSystemDetail(GetBeliefSystemDetailRequest) returns (GetBeliefSystemDetailResponse) {}
     rpc UpdateKeyValueStore(UpdateKeyValueStoreRequest) returns (UpdateKeyValueStoreResponse) {}
+    rpc CreateSelfAgent(CreateSelfAgentRequest) returns (CreateSelfAgentResponse);
+    rpc GetSelfAgent(GetSelfAgentRequest) returns (GetSelfAgentResponse);
+    rpc AddPhilosophy(AddPhilosophyRequest) returns (AddPhilosophyResponse);
+    rpc CreatePhilosophy(CreatePhilosophyRequest) returns (CreatePhilosophyResponse);
 }
 
 // Request message for listing beliefs.
@@ -93,3 +98,39 @@ message UpdateKeyValueStoreRequest {
 message UpdateKeyValueStoreResponse {
     bool success = 1;
 }
+
+message CreateSelfAgentRequest {
+    string id = 1;
+    repeated string philosophies = 2;
+}
+  
+message CreateSelfAgentResponse {
+    SelfAgent self_agent = 1;
+}
+  
+message GetSelfAgentRequest {
+    string self_agent_id = 1;
+}
+  
+message GetSelfAgentResponse {
+    SelfAgent self_agent = 1;
+}
+  
+message AddPhilosophyRequest {
+    string self_agent_id = 1;
+    string philosophy_id = 2;
+}
+  
+message AddPhilosophyResponse {
+    SelfAgent updated_self_agent = 1;
+}
+  
+message CreatePhilosophyRequest {
+    string description = 1;
+    bool extrapolate_contexts = 2;
+}
+  
+message CreatePhilosophyResponse {
+    Philosophy philosophy = 1;
+}
+  
