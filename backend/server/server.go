@@ -28,7 +28,7 @@ type Server struct {
 	bsvc         *svc.BeliefService
 	dsvc         *svc.DialecticService
 	kvStore      *db.KeyValueStore // Change this to a pointer
-	selfAgentSvc *svc.SelfAgentService
+	selfModelSvc *svc.SelfModelService
 }
 
 func (s *Server) CreateBelief(
@@ -250,44 +250,44 @@ func (s *Server) UpdateKeyValueStore(ctx context.Context, req *connect.Request[p
 	return connect.NewResponse(&pb.UpdateKeyValueStoreResponse{}), nil
 }
 
-func (s *Server) CreateSelfAgent(ctx context.Context, req *connect.Request[pb.CreateSelfAgentRequest]) (*connect.Response[pb.CreateSelfAgentResponse], error) {
-	input := &svcmodels.CreateSelfAgentInput{
+func (s *Server) CreateSelfModel(ctx context.Context, req *connect.Request[pb.CreateSelfModelRequest]) (*connect.Response[pb.CreateSelfModelResponse], error) {
+	input := &svcmodels.CreateSelfModelInput{
 		ID:           req.Msg.Id,
 		Philosophies: req.Msg.Philosophies,
 	}
-	resp, err := s.selfAgentSvc.CreateSelfAgent(ctx, input)
+	resp, err := s.selfModelSvc.CreateSelfModel(ctx, input)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&pb.CreateSelfAgentResponse{
-		SelfAgent: resp.SelfAgent.ToProto(),
+	return connect.NewResponse(&pb.CreateSelfModelResponse{
+		SelfModel: resp.SelfModel.ToProto(),
 	}), nil
 }
 
-func (s *Server) GetSelfAgent(ctx context.Context, req *connect.Request[pb.GetSelfAgentRequest]) (*connect.Response[pb.GetSelfAgentResponse], error) {
-	input := &svcmodels.GetSelfAgentInput{
-		SelfAgentID: req.Msg.SelfAgentId,
+func (s *Server) GetSelfModel(ctx context.Context, req *connect.Request[pb.GetSelfModelRequest]) (*connect.Response[pb.GetSelfModelResponse], error) {
+	input := &svcmodels.GetSelfModelInput{
+		SelfModelID: req.Msg.SelfModelId,
 	}
-	resp, err := s.selfAgentSvc.GetSelfAgent(ctx, input)
+	resp, err := s.selfModelSvc.GetSelfModel(ctx, input)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&pb.GetSelfAgentResponse{
-		SelfAgent: resp.SelfAgent.ToProto(),
+	return connect.NewResponse(&pb.GetSelfModelResponse{
+		SelfModel: resp.SelfModel.ToProto(),
 	}), nil
 }
 
 func (s *Server) AddPhilosophy(ctx context.Context, req *connect.Request[pb.AddPhilosophyRequest]) (*connect.Response[pb.AddPhilosophyResponse], error) {
 	input := &svcmodels.AddPhilosophyInput{
-		SelfAgentID:  req.Msg.SelfAgentId,
+		SelfModelID:  req.Msg.SelfModelId,
 		PhilosophyID: req.Msg.PhilosophyId,
 	}
-	resp, err := s.selfAgentSvc.AddPhilosophy(ctx, input)
+	resp, err := s.selfModelSvc.AddPhilosophy(ctx, input)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&pb.AddPhilosophyResponse{
-		UpdatedSelfAgent: resp.UpdatedSelfAgent.ToProto(),
+		UpdatedSelfModel: resp.UpdatedSelfModel.ToProto(),
 	}), nil
 }
 
@@ -296,7 +296,7 @@ func (s *Server) CreatePhilosophy(ctx context.Context, req *connect.Request[pb.C
 		Description:         req.Msg.Description,
 		ExtrapolateContexts: req.Msg.ExtrapolateContexts,
 	}
-	resp, err := s.selfAgentSvc.CreatePhilosophy(ctx, input)
+	resp, err := s.selfModelSvc.CreatePhilosophy(ctx, input)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -318,7 +318,7 @@ func NewServer(kvStore *db.KeyValueStore) *Server {
 		bsvc:         bsvc,
 		dsvc:         dsvc,
 		kvStore:      kvStore,
-		selfAgentSvc: svc.NewSelfAgentService(kvStore, dsvc, bsvc), // Pass bsvc here as well
+		selfModelSvc: svc.NewSelfModelService(kvStore, dsvc, bsvc), // Pass bsvc here as well
 	}
 }
 

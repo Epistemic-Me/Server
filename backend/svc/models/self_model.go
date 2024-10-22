@@ -4,34 +4,34 @@ import (
 	pbmodels "epistemic-me-backend/pb/models"
 )
 
-// SelfAgent represents a self-agent with its associated data
-type SelfAgent struct {
+// SelfModel represents a self-model with its associated data
+type SelfModel struct {
 	ID           string        `json:"id"` // This will be the same as UserID
 	Philosophies []string      `json:"philosophies"`
 	BeliefSystem *BeliefSystem `json:"belief_system"`
 	Dialectics   []*Dialectic  `json:"dialectics"`
 }
 
-func (sa *SelfAgent) ToProto() *pbmodels.SelfAgent {
+func (sa *SelfModel) ToProto() *pbmodels.SelfModel {
 	protoDialectics := make([]*pbmodels.Dialectic, len(sa.Dialectics))
 	for i, d := range sa.Dialectics {
 		protoDialectics[i] = d.ToProto()
 	}
 
-	protoSelfAgent := &pbmodels.SelfAgent{
+	protoSelfModel := &pbmodels.SelfModel{
 		Id:           sa.ID,
 		Philosophies: sa.Philosophies,
 		Dialectics:   protoDialectics,
 	}
 
 	if sa.BeliefSystem != nil {
-		protoSelfAgent.BeliefSystem = sa.BeliefSystem.ToProto()
+		protoSelfModel.BeliefSystem = sa.BeliefSystem.ToProto()
 	}
 
-	return protoSelfAgent
+	return protoSelfModel
 }
 
-// Philosophy represents a philosophy associated with a self-agent
+// Philosophy represents a philosophy associated with a self-model
 type Philosophy struct {
 	ID                  string `json:"id"`
 	Description         string `json:"description"`
@@ -46,36 +46,36 @@ func (p *Philosophy) ToProto() *pbmodels.Philosophy {
 	}
 }
 
-// CreateSelfAgentInput represents the input for creating a new self-agent
-type CreateSelfAgentInput struct {
+// CreateSelfModelInput represents the input for creating a new self-model
+type CreateSelfModelInput struct {
 	ID           string   `json:"id"`
 	Philosophies []string `json:"philosophies"`
 }
 
-// CreateSelfAgentOutput represents the output after creating a new self-agent
-type CreateSelfAgentOutput struct {
-	SelfAgent *SelfAgent `json:"self_agent"`
+// CreateSelfModelOutput represents the output after creating a new self-model
+type CreateSelfModelOutput struct {
+	SelfModel *SelfModel `json:"self_model"`
 }
 
-// GetSelfAgentInput represents the input for retrieving a self-agent
-type GetSelfAgentInput struct {
-	SelfAgentID string `json:"self_agent_id"`
+// GetSelfModelInput represents the input for retrieving a self-model
+type GetSelfModelInput struct {
+	SelfModelID string `json:"self_model_id"`
 }
 
-// GetSelfAgentOutput represents the output after retrieving a self-agent
-type GetSelfAgentOutput struct {
-	SelfAgent *SelfAgent `json:"self_agent"`
+// GetSelfModelOutput represents the output after retrieving a self-model
+type GetSelfModelOutput struct {
+	SelfModel *SelfModel `json:"self_model"`
 }
 
-// AddPhilosophyInput represents the input for adding a philosophy to a self-agent
+// AddPhilosophyInput represents the input for adding a philosophy to a self-model
 type AddPhilosophyInput struct {
-	SelfAgentID  string `json:"self_agent_id"`
+	SelfModelID  string `json:"self_model_id"`
 	PhilosophyID string `json:"philosophy_id"`
 }
 
-// AddPhilosophyOutput represents the output after adding a philosophy to a self-agent
+// AddPhilosophyOutput represents the output after adding a philosophy to a self-model
 type AddPhilosophyOutput struct {
-	UpdatedSelfAgent *SelfAgent `json:"updated_self_agent"`
+	UpdatedSelfModel *SelfModel `json:"updated_self_model"`
 }
 
 // CreatePhilosophyInput represents the input for creating a new philosophy

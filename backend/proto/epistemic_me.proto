@@ -4,7 +4,7 @@ option go_package = "epistemic-me-backend/pb/";
 
 import "proto/models/beliefs.proto";
 import "proto/models/dialectic.proto";
-import "proto/models/self_agent.proto";
+import "proto/models/self_model.proto";
 
 service EpistemicMeService {
     rpc CreateBelief(CreateBeliefRequest) returns (CreateBeliefResponse) {}
@@ -14,8 +14,8 @@ service EpistemicMeService {
     rpc UpdateDialectic(UpdateDialecticRequest) returns (UpdateDialecticResponse) {}
     rpc GetBeliefSystemDetail(GetBeliefSystemDetailRequest) returns (GetBeliefSystemDetailResponse) {}
     rpc UpdateKeyValueStore(UpdateKeyValueStoreRequest) returns (UpdateKeyValueStoreResponse) {}
-    rpc CreateSelfAgent(CreateSelfAgentRequest) returns (CreateSelfAgentResponse);
-    rpc GetSelfAgent(GetSelfAgentRequest) returns (GetSelfAgentResponse);
+    rpc CreateSelfModel(CreateSelfModelRequest) returns (CreateSelfModelResponse);
+    rpc GetSelfModel(GetSelfModelRequest) returns (GetSelfModelResponse);
     rpc AddPhilosophy(AddPhilosophyRequest) returns (AddPhilosophyResponse);
     rpc CreatePhilosophy(CreatePhilosophyRequest) returns (CreatePhilosophyResponse);
 }
@@ -99,30 +99,30 @@ message UpdateKeyValueStoreResponse {
     bool success = 1;
 }
 
-message CreateSelfAgentRequest {
+message CreateSelfModelRequest {
     string id = 1;
     repeated string philosophies = 2;
 }
   
-message CreateSelfAgentResponse {
-    SelfAgent self_agent = 1;
+message CreateSelfModelResponse {
+    SelfModel self_model = 1;
 }
   
-message GetSelfAgentRequest {
-    string self_agent_id = 1;
+message GetSelfModelRequest {
+    string self_model_id = 1;
 }
   
-message GetSelfAgentResponse {
-    SelfAgent self_agent = 1;
+message GetSelfModelResponse {
+    SelfModel self_model = 1;
 }
   
 message AddPhilosophyRequest {
-    string self_agent_id = 1;
+    string self_model_id = 1;
     string philosophy_id = 2;
 }
   
 message AddPhilosophyResponse {
-    SelfAgent updated_self_agent = 1;
+    SelfModel updated_self_model = 1;
 }
   
 message CreatePhilosophyRequest {
