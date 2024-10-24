@@ -82,7 +82,7 @@ func (s *SelfModelService) GetSelfModel(ctx context.Context, input *models.GetSe
 	selfModel.BeliefSystem = beliefSystem
 
 	// Fetch associated dialectics
-	dialectics, err := s.dsvc.ListDialectics(&models.ListDialecticsInput{UserID: selfModel.ID})
+	dialectics, err := s.dsvc.ListDialectics(&models.ListDialecticsInput{SelfModelID: selfModel.ID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve dialectics: %v", err)
 	}

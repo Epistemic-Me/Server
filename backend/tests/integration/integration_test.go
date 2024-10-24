@@ -122,7 +122,7 @@ func TestIntegrationWithPersistentStore(t *testing.T) {
 func TestCreateBelief(t *testing.T) {
 	// Use the global client variable
 	resp, err := client.CreateBelief(context.Background(), connect.NewRequest(&pb.CreateBeliefRequest{
-		UserId:        "test-user-id",
+		SelfModelId:   "test-self-model-id",
 		BeliefContent: "Test belief content",
 	}))
 	if err != nil {
@@ -138,15 +138,15 @@ func TestCreateBelief(t *testing.T) {
 func TestListBeliefs(t *testing.T) {
 	clearStore()
 	ctx := context.Background()
-	userId := "test-user-id"
+	selfModelId := "test-user-id"
 
 	// Create initial belief system
-	err := CreateInitialBeliefSystemIfNotExists(userId)
+	err := CreateInitialBeliefSystemIfNotExists(selfModelId)
 	require.NoError(t, err)
 
 	// Create a belief
 	createReq := &pb.CreateBeliefRequest{
-		UserId:        userId,
+		SelfModelId:   selfModelId,
 		BeliefContent: "Test belief content for ListBeliefs",
 	}
 	createResp, err := client.CreateBelief(ctx, connect.NewRequest(createReq))
@@ -158,7 +158,7 @@ func TestListBeliefs(t *testing.T) {
 
 	// List beliefs
 	listReq := &pb.ListBeliefsRequest{
-		UserId: userId,
+		SelfModelId: selfModelId,
 	}
 	listResp, err := client.ListBeliefs(ctx, connect.NewRequest(listReq))
 	require.NoError(t, err)
@@ -172,33 +172,33 @@ func TestListBeliefs(t *testing.T) {
 }
 
 func TestCreateDialectic(t *testing.T) {
-	userId := "test-user-id"
-	err := CreateInitialBeliefSystemIfNotExists(userId)
+	selfModelId := "test-self-model-id"
+	err := CreateInitialBeliefSystemIfNotExists(selfModelId)
 	if err != nil {
 		t.Fatalf("Failed to create initial belief system: %v", err)
 	}
 
 	createResp, err := client.CreateDialectic(context.Background(), connect.NewRequest(&pb.CreateDialecticRequest{
-		UserId: userId,
+		SelfModelId: selfModelId,
 	}))
 	if err != nil {
 		t.Fatalf("CreateDialectic failed: %v", err)
 	}
 
 	assert.NotNil(t, createResp.Msg)
-	assert.NotEmpty(t, createResp.Msg.DialecticId, "Dialectic ID should not be empty")
+	assert.NotEmpty(t, createResp.Msg.Dialectic.Id, "Dialectic ID should not be empty")
 }
 
 func TestListDialectics(t *testing.T) {
-	userId := "test-user-id"
-	err := CreateInitialBeliefSystemIfNotExists(userId)
+	selfModelId := "test-user-id"
+	err := CreateInitialBeliefSystemIfNotExists(selfModelId)
 	if err != nil {
 		t.Fatalf("Failed to create initial belief system: %v", err)
 	}
 
 	// Create a dialectic
 	_, err = client.CreateDialectic(context.Background(), connect.NewRequest(&pb.CreateDialecticRequest{
-		UserId: userId,
+		SelfModelId: selfModelId,
 	}))
 	if err != nil {
 		t.Fatalf("CreateDialectic failed: %v", err)
@@ -206,7 +206,7 @@ func TestListDialectics(t *testing.T) {
 
 	// List dialectics
 	listResp, err := client.ListDialectics(context.Background(), connect.NewRequest(&pb.ListDialecticsRequest{
-		UserId: userId,
+		SelfModelId: selfModelId,
 	}))
 	if err != nil {
 		t.Fatalf("ListDialectics failed: %v", err)
@@ -217,30 +217,30 @@ func TestListDialectics(t *testing.T) {
 }
 
 func TestUpdateDialectic(t *testing.T) {
-	userId := "test-user-id"
-	err := CreateInitialBeliefSystemIfNotExists(userId)
+	selfModelId := "test-user-id"
+	err := CreateInitialBeliefSystemIfNotExists(selfModelId)
 	if err != nil {
 		t.Fatalf("Failed to create initial belief system: %v", err)
 	}
 
 	// Create a dialectic
 	createResp, err := client.CreateDialectic(context.Background(), connect.NewRequest(&pb.CreateDialecticRequest{
-		UserId: userId,
+		SelfModelId: selfModelId,
 	}))
 	if err != nil {
 		t.Fatalf("CreateDialectic failed: %v", err)
 	}
 
-	dialecticId := createResp.Msg.DialecticId
+	dialecticId := createResp.Msg.Dialectic.Id
 
 	// Update the dialectic
 	updateResp, err := client.UpdateDialectic(context.Background(), connect.NewRequest(&pb.UpdateDialecticRequest{
-		DialecticId: dialecticId,
+		Id: dialecticId,
 		Answer: &models.UserAnswer{
 			UserAnswer:         "Test answer",
 			CreatedAtMillisUtc: time.Now().UnixMilli(),
 		},
-		UserId: userId,
+		SelfModelId: selfModelId,
 	}))
 	if err != nil {
 		t.Fatalf("UpdateDialectic failed: %v", err)
@@ -251,16 +251,16 @@ func TestUpdateDialectic(t *testing.T) {
 	assert.NotEmpty(t, updateResp.Msg.Dialectic.UserInteractions, "Should have interactions after update")
 }
 
-func TestGetBeliefSystemDetail(t *testing.T) {
-	userId := "test-user-id"
-	err := CreateInitialBeliefSystemIfNotExists(userId)
+func TestGetBeliefSystem(t *testing.T) {
+	selfModelId := "test-user-id"
+	err := CreateInitialBeliefSystemIfNotExists(selfModelId)
 	if err != nil {
 		t.Fatalf("Failed to create initial belief system: %v", err)
 	}
 
 	// Create a belief
 	createResp, err := client.CreateBelief(context.Background(), connect.NewRequest(&pb.CreateBeliefRequest{
-		UserId:        userId,
+		SelfModelId:   selfModelId,
 		BeliefContent: "Test belief for belief system",
 	}))
 	if err != nil {
@@ -271,34 +271,33 @@ func TestGetBeliefSystemDetail(t *testing.T) {
 	// Add a small delay after creating the belief
 	time.Sleep(100 * time.Millisecond)
 
-	// Get belief system detail
-	var getResp *connect.Response[pb.GetBeliefSystemDetailResponse]
+	// Get belief system
+	var getResp *connect.Response[pb.GetBeliefSystemResponse]
 	for i := 0; i < 5; i++ {
-		getResp, err = client.GetBeliefSystemDetail(context.Background(), connect.NewRequest(&pb.GetBeliefSystemDetailRequest{
-			UserId: userId,
+		getResp, err = client.GetBeliefSystem(context.Background(), connect.NewRequest(&pb.GetBeliefSystemRequest{
+			SelfModelId: selfModelId,
 		}))
-		t.Logf("Attempt %d: Retrieved belief system with %d beliefs", i+1, len(getResp.Msg.BeliefSystemDetail.BeliefSystem.Beliefs))
-		if err == nil && getResp.Msg.BeliefSystemDetail != nil && len(getResp.Msg.BeliefSystemDetail.BeliefSystem.Beliefs) > 0 {
+		t.Logf("Attempt %d: Retrieved belief system with %d beliefs", i+1, len(getResp.Msg.BeliefSystem.Beliefs))
+		if err == nil && getResp.Msg.BeliefSystem != nil && len(getResp.Msg.BeliefSystem.Beliefs) > 0 {
 			break
 		}
 		time.Sleep(time.Second)
 	}
 
 	if err != nil {
-		t.Fatalf("GetBeliefSystemDetail failed: %v", err)
+		t.Fatalf("GetBeliefSystem failed: %v", err)
 	}
 
-	assert.NotNil(t, getResp.Msg.BeliefSystemDetail)
-	assert.NotNil(t, getResp.Msg.BeliefSystemDetail.BeliefSystem)
-	assert.NotEmpty(t, getResp.Msg.BeliefSystemDetail.BeliefSystem.Beliefs, "Beliefs should not be empty")
+	assert.NotNil(t, getResp.Msg.BeliefSystem)
+	assert.NotEmpty(t, getResp.Msg.BeliefSystem.Beliefs, "Beliefs should not be empty")
 
-	t.Logf("Retrieved BeliefSystemDetail: %+v", getResp.Msg.BeliefSystemDetail)
-	t.Logf("Number of beliefs: %d", len(getResp.Msg.BeliefSystemDetail.BeliefSystem.Beliefs))
-	t.Logf("Number of observation contexts: %d", len(getResp.Msg.BeliefSystemDetail.BeliefSystem.ObservationContexts))
+	t.Logf("Retrieved BeliefSystem: %+v", getResp.Msg.BeliefSystem)
+	t.Logf("Number of beliefs: %d", len(getResp.Msg.BeliefSystem.Beliefs))
+	t.Logf("Number of observation contexts: %d", len(getResp.Msg.BeliefSystem.ObservationContexts))
 
 	// Check if the created belief is in the belief system
 	foundCreatedBelief := false
-	for _, belief := range getResp.Msg.BeliefSystemDetail.BeliefSystem.Beliefs {
+	for _, belief := range getResp.Msg.BeliefSystem.Beliefs {
 		if belief.Id == createResp.Msg.Belief.Id {
 			foundCreatedBelief = true
 			break
@@ -335,10 +334,10 @@ func TestIntegrationWithFixtures(t *testing.T) {
 		t.Fatalf("Failed to unmarshal fixture: %v", err)
 	}
 
-	fixtureUserID := "fixture-user-id"
+	fixtureSelfModelId := "fixture-self-model-id"
 
 	// Retrieve the stored BeliefSystem
-	storedBeliefSystem, err := kvStore.Retrieve(fixtureUserID, "BeliefSystemId")
+	storedBeliefSystem, err := kvStore.Retrieve(fixtureSelfModelId, "BeliefSystemId")
 	if err != nil {
 		t.Fatalf("Failed to retrieve stored belief system: %v", err)
 	}
@@ -359,7 +358,7 @@ func TestIntegrationWithFixtures(t *testing.T) {
 	// Verify the content of beliefs
 	for _, belief := range bs.Beliefs {
 		assert.NotEmpty(t, belief.ID, "Belief ID should not be empty")
-		assert.Equal(t, fixtureUserID, belief.UserID, "Belief UserID should match fixture user ID")
+		assert.Equal(t, fixtureSelfModelId, belief.SelfModelID, "Belief SelfModelId should match fixture user ID")
 		assert.NotEmpty(t, belief.Content, "Belief Content should not be empty")
 		assert.NotEmpty(t, belief.ObservationContextIDs, "Belief ObservationContextIDs should not be empty")
 		assert.NotEmpty(t, belief.Probabilities, "Belief Probabilities should not be empty")
@@ -378,8 +377,8 @@ func TestIntegrationWithFixtures(t *testing.T) {
 	clearStore()
 }
 
-func CreateInitialBeliefSystemIfNotExists(userId string) error {
-	bs, err := kvStore.Retrieve(userId, "BeliefSystemId")
+func CreateInitialBeliefSystemIfNotExists(selfModelId string) error {
+	bs, err := kvStore.Retrieve(selfModelId, "BeliefSystemId")
 	if err != nil || bs == nil {
 		initialBS := svc_models.BeliefSystem{
 			Beliefs:             []*svc_models.Belief{},
@@ -387,7 +386,7 @@ func CreateInitialBeliefSystemIfNotExists(userId string) error {
 		}
 
 		log.Printf("Creating initial BeliefSystem: %+v", initialBS)
-		err = kvStore.Store(userId, "BeliefSystemId", initialBS, 1)
+		err = kvStore.Store(selfModelId, "BeliefSystemId", initialBS, 1)
 		if err != nil {
 			log.Printf("Error storing initial BeliefSystem: %v", err)
 			return fmt.Errorf("failed to create initial belief system: %v", err)

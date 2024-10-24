@@ -38,16 +38,11 @@ type UpdateDialecticOutput struct {
 	Dialectic Dialectic `json:"dialectic"`
 }
 
-// GetBeliefSystemDetailOutput represents an output containing belief system details.
-type GetBeliefSystemDetailOutput struct {
+// GetBeliefSystemOutput represents an output containing a belief system.
+type GetBeliefSystemOutput struct {
 	BeliefSystem *BeliefSystem `json:"belief_system"`
-	ExampleName  string        `json:"example_name"`
 }
 
-// Add this method to the GetBeliefSystemDetailOutput struct
-func (o *GetBeliefSystemDetailOutput) ToProto() *pbmodels.BeliefSystemDetail {
-	return &pbmodels.BeliefSystemDetail{
-		BeliefSystem: o.BeliefSystem.ToProto(),
-		ExampleName:  o.ExampleName,
-	}
+func (o *GetBeliefSystemOutput) ToProto() *pbmodels.BeliefSystem {
+	return o.BeliefSystem.ToProto()
 }

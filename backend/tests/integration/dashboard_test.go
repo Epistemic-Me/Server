@@ -11,14 +11,14 @@ import (
 )
 
 func TestDashboardAPIIntegration(t *testing.T) {
-	userId := "test-user-id"
-	err := CreateInitialBeliefSystemIfNotExists(userId) // Change this line
+	selfModelId := "test-self-model-id"
+	err := CreateInitialBeliefSystemIfNotExists(selfModelId) // Change this line
 	if err != nil {
 		t.Fatalf("Failed to create initial belief system: %v", err)
 	}
 
 	resp, err := client.ListBeliefs(context.Background(), connect.NewRequest(&pb.ListBeliefsRequest{
-		UserId: userId,
+		SelfModelId: selfModelId,
 	}))
 	if err != nil {
 		t.Fatalf("ListBeliefs failed: %v", err)

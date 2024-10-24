@@ -285,12 +285,12 @@ func (kvs *KeyValueStore) sortByVersion(user, key string) {
 }
 
 // Retrieve gets the latest stored value under the given user and key, and deserializes it into the original object type.
-func (kvs *KeyValueStore) Retrieve(userID string, key string) (interface{}, error) {
-	log.Printf("Retrieving key %s for user %s", key, userID)
+func (kvs *KeyValueStore) Retrieve(selfModelID string, key string) (interface{}, error) {
+	log.Printf("Retrieving key %s for user %s", key, selfModelID)
 	kvs.mu.RLock()
 	defer kvs.mu.RUnlock()
 
-	userStore, userExists := kvs.store[userID]
+	userStore, userExists := kvs.store[selfModelID]
 	if !userExists {
 		return nil, fmt.Errorf("user not found")
 	}
@@ -317,12 +317,12 @@ func (kvs *KeyValueStore) Retrieve(userID string, key string) (interface{}, erro
 }
 
 // RetrieveAllVersions retrieves all versions of the stored value under the given user and key.
-func (kvs *KeyValueStore) RetrieveAllVersions(userID string, key string) ([]interface{}, error) {
-	log.Printf("Retrieving all versions for key %s for user %s", key, userID)
+func (kvs *KeyValueStore) RetrieveAllVersions(selfModelID string, key string) ([]interface{}, error) {
+	log.Printf("Retrieving all versions for key %s for user %s", key, selfModelID)
 	kvs.mu.RLock()
 	defer kvs.mu.RUnlock()
 
-	userStore, userExists := kvs.store[userID]
+	userStore, userExists := kvs.store[selfModelID]
 	if !userExists {
 		return nil, fmt.Errorf("user not found")
 	}

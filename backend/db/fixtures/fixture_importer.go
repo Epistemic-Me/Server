@@ -42,7 +42,18 @@ func ImportFixtures(kvStore *db.KeyValueStore) error {
 		return fmt.Errorf("error unmarshaling YAML: %v", err)
 	}
 
-	fixtureUserID := "fixture-user-id"
+	fixtureUserID := "fixture-self-model-id"
+
+	// Create and store a fixture SelfModel first
+	fixtureSelfModel := models.SelfModel{
+		ID: fixtureUserID,
+	}
+
+	// Store the self model
+	err = kvStore.Store(fixtureUserID, "SelfModelId", fixtureSelfModel, 1)
+	if err != nil {
+		return fmt.Errorf("error storing fixture self model: %v", err)
+	}
 
 	beliefSystem := models.BeliefSystem{
 		Beliefs:             []*models.Belief{},
@@ -67,7 +78,7 @@ func ImportFixtures(kvStore *db.KeyValueStore) error {
 		for _, b := range example.Beliefs {
 			belief := &models.Belief{
 				ID:                    fmt.Sprintf("%s_%s", example.Name, b.BeliefName),
-				UserID:                fixtureUserID,
+				SelfModelID:           fixtureSelfModel.ID,
 				Content:               []models.Content{{RawStr: b.Description}},
 				ObservationContextIDs: []string{contextMap[b.Context].ID},
 				Probabilities:         map[string]float32{b.PredictedOutcome: 0.8, b.CounterfactualOutcome: 0.2},

@@ -38,7 +38,7 @@ func (s *Server) CreateBelief(
 	log.Printf("CreateBelief called with request: %+v", req.Msg)
 
 	input := &svcmodels.CreateBeliefInput{
-		UserID:        req.Msg.UserId,
+		SelfModelID:   req.Msg.SelfModelId,
 		BeliefContent: req.Msg.BeliefContent,
 	}
 	log.Printf("CreateBelief input: %+v", input)
@@ -72,8 +72,8 @@ func (s *Server) ListBeliefs(
 	log.Println("ListBeliefs called with request:", req.Msg)
 
 	response, err := s.bsvc.ListBeliefs(&svcmodels.ListBeliefsInput{
-		UserID:    req.Msg.UserId,
-		BeliefIDs: req.Msg.BeliefIds,
+		SelfModelID: req.Msg.SelfModelId,
+		BeliefIDs:   req.Msg.BeliefIds,
 	})
 
 	if err != nil {
@@ -101,7 +101,7 @@ func (s *Server) CreateDialectic(ctx context.Context, req *connect.Request[pb.Cr
 	log.Printf("CreateDialectic called with request: %+v", req.Msg)
 
 	input := &svcmodels.CreateDialecticInput{
-		UserID:        req.Msg.UserId,
+		SelfModelID:   req.Msg.SelfModelId,
 		DialecticType: svcmodels.DialecticType(req.Msg.DialecticType),
 	}
 	log.Printf("CreateDialectic input: %+v", input)
@@ -115,8 +115,7 @@ func (s *Server) CreateDialectic(ctx context.Context, req *connect.Request[pb.Cr
 	log.Printf("CreateDialectic response: %+v", response)
 
 	protoResponse := &pb.CreateDialecticResponse{
-		DialecticId: response.DialecticID,
-		Dialectic:   response.Dialectic.ToProto(),
+		Dialectic: response.Dialectic.ToProto(),
 	}
 	log.Printf("CreateDialectic proto response: %+v", protoResponse)
 
@@ -130,7 +129,7 @@ func (s *Server) ListDialectics(
 	log.Println("ListDialectics called with request:", req.Msg)
 
 	response, err := s.dsvc.ListDialectics(&svcmodels.ListDialecticsInput{
-		UserID: req.Msg.UserId,
+		SelfModelID: req.Msg.SelfModelId,
 	})
 
 	if err != nil {
@@ -158,8 +157,8 @@ func (s *Server) UpdateDialectic(
 	log.Println("UpdateDialectic called with request:", req.Msg)
 
 	response, err := s.dsvc.UpdateDialectic(&svcmodels.UpdateDialecticInput{
-		UserID:      req.Msg.UserId,
-		DialecticID: req.Msg.DialecticId,
+		SelfModelID: req.Msg.SelfModelId,
+		ID:          req.Msg.Id,
 		Answer: svcmodels.UserAnswer{
 			UserAnswer:         req.Msg.Answer.UserAnswer,
 			CreatedAtMillisUTC: req.Msg.Answer.CreatedAtMillisUtc,
@@ -182,65 +181,21 @@ func (s *Server) UpdateDialectic(
 	return connect.NewResponse(protoResponse), nil
 }
 
-func (s *Server) GetBeliefSystemDetail(
+func (s *Server) GetBeliefSystem(
 	ctx context.Context,
-	req *connect.Request[pb.GetBeliefSystemDetailRequest],
-) (*connect.Response[pb.GetBeliefSystemDetailResponse], error) {
-	log.Printf("GetBeliefSystemDetail called for user: %s", req.Msg.UserId)
+	req *connect.Request[pb.GetBeliefSystemRequest],
+) (*connect.Response[pb.GetBeliefSystemResponse], error) {
+	log.Printf("GetBeliefSystem called with request: %+v", req.Msg)
 
-	// Log the state of the KeyValueStore before retrieving the belief system
-	log.Printf("KeyValueStore state before retrieval: %+v", s.kvStore)
-
-	response, err := s.bsvc.GetBeliefSystemDetail(&svcmodels.GetBeliefSystemDetailInput{
-		UserID:                       req.Msg.UserId,
-		CurrentObservationContextIds: req.Msg.CurrentObservationContextIds,
-	})
-
+	beliefSystem, err := s.bsvc.GetBeliefSystem(req.Msg.SelfModelId)
 	if err != nil {
-		log.Printf("Error in GetBeliefSystemDetail: %v", err)
-		if err.Error() == "no belief systems found for user" || err.Error() == "error retrieving beliefs: user not found" {
-			log.Printf("No belief system found for user: %s", req.Msg.UserId)
-			// Return an empty belief system instead of an error
-			return connect.NewResponse(&pb.GetBeliefSystemDetailResponse{
-				BeliefSystemDetail: &models.BeliefSystemDetail{
-					ExampleName: "Empty Belief System",
-					BeliefSystem: &models.BeliefSystem{
-						Beliefs:             []*models.Belief{},
-						ObservationContexts: []*models.ObservationContext{},
-					},
-				},
-			}), nil
-		}
-		return nil, connect.NewError(connect.CodeInternal, err)
+		log.Printf("GetBeliefSystem ERROR: %v", err)
+		return nil, err
 	}
 
-	if response == nil {
-		log.Printf("GetBeliefSystemDetail response is nil for user: %s", req.Msg.UserId)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unexpected nil response"))
-	}
-
-	log.Printf("Retrieved belief system for user %s: %+v", req.Msg.UserId, response)
-	log.Printf("Number of beliefs in response: %d", len(response.BeliefSystem.Beliefs))
-	log.Printf("Number of observation contexts in response: %d", len(response.BeliefSystem.ObservationContexts))
-
-	// Log the first few beliefs if any exist
-	if len(response.BeliefSystem.Beliefs) > 0 {
-		log.Printf("First belief: %+v", response.BeliefSystem.Beliefs[0])
-	}
-
-	protoResponse := &pb.GetBeliefSystemDetailResponse{
-		BeliefSystemDetail: response.ToProto(),
-	}
-
-	log.Printf("Number of beliefs in proto response: %d", len(protoResponse.BeliefSystemDetail.BeliefSystem.Beliefs))
-	log.Printf("Number of observation contexts in proto response: %d", len(protoResponse.BeliefSystemDetail.BeliefSystem.ObservationContexts))
-
-	// Log the first few beliefs in the proto response if any exist
-	if len(protoResponse.BeliefSystemDetail.BeliefSystem.Beliefs) > 0 {
-		log.Printf("First belief in proto response: %+v", protoResponse.BeliefSystemDetail.BeliefSystem.Beliefs[0])
-	}
-
-	return connect.NewResponse(protoResponse), nil
+	return connect.NewResponse(&pb.GetBeliefSystemResponse{
+		BeliefSystem: beliefSystem.ToProto(),
+	}), nil
 }
 
 // Add this method to your server type

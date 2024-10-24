@@ -147,7 +147,7 @@ func (di DialecticalInteraction) ToProto() *pbmodels.DialecticalInteraction {
 // Dialectic represents a session to determine and clarify a user's beliefs.
 type Dialectic struct {
 	ID               string                   `json:"id"`
-	UserID           string                   `json:"user_id"`
+	SelfModelID      string                   `json:"self_model_id"`
 	Agent            Agent                    `json:"agent"`
 	UserInteractions []DialecticalInteraction `json:"user_interactions"`
 	BeliefSystem     *BeliefSystem            `json:"belief_system"`
@@ -170,7 +170,7 @@ func (d *Dialectic) ToProto() *pbmodels.Dialectic {
 
 	protoDialectic := &pbmodels.Dialectic{
 		Id:               d.ID,
-		UserId:           d.UserID,
+		SelfModelId:      d.SelfModelID,
 		Agent:            d.Agent.ToProto(),
 		UserInteractions: protoInteractions,
 	}

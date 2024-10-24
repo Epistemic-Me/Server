@@ -75,8 +75,6 @@ func TestSelfModelIntegration(t *testing.T) {
 	resetStore()
 	TestCreateSelfModel(t)
 	TestGetSelfModel(t)
-	TestCreatePhilosophy(t)
-	TestAddPhilosophy(t)
 	TestGetBeliefSystemOfSelfModel(t)
 	TestListDialecticsOfSelfModel(t)
 }
@@ -120,55 +118,6 @@ func TestGetSelfModel(t *testing.T) {
 	assert.Equal(t, userID, getResp.Msg.SelfModel.Id)
 	assert.Equal(t, []string{"default"}, getResp.Msg.SelfModel.Philosophies)
 	testLogf(t, "GetSelfModel response: %+v", getResp.Msg)
-}
-
-func TestCreatePhilosophy(t *testing.T) {
-	ctx := context.Background()
-	req := &pb.CreatePhilosophyRequest{
-		Description:         "Test philosophy",
-		ExtrapolateContexts: true,
-	}
-	resp, err := client.CreatePhilosophy(ctx, connect.NewRequest(req))
-	require.NoError(t, err)
-	assert.NotNil(t, resp.Msg.Philosophy)
-	assert.NotEmpty(t, resp.Msg.Philosophy.Id)
-	assert.Equal(t, "Test philosophy", resp.Msg.Philosophy.Description)
-	assert.True(t, resp.Msg.Philosophy.ExtrapolateContexts)
-	testLogf(t, "CreatePhilosophy response: %+v", resp.Msg)
-}
-
-func TestAddPhilosophy(t *testing.T) {
-	ctx := context.Background()
-	userID := uuid.New().String()
-
-	// First, create a self model
-	_, err := client.CreateSelfModel(ctx, connect.NewRequest(&pb.CreateSelfModelRequest{
-		Id:           userID,
-		Philosophies: []string{"default"},
-	}))
-	require.NoError(t, err)
-
-	// Create a new philosophy
-	createPhilosophyResp, err := client.CreatePhilosophy(ctx, connect.NewRequest(&pb.CreatePhilosophyRequest{
-		Description:         "New philosophy",
-		ExtrapolateContexts: false,
-	}))
-	require.NoError(t, err)
-	philosophyID := createPhilosophyResp.Msg.Philosophy.Id
-
-	// Wait a short time to ensure the philosophy is stored
-	time.Sleep(100 * time.Millisecond)
-
-	// Add the new philosophy to the self model
-	addReq := &pb.AddPhilosophyRequest{
-		SelfModelId:  userID,
-		PhilosophyId: philosophyID,
-	}
-	addResp, err := client.AddPhilosophy(ctx, connect.NewRequest(addReq))
-	require.NoError(t, err)
-	assert.NotNil(t, addResp.Msg.UpdatedSelfModel)
-	assert.Contains(t, addResp.Msg.UpdatedSelfModel.Philosophies, philosophyID)
-	testLogf(t, "AddPhilosophy response: %+v", addResp.Msg)
 }
 
 func TestGetBeliefSystemOfSelfModel(t *testing.T) {
@@ -219,11 +168,11 @@ func TestListDialecticsOfSelfModel(t *testing.T) {
 
 	// Create a dialectic for the self model
 	createDialecticReq := &pb.CreateDialecticRequest{
-		UserId: selfModelID, // Use the self-model ID as the user ID
+		SelfModelId: selfModelID, // Use the self-model ID as the user ID
 	}
 	createDialecticResp, err := client.CreateDialectic(ctx, connect.NewRequest(createDialecticReq))
 	require.NoError(t, err)
-	require.NotEmpty(t, createDialecticResp.Msg.DialecticId)
+	require.NotEmpty(t, createDialecticResp.Msg.Dialectic.Id)
 
 	// Wait a short time to ensure the dialectic is stored
 	time.Sleep(100 * time.Millisecond)
@@ -239,7 +188,7 @@ func TestListDialecticsOfSelfModel(t *testing.T) {
 	// Check if the dialectic is in the SelfModel's dialectics
 	assert.NotEmpty(t, getSelfModelResp.Msg.SelfModel.Dialectics, "Self model should have at least one dialectic")
 	assert.Equal(t, 1, len(getSelfModelResp.Msg.SelfModel.Dialectics), "Self model should have exactly one dialectic")
-	assert.Equal(t, createDialecticResp.Msg.DialecticId, getSelfModelResp.Msg.SelfModel.Dialectics[0].Id, "Dialectic ID should match")
+	assert.Equal(t, createDialecticResp.Msg.Dialectic.Id, getSelfModelResp.Msg.SelfModel.Dialectics[0].Id, "Dialectic ID should match")
 
 	testLogf(t, "ListDialecticsOfSelfModel response: %+v", getSelfModelResp.Msg.SelfModel.Dialectics)
 }

@@ -57,7 +57,7 @@ func (bt BeliefType) ToProto() pbmodels.BeliefType {
 // Belief represents a user's belief.
 type Belief struct {
 	ID                    string             `json:"id"`
-	UserID                string             `json:"user_id"`
+	SelfModelID           string             `json:"self_model_id"`
 	Version               int32              `json:"version"`
 	ConfidenceRatings     []ConfidenceRating `json:"confidence_ratings"`
 	Content               []Content          `json:"content"`
@@ -95,7 +95,7 @@ func (b Belief) ToProto() *pbmodels.Belief {
 
 	return &pbmodels.Belief{
 		Id:                    b.ID,
-		UserId:                b.UserID,
+		SelfModelId:           b.SelfModelID,
 		Version:               b.Version,
 		ConfidenceRatings:     confidenceRatingsPb,
 		Content:               contentPb,
@@ -178,20 +178,5 @@ func (oc ObservationContext) ToProto() *pbmodels.ObservationContext {
 		Name:           oc.Name,
 		ParentId:       oc.ParentID,
 		PossibleValues: oc.PossibleValues,
-	}
-}
-
-// BeliefSystemDetail represents a detailed view of a belief system
-type BeliefSystemDetail struct {
-	BeliefSystem                 *BeliefSystem `json:"belief_system"`
-	ExampleName                  string        `json:"example_name"`
-	CurrentObservationContextIds []string      `json:"current_observation_context_ids"`
-}
-
-func (bsd *BeliefSystemDetail) ToProto() *pbmodels.BeliefSystemDetail {
-	return &pbmodels.BeliefSystemDetail{
-		BeliefSystem:                 bsd.BeliefSystem.ToProto(),
-		ExampleName:                  bsd.ExampleName,
-		CurrentObservationContextIds: bsd.CurrentObservationContextIds,
 	}
 }
