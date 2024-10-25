@@ -46,3 +46,51 @@ type GetBeliefSystemOutput struct {
 func (o *GetBeliefSystemOutput) ToProto() *pbmodels.BeliefSystem {
 	return o.BeliefSystem.ToProto()
 }
+
+type CreateDeveloperOutput struct {
+	Developer Developer `json:"developer"`
+}
+
+type CreateUserOutput struct {
+	User User `json:"user"`
+}
+
+type Developer struct {
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Email     string   `json:"email"`
+	APIKeys   []string `json:"api_keys"`
+	CreatedAt int64    `json:"created_at"`
+	UpdatedAt int64    `json:"updated_at"`
+}
+
+func (d *Developer) ToProto() *pbmodels.Developer {
+	return &pbmodels.Developer{
+		Id:        d.ID,
+		Name:      d.Name,
+		Email:     d.Email,
+		ApiKeys:   d.APIKeys,
+		CreatedAt: d.CreatedAt,
+		UpdatedAt: d.UpdatedAt,
+	}
+}
+
+type User struct {
+	ID          string `json:"id"`
+	DeveloperID string `json:"developer_id"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+	CreatedAt   int64  `json:"created_at"`
+	UpdatedAt   int64  `json:"updated_at"`
+}
+
+func (u *User) ToProto() *pbmodels.User {
+	return &pbmodels.User{
+		Id:          u.ID,
+		DeveloperId: u.DeveloperID,
+		Name:        u.Name,
+		Email:       u.Email,
+		CreatedAt:   u.CreatedAt,
+		UpdatedAt:   u.UpdatedAt,
+	}
+}

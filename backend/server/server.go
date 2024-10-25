@@ -27,8 +27,10 @@ import (
 type Server struct {
 	bsvc         *svc.BeliefService
 	dsvc         *svc.DialecticService
-	kvStore      *db.KeyValueStore // Change this to a pointer
+	kvStore      *db.KeyValueStore
 	selfModelSvc *svc.SelfModelService
+	developerSvc *svc.DeveloperService
+	userSvc      *svc.UserService
 }
 
 func (s *Server) CreateBelief(
@@ -260,6 +262,69 @@ func (s *Server) CreatePhilosophy(ctx context.Context, req *connect.Request[pb.C
 	}), nil
 }
 
+func (s *Server) CreateDeveloper(ctx context.Context, req *connect.Request[pb.CreateDeveloperRequest]) (*connect.Response[pb.CreateDeveloperResponse], error) {
+	log.Printf("CreateDeveloper called with request: %+v", req.Msg)
+
+	input := &svcmodels.CreateDeveloperInput{
+		Name:  req.Msg.Name,
+		Email: req.Msg.Email,
+	}
+
+	response, err := s.developerSvc.CreateDeveloper(input)
+	if err != nil {
+		log.Printf("CreateDeveloper ERROR: %v", err)
+		return nil, err
+	}
+
+	protoResponse := &pb.CreateDeveloperResponse{
+		Developer: response.Developer.ToProto(),
+	}
+
+	return connect.NewResponse(protoResponse), nil
+}
+
+func (s *Server) CreateUser(ctx context.Context, req *connect.Request[pb.CreateUserRequest]) (*connect.Response[pb.CreateUserResponse], error) {
+	log.Printf("CreateUser called with request: %+v", req.Msg)
+
+	input := &svcmodels.CreateUserInput{
+		DeveloperID: req.Msg.DeveloperId,
+		Name:        req.Msg.Name,
+		Email:       req.Msg.Email,
+	}
+
+	response, err := s.userSvc.CreateUser(input)
+	if err != nil {
+		log.Printf("CreateUser ERROR: %v", err)
+		return nil, err
+	}
+
+	protoResponse := &pb.CreateUserResponse{
+		User: response.User.ToProto(),
+	}
+
+	return connect.NewResponse(protoResponse), nil
+}
+
+func (s *Server) GetDeveloper(ctx context.Context, req *connect.Request[pb.GetDeveloperRequest]) (*connect.Response[pb.GetDeveloperResponse], error) {
+	log.Printf("GetDeveloper called with request: %+v", req.Msg)
+
+	input := &svcmodels.GetDeveloperInput{
+		ID: req.Msg.Id,
+	}
+
+	response, err := s.developerSvc.GetDeveloper(input)
+	if err != nil {
+		log.Printf("GetDeveloper ERROR: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	protoResponse := &pb.GetDeveloperResponse{
+		Developer: response.ToProto(),
+	}
+
+	return connect.NewResponse(protoResponse), nil
+}
+
 func NewServer(kvStore *db.KeyValueStore) *Server {
 	if kvStore == nil {
 		log.Fatal("KeyValueStore is nil in NewServer")
@@ -273,7 +338,9 @@ func NewServer(kvStore *db.KeyValueStore) *Server {
 		bsvc:         bsvc,
 		dsvc:         dsvc,
 		kvStore:      kvStore,
-		selfModelSvc: svc.NewSelfModelService(kvStore, dsvc, bsvc), // Pass bsvc here as well
+		selfModelSvc: svc.NewSelfModelService(kvStore, dsvc, bsvc),
+		developerSvc: svc.NewDeveloperService(kvStore, aih),
+		userSvc:      svc.NewUserService(kvStore, aih),
 	}
 }
 

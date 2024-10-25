@@ -46,3 +46,17 @@ type UpdateDialecticInput struct {
 type GetBeliefSystemInput struct {
 	SelfModelID string `json:"self_model_id"`
 }
+
+type CreateDeveloperInput struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+type GetDeveloperInput struct {
+	ID string
+}
+type CreateUserInput struct {
+	DeveloperID string `json:"developer_id"`
+	Name        string `json:"name"`  // Can be empty
+	Email       string `json:"email"` // Can be empty
+}
