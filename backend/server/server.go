@@ -11,9 +11,11 @@ import (
 	"sync"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"google.golang.org/grpc/metadata" // Changed from internal/metadata
 
 	ai "epistemic-me-backend/ai"
 	db "epistemic-me-backend/db"
@@ -33,10 +35,51 @@ type Server struct {
 	userSvc      *svc.UserService
 }
 
+// Move validateAPIKey to be a regular function instead of a method
+func validateAPIKey[T any](
+	ctx context.Context,
+	req *connect.Request[T],
+) (context.Context, error) {
+	var apiKey string
+
+	// First try metadata
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if apiKeys := md.Get("x-api-key"); len(apiKeys) > 0 {
+			apiKey = apiKeys[0]
+		}
+	}
+
+	// Then try headers
+	if apiKey == "" {
+		apiKey = req.Header().Get("x-api-key")
+	}
+
+	if apiKey == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing API key"))
+	}
+
+	// Verify the API key format (should be a UUID)
+	if _, err := uuid.Parse(apiKey); err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid API key format"))
+	}
+
+	// TODO: Add actual API key validation against the database
+	// For now, we'll consider any well-formed UUID as valid
+	// This should be replaced with actual validation logic
+
+	return ctx, nil
+}
+
+// Update the server methods to use the standalone function
 func (s *Server) CreateBelief(
 	ctx context.Context,
 	req *connect.Request[pb.CreateBeliefRequest],
 ) (*connect.Response[pb.CreateBeliefResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Printf("CreateBelief called with request: %+v", req.Msg)
 
 	input := &svcmodels.CreateBeliefInput{
@@ -71,6 +114,11 @@ func (s *Server) ListBeliefs(
 	ctx context.Context,
 	req *connect.Request[pb.ListBeliefsRequest],
 ) (*connect.Response[pb.ListBeliefsResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Println("ListBeliefs called with request:", req.Msg)
 
 	response, err := s.bsvc.ListBeliefs(&svcmodels.ListBeliefsInput{
@@ -100,6 +148,11 @@ func (s *Server) ListBeliefs(
 }
 
 func (s *Server) CreateDialectic(ctx context.Context, req *connect.Request[pb.CreateDialecticRequest]) (*connect.Response[pb.CreateDialecticResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Printf("CreateDialectic called with request: %+v", req.Msg)
 
 	input := &svcmodels.CreateDialecticInput{
@@ -128,6 +181,11 @@ func (s *Server) ListDialectics(
 	ctx context.Context,
 	req *connect.Request[pb.ListDialecticsRequest],
 ) (*connect.Response[pb.ListDialecticsResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Println("ListDialectics called with request:", req.Msg)
 
 	response, err := s.dsvc.ListDialectics(&svcmodels.ListDialecticsInput{
@@ -156,6 +214,11 @@ func (s *Server) UpdateDialectic(
 	ctx context.Context,
 	req *connect.Request[pb.UpdateDialecticRequest],
 ) (*connect.Response[pb.UpdateDialecticResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Println("UpdateDialectic called with request:", req.Msg)
 
 	response, err := s.dsvc.UpdateDialectic(&svcmodels.UpdateDialecticInput{
@@ -187,6 +250,11 @@ func (s *Server) GetBeliefSystem(
 	ctx context.Context,
 	req *connect.Request[pb.GetBeliefSystemRequest],
 ) (*connect.Response[pb.GetBeliefSystemResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Printf("GetBeliefSystem called with request: %+v", req.Msg)
 
 	beliefSystem, err := s.bsvc.GetBeliefSystem(req.Msg.SelfModelId)
@@ -208,6 +276,11 @@ func (s *Server) UpdateKeyValueStore(ctx context.Context, req *connect.Request[p
 }
 
 func (s *Server) CreateSelfModel(ctx context.Context, req *connect.Request[pb.CreateSelfModelRequest]) (*connect.Response[pb.CreateSelfModelResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	input := &svcmodels.CreateSelfModelInput{
 		ID:           req.Msg.Id,
 		Philosophies: req.Msg.Philosophies,
@@ -222,6 +295,11 @@ func (s *Server) CreateSelfModel(ctx context.Context, req *connect.Request[pb.Cr
 }
 
 func (s *Server) GetSelfModel(ctx context.Context, req *connect.Request[pb.GetSelfModelRequest]) (*connect.Response[pb.GetSelfModelResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	input := &svcmodels.GetSelfModelInput{
 		SelfModelID: req.Msg.SelfModelId,
 	}
@@ -235,6 +313,11 @@ func (s *Server) GetSelfModel(ctx context.Context, req *connect.Request[pb.GetSe
 }
 
 func (s *Server) AddPhilosophy(ctx context.Context, req *connect.Request[pb.AddPhilosophyRequest]) (*connect.Response[pb.AddPhilosophyResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	input := &svcmodels.AddPhilosophyInput{
 		SelfModelID:  req.Msg.SelfModelId,
 		PhilosophyID: req.Msg.PhilosophyId,
@@ -249,6 +332,11 @@ func (s *Server) AddPhilosophy(ctx context.Context, req *connect.Request[pb.AddP
 }
 
 func (s *Server) CreatePhilosophy(ctx context.Context, req *connect.Request[pb.CreatePhilosophyRequest]) (*connect.Response[pb.CreatePhilosophyResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	input := &svcmodels.CreatePhilosophyInput{
 		Description:         req.Msg.Description,
 		ExtrapolateContexts: req.Msg.ExtrapolateContexts,
@@ -263,8 +351,7 @@ func (s *Server) CreatePhilosophy(ctx context.Context, req *connect.Request[pb.C
 }
 
 func (s *Server) CreateDeveloper(ctx context.Context, req *connect.Request[pb.CreateDeveloperRequest]) (*connect.Response[pb.CreateDeveloperResponse], error) {
-	log.Printf("CreateDeveloper called with request: %+v", req.Msg)
-
+	// This method doesn't require API key validation
 	input := &svcmodels.CreateDeveloperInput{
 		Name:  req.Msg.Name,
 		Email: req.Msg.Email,
@@ -272,10 +359,10 @@ func (s *Server) CreateDeveloper(ctx context.Context, req *connect.Request[pb.Cr
 
 	response, err := s.developerSvc.CreateDeveloper(input)
 	if err != nil {
-		log.Printf("CreateDeveloper ERROR: %v", err)
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
+	// The response should already include the API key from the service
 	protoResponse := &pb.CreateDeveloperResponse{
 		Developer: response.Developer.ToProto(),
 	}
@@ -284,6 +371,11 @@ func (s *Server) CreateDeveloper(ctx context.Context, req *connect.Request[pb.Cr
 }
 
 func (s *Server) CreateUser(ctx context.Context, req *connect.Request[pb.CreateUserRequest]) (*connect.Response[pb.CreateUserResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Printf("CreateUser called with request: %+v", req.Msg)
 
 	input := &svcmodels.CreateUserInput{
@@ -306,6 +398,11 @@ func (s *Server) CreateUser(ctx context.Context, req *connect.Request[pb.CreateU
 }
 
 func (s *Server) GetDeveloper(ctx context.Context, req *connect.Request[pb.GetDeveloperRequest]) (*connect.Response[pb.GetDeveloperResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Printf("GetDeveloper called with request: %+v", req.Msg)
 
 	input := &svcmodels.GetDeveloperInput{
@@ -352,9 +449,19 @@ func RunServer(kvStore *db.KeyValueStore, port string) (*http.Server, *sync.Wait
 	mux.Handle(path, handler)
 
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:8081", "http://localhost:3000"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization", "Connect-Protocol-Version"},
+		AllowedOrigins: []string{"http://localhost:8081", "http://localhost:3000", "http://localhost"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{
+			"Accept",
+			"Content-Type",
+			"Content-Length",
+			"Accept-Encoding",
+			"X-CSRF-Token",
+			"Authorization",
+			"Connect-Protocol-Version",
+			"x-api-key",
+			"Origin", // Add Origin to allowed headers
+		},
 		ExposedHeaders:   []string{"Content-Length", "Content-Type"},
 		AllowCredentials: true,
 		Debug:            true,

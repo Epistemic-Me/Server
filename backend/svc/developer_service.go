@@ -4,7 +4,9 @@ import (
 	ai "epistemic-me-backend/ai"
 	db "epistemic-me-backend/db"
 	"epistemic-me-backend/svc/models"
+	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/google/uuid"
@@ -63,6 +65,29 @@ func (s *DeveloperService) GetDeveloper(input *models.GetDeveloperInput) (*model
 	}
 
 	return developer, nil
+}
+
+// Update the GetDeveloperByAPIKey method
+
+func (s *DeveloperService) GetDeveloperByAPIKey(apiKey string) (*models.Developer, error) {
+	developers, err := s.kvStore.ListAllByType(reflect.TypeOf(models.Developer{}))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, dev := range developers {
+		developer, ok := dev.(*models.Developer)
+		if !ok {
+			continue
+		}
+		for _, key := range developer.APIKeys {
+			if key == apiKey {
+				return developer, nil
+			}
+		}
+	}
+
+	return nil, errors.New("developer not found for the given API key")
 }
 
 // Add other methods as needed (e.g., GetDeveloper, UpdateDeveloper, DeleteDeveloper)

@@ -383,3 +383,28 @@ func (kvs *KeyValueStore) ClearStore() {
 	kvs.store = make(map[string]map[string][]storedValue)
 	kvs.SaveToDisk() // If you want to clear the persistent storage as well
 }
+
+// ListAllByType lists all objects of a given type across all developers.
+func (kvs *KeyValueStore) ListAllByType(objType reflect.Type) ([]interface{}, error) {
+	kvs.mu.RLock()
+	defer kvs.mu.RUnlock()
+
+	var result []interface{}
+	for _, developerStore := range kvs.store {
+		for _, storedValues := range developerStore {
+			if len(storedValues) > 0 {
+				latestValue := storedValues[len(storedValues)-1]
+				if latestValue.Type == objType {
+					v := reflect.New(latestValue.Type).Interface()
+					err := json.Unmarshal([]byte(latestValue.JsonData), v)
+					if err != nil {
+						return nil, err
+					}
+					result = append(result, v)
+				}
+			}
+		}
+	}
+
+	return result, nil
+}

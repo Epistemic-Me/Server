@@ -2,14 +2,19 @@ package integration
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"testing"
 
 	pb "epistemic-me-backend/pb"
+	"epistemic-me-backend/pb/pbconnect"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var developerID string
 
 func TestDeveloperUserIntegration(t *testing.T) {
 	resetStore()
@@ -37,14 +42,18 @@ func TestCreateDeveloper(t *testing.T) {
 	assert.NotZero(t, resp.Msg.Developer.CreatedAt)
 	assert.NotZero(t, resp.Msg.Developer.UpdatedAt)
 
-	testLogf(t, "CreateDeveloper response: %+v", resp.Msg)
-
-	// Store the developer ID for the User test
 	developerID = resp.Msg.Developer.Id
+	apiKey = resp.Msg.Developer.ApiKeys[0]
+
+	// Update client with new API key
+	client = pbconnect.NewEpistemicMeServiceClient(
+		http.DefaultClient,
+		fmt.Sprintf("http://localhost:%s", port),
+		connect.WithInterceptors(withAPIKey(apiKey)),
+	)
 }
 
 func TestCreateUser(t *testing.T) {
-	// Skip this test if developer creation failed
 	if developerID == "" {
 		t.Skip("Skipping user creation test because developer creation failed")
 	}
@@ -68,11 +77,7 @@ func TestCreateUser(t *testing.T) {
 	assert.Equal(t, email, resp.Msg.User.Email)
 	assert.NotZero(t, resp.Msg.User.CreatedAt)
 	assert.NotZero(t, resp.Msg.User.UpdatedAt)
-
-	testLogf(t, "CreateUser response: %+v", resp.Msg)
 }
-
-var developerID string
 
 func init() {
 	// This ensures that the TestMain in self_model_integration_test.go is run
