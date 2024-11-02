@@ -2,21 +2,21 @@ package models
 
 // ListBeliefsInput represents an input to list beliefs.
 type ListBeliefsInput struct {
-	UserID    string   `json:"user_id"`
-	BeliefIDs []string `json:"belief_ids,omitempty"`
+	SelfModelID string   `json:"self_model_id"`
+	BeliefIDs   []string `json:"belief_ids,omitempty"`
 }
 
 // CreateBeliefInput represents an input to create a new belief.
 type CreateBeliefInput struct {
-	UserID        string `json:"user_id"`
+	SelfModelID   string `json:"self_model_id"`
 	BeliefContent string `json:"belief_content"`
 	DryRun        bool   `json:"dry_run"`
 }
 
-// UpdateBeliefInput represents an input to update an existing belieff
+// UpdateBeliefInput represents an input to update an existing belief
 type UpdateBeliefInput struct {
-	UserID               string     `json:"user_id"`
-	BeliefID             string     `json:"belief_id"`
+	SelfModelID          string     `json:"self_model_id"`
+	ID                   string     `json:"belief_id"`
 	BeliefType           BeliefType `json:"belief_type"`
 	CurrentVersion       int32      `json:"current_version"` // also utilized as idempotency key for update
 	UpdatedBeliefContent string     `json:"updated_belief_content"`
@@ -25,25 +25,38 @@ type UpdateBeliefInput struct {
 
 // CreateDialecticInput represents an input to create a new dialectic.
 type CreateDialecticInput struct {
-	UserID        string        `json:"user_id"`
+	SelfModelID   string        `json:"self_model_id"`
 	DialecticType DialecticType `json:"dialectic_type"`
 }
 
 // ListDialecticsInput represents an input to list dialectics.
 type ListDialecticsInput struct {
-	UserID string `json:"user_id"`
+	SelfModelID string `json:"self_model_id"`
 }
 
 // UpdateDialecticInput represents an input to update an existing dialectic.
 type UpdateDialecticInput struct {
-	UserID      string     `json:"user_id"`
-	DialecticID string     `json:"dialectic_id"`
+	ID          string     `json:"dialectic_id"`
+	SelfModelID string     `json:"self_model_id"`
 	Answer      UserAnswer `json:"answer"`
 	DryRun      bool       `json:"dry_run"`
 }
 
-// GetBeliefSystemDetailInput represents an input to get belief system details.
-type GetBeliefSystemDetailInput struct {
-	UserID                       string   `json:"user_id"`
-	CurrentObservationContextIds []string `json:"current_observation_context_ids,omitempty"`
+// GetBeliefSystemInput represents an input to get belief system details.
+type GetBeliefSystemInput struct {
+	SelfModelID string `json:"self_model_id"`
+}
+
+type CreateDeveloperInput struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+type GetDeveloperInput struct {
+	ID string
+}
+type CreateUserInput struct {
+	DeveloperID string `json:"developer_id"`
+	Name        string `json:"name"`  // Can be empty
+	Email       string `json:"email"` // Can be empty
 }

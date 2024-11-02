@@ -11,7 +11,7 @@ import (
 
 // KeyValueStore holds the in-memory store and a mutex for thread-safe access.
 type KeyValueStore struct {
-	store    map[string]map[string][]storedValue // user -> key -> []storedValue (slice to hold different versions)
+	store    map[string]map[string][]storedValue // developer_id -> key -> []storedValue (slice to hold different versions)
 	mu       sync.RWMutex
 	filePath string     // New field for persistence
 	diskMu   sync.Mutex // New mutex for disk operations
@@ -79,19 +79,19 @@ func (kvs *KeyValueStore) SaveToDisk() error {
 
 	// Create a snapshot of the store while holding the read lock
 	snapshot := make(map[string]map[string][]storedValue)
-	for user, userStore := range kvs.store {
-		snapshot[user] = make(map[string][]storedValue)
-		for key, values := range userStore {
-			snapshot[user][key] = make([]storedValue, len(values))
-			copy(snapshot[user][key], values)
+	for developer, developerStore := range kvs.store {
+		snapshot[developer] = make(map[string][]storedValue)
+		for key, values := range developerStore {
+			snapshot[developer][key] = make([]storedValue, len(values))
+			copy(snapshot[developer][key], values)
 		}
 	}
 
 	// Work with the snapshot to create the serializable store
 	serializableStore := make(map[string]map[string][]serializableStoredValue)
-	for user, userStore := range snapshot {
-		serializableStore[user] = make(map[string][]serializableStoredValue)
-		for key, values := range userStore {
+	for developer, developerStore := range snapshot {
+		serializableStore[developer] = make(map[string][]serializableStoredValue)
+		for key, values := range developerStore {
 			serializableValues := make([]serializableStoredValue, len(values))
 			for i, v := range values {
 				serializableValues[i] = serializableStoredValue{
@@ -100,7 +100,7 @@ func (kvs *KeyValueStore) SaveToDisk() error {
 					Version:  v.Version,
 				}
 			}
-			serializableStore[user][key] = serializableValues
+			serializableStore[developer][key] = serializableValues
 		}
 	}
 
@@ -136,9 +136,9 @@ func (kvs *KeyValueStore) LoadFromDisk() error {
 	defer kvs.mu.Unlock()
 
 	kvs.store = make(map[string]map[string][]storedValue)
-	for user, userStore := range serializableStore {
-		kvs.store[user] = make(map[string][]storedValue)
-		for key, values := range userStore {
+	for developer, developerStore := range serializableStore {
+		kvs.store[developer] = make(map[string][]storedValue)
+		for key, values := range developerStore {
 			storedValues := make([]storedValue, len(values))
 			for i, v := range values {
 				t, err := getTypeFromName(v.Type)
@@ -151,7 +151,7 @@ func (kvs *KeyValueStore) LoadFromDisk() error {
 					Version:  v.Version,
 				}
 			}
-			kvs.store[user][key] = storedValues
+			kvs.store[developer][key] = storedValues
 		}
 	}
 
@@ -160,8 +160,8 @@ func (kvs *KeyValueStore) LoadFromDisk() error {
 
 // Store checks if all fields in the given struct have JSON tags and stores the struct as JSON.
 // It stores the value with the specified version number.
-func (kvs *KeyValueStore) Store(user string, key string, value interface{}, version int) error {
-	log.Printf("Storing value of type %T for user %s with key %s and version %d", value, user, key, version)
+func (kvs *KeyValueStore) Store(developerId string, key string, value interface{}, version int) error {
+	log.Printf("Storing value of type %T for developer %s with key %s and version %d", value, developerId, key, version)
 
 	v := reflect.ValueOf(value)
 	if v.Kind() != reflect.Struct {
@@ -186,18 +186,18 @@ func (kvs *KeyValueStore) Store(user string, key string, value interface{}, vers
 	defer kvs.mu.Unlock()
 
 	// Perform in-memory store operation
-	if _, exists := kvs.store[user]; !exists {
-		kvs.store[user] = make(map[string][]storedValue)
+	if _, exists := kvs.store[developerId]; !exists {
+		kvs.store[developerId] = make(map[string][]storedValue)
 	}
 
 	// Insert the value at the correct version position
-	existingValues := kvs.store[user][key]
+	existingValues := kvs.store[developerId][key]
 
 	// Check if the version already exists
 	for i, storedVal := range existingValues {
 		if storedVal.Version == version {
 			// Replace the existing version
-			kvs.store[user][key][i] = storedValue{
+			kvs.store[developerId][key][i] = storedValue{
 				JsonData: string(jsonData),
 				Type:     reflect.TypeOf(value),
 				Version:  version,
@@ -206,24 +206,24 @@ func (kvs *KeyValueStore) Store(user string, key string, value interface{}, vers
 		}
 	}
 
-	kvs.store[user][key] = append(existingValues, storedValue{
+	kvs.store[developerId][key] = append(existingValues, storedValue{
 		JsonData: string(jsonData),
 		Type:     reflect.TypeOf(value),
 		Version:  version,
 	})
 
 	// Sort by version (in case versions are added out of order)
-	kvs.sortByVersion(user, key)
+	kvs.sortByVersion(developerId, key)
 
 	// Create a copy of the data to be persisted
 	var dataToPersist map[string]map[string][]storedValue
 	if kvs.filePath != "" {
 		dataToPersist = make(map[string]map[string][]storedValue)
-		for u, userStore := range kvs.store {
-			dataToPersist[u] = make(map[string][]storedValue)
-			for k, values := range userStore {
-				dataToPersist[u][k] = make([]storedValue, len(values))
-				copy(dataToPersist[u][k], values)
+		for d, developerStore := range kvs.store {
+			dataToPersist[d] = make(map[string][]storedValue)
+			for k, values := range developerStore {
+				dataToPersist[d][k] = make([]storedValue, len(values))
+				copy(dataToPersist[d][k], values)
 			}
 		}
 	}
@@ -245,9 +245,9 @@ func (kvs *KeyValueStore) saveToDiskWithData(data map[string]map[string][]stored
 
 	// Convert to serializable format
 	serializableStore := make(map[string]map[string][]serializableStoredValue)
-	for user, userStore := range data {
-		serializableStore[user] = make(map[string][]serializableStoredValue)
-		for key, values := range userStore {
+	for developer, developerStore := range data {
+		serializableStore[developer] = make(map[string][]serializableStoredValue)
+		for key, values := range developerStore {
 			serializableValues := make([]serializableStoredValue, len(values))
 			for i, v := range values {
 				serializableValues[i] = serializableStoredValue{
@@ -256,7 +256,7 @@ func (kvs *KeyValueStore) saveToDiskWithData(data map[string]map[string][]stored
 					Version:  v.Version,
 				}
 			}
-			serializableStore[user][key] = serializableValues
+			serializableStore[developer][key] = serializableValues
 		}
 	}
 
@@ -274,9 +274,9 @@ func (kvs *KeyValueStore) saveToDiskWithData(data map[string]map[string][]stored
 	return nil
 }
 
-// sortByVersion sorts the versions of a key for a user in ascending order.
-func (kvs *KeyValueStore) sortByVersion(user, key string) {
-	values := kvs.store[user][key]
+// sortByVersion sorts the versions of a key for a developer in ascending order.
+func (kvs *KeyValueStore) sortByVersion(developer, key string) {
+	values := kvs.store[developer][key]
 	for i := 1; i < len(values); i++ {
 		for j := i; j > 0 && values[j-1].Version > values[j].Version; j-- {
 			values[j-1], values[j] = values[j], values[j-1]
@@ -284,18 +284,18 @@ func (kvs *KeyValueStore) sortByVersion(user, key string) {
 	}
 }
 
-// Retrieve gets the latest stored value under the given user and key, and deserializes it into the original object type.
-func (kvs *KeyValueStore) Retrieve(userID string, key string) (interface{}, error) {
-	log.Printf("Retrieving key %s for user %s", key, userID)
+// Retrieve gets the latest stored value under the given developer and key, and deserializes it into the original object type.
+func (kvs *KeyValueStore) Retrieve(developerId string, key string) (interface{}, error) {
+	log.Printf("Retrieving key %s for developer %s", key, developerId)
 	kvs.mu.RLock()
 	defer kvs.mu.RUnlock()
 
-	userStore, userExists := kvs.store[userID]
-	if !userExists {
-		return nil, fmt.Errorf("user not found")
+	developerStore, developerExists := kvs.store[developerId]
+	if !developerExists {
+		return nil, fmt.Errorf("developer not found")
 	}
 
-	storedValues, keyExists := userStore[key]
+	storedValues, keyExists := developerStore[key]
 	if !keyExists || len(storedValues) == 0 {
 		return nil, fmt.Errorf("key not found")
 	}
@@ -316,18 +316,18 @@ func (kvs *KeyValueStore) Retrieve(userID string, key string) (interface{}, erro
 	return v, nil
 }
 
-// RetrieveAllVersions retrieves all versions of the stored value under the given user and key.
-func (kvs *KeyValueStore) RetrieveAllVersions(userID string, key string) ([]interface{}, error) {
-	log.Printf("Retrieving all versions for key %s for user %s", key, userID)
+// RetrieveAllVersions retrieves all versions of the stored value under the given developer and key.
+func (kvs *KeyValueStore) RetrieveAllVersions(developerId string, key string) ([]interface{}, error) {
+	log.Printf("Retrieving all versions for key %s for developer %s", key, developerId)
 	kvs.mu.RLock()
 	defer kvs.mu.RUnlock()
 
-	userStore, userExists := kvs.store[userID]
-	if !userExists {
-		return nil, fmt.Errorf("user not found")
+	developerStore, developerExists := kvs.store[developerId]
+	if !developerExists {
+		return nil, fmt.Errorf("developer not found")
 	}
 
-	storedValues, keyExists := userStore[key]
+	storedValues, keyExists := developerStore[key]
 	if !keyExists || len(storedValues) == 0 {
 		return nil, fmt.Errorf("key not found")
 	}
@@ -349,19 +349,19 @@ func (kvs *KeyValueStore) RetrieveAllVersions(userID string, key string) ([]inte
 	return result, nil
 }
 
-// ListByType lists all objects of a given type associated with a user.
+// ListByType lists all objects of a given type associated with a developer.
 // It ensures that only the latest versions are returned.
-func (kvs *KeyValueStore) ListByType(user string, objType reflect.Type) ([]interface{}, error) {
+func (kvs *KeyValueStore) ListByType(developerId string, objType reflect.Type) ([]interface{}, error) {
 	kvs.mu.RLock()
 	defer kvs.mu.RUnlock()
 
-	userStore, userExists := kvs.store[user]
-	if !userExists {
-		return nil, fmt.Errorf("user not found")
+	developerStore, developerExists := kvs.store[developerId]
+	if !developerExists {
+		return nil, fmt.Errorf("developer not found")
 	}
 
 	var result []interface{}
-	for _, storedValues := range userStore {
+	for _, storedValues := range developerStore {
 		if len(storedValues) > 0 {
 			latestValue := storedValues[len(storedValues)-1]
 			if latestValue.Type == objType {
@@ -382,4 +382,29 @@ func (kvs *KeyValueStore) ListByType(user string, objType reflect.Type) ([]inter
 func (kvs *KeyValueStore) ClearStore() {
 	kvs.store = make(map[string]map[string][]storedValue)
 	kvs.SaveToDisk() // If you want to clear the persistent storage as well
+}
+
+// ListAllByType lists all objects of a given type across all developers.
+func (kvs *KeyValueStore) ListAllByType(objType reflect.Type) ([]interface{}, error) {
+	kvs.mu.RLock()
+	defer kvs.mu.RUnlock()
+
+	var result []interface{}
+	for _, developerStore := range kvs.store {
+		for _, storedValues := range developerStore {
+			if len(storedValues) > 0 {
+				latestValue := storedValues[len(storedValues)-1]
+				if latestValue.Type == objType {
+					v := reflect.New(latestValue.Type).Interface()
+					err := json.Unmarshal([]byte(latestValue.JsonData), v)
+					if err != nil {
+						return nil, err
+					}
+					result = append(result, v)
+				}
+			}
+		}
+	}
+
+	return result, nil
 }

@@ -133,13 +133,13 @@ func runTests(t *testing.T, store *KeyValueStore) error {
 }
 
 func testStoreAndRetrieve(t *testing.T, store *KeyValueStore) error {
-	user := "testUser"
+	developerId := "testDeveloper"
 	key := "testKey"
 	value := TestStruct{ID: "1", Name: "Test"}
 
 	done := make(chan error)
 	go func() {
-		done <- store.Store(user, key, value, 1)
+		done <- store.Store(developerId, key, value, 1)
 	}()
 
 	select {
@@ -151,7 +151,7 @@ func testStoreAndRetrieve(t *testing.T, store *KeyValueStore) error {
 		return fmt.Errorf("store operation timed out")
 	}
 
-	retrieved, err := store.Retrieve(user, key)
+	retrieved, err := store.Retrieve(developerId, key)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve value: %v", err)
 	}
@@ -160,36 +160,36 @@ func testStoreAndRetrieve(t *testing.T, store *KeyValueStore) error {
 		return fmt.Errorf("retrieved value does not match stored value")
 	}
 
-	_, err = store.Retrieve(user, "nonExistentKey")
+	_, err = store.Retrieve(developerId, "nonExistentKey")
 	if err == nil {
 		return fmt.Errorf("expected error when retrieving non-existent key")
 	}
 
-	_, err = store.Retrieve("nonExistentUser", key)
+	_, err = store.Retrieve("nonExistentDeveloper", key)
 	if err == nil {
-		return fmt.Errorf("expected error when retrieving for non-existent user")
+		return fmt.Errorf("expected error when retrieving for non-existent developer")
 	}
 
 	return nil
 }
 
 func testStoreMultipleVersions(t *testing.T, store *KeyValueStore) error {
-	user := "testUser"
+	developerId := "testDeveloper"
 	key := "multiVersionKey"
 	value1 := TestStruct{ID: "1", Name: "Version 1"}
 	value2 := TestStruct{ID: "1", Name: "Version 2"}
 
-	err := store.Store(user, key, value1, 1)
+	err := store.Store(developerId, key, value1, 1)
 	if err != nil {
 		return fmt.Errorf("failed to store first version: %v", err)
 	}
 
-	err = store.Store(user, key, value2, 2)
+	err = store.Store(developerId, key, value2, 2)
 	if err != nil {
 		return fmt.Errorf("failed to store second version: %v", err)
 	}
 
-	versions, err := store.RetrieveAllVersions(user, key)
+	versions, err := store.RetrieveAllVersions(developerId, key)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve all versions: %v", err)
 	}
@@ -210,21 +210,21 @@ func testStoreMultipleVersions(t *testing.T, store *KeyValueStore) error {
 }
 
 func testListByType(t *testing.T, store *KeyValueStore) error {
-	user := "testUser"
+	developerId := "testDeveloper"
 	value1 := TestStruct{ID: "1", Name: "Test1"}
 	value2 := TestStruct{ID: "2", Name: "Test2"}
 
-	err := store.Store(user, "key1", value1, 1)
+	err := store.Store(developerId, "key1", value1, 1)
 	if err != nil {
 		return fmt.Errorf("failed to store first value: %v", err)
 	}
 
-	err = store.Store(user, "key2", value2, 1)
+	err = store.Store(developerId, "key2", value2, 1)
 	if err != nil {
 		return fmt.Errorf("failed to store second value: %v", err)
 	}
 
-	results, err := store.ListByType(user, reflect.TypeOf(TestStruct{}))
+	results, err := store.ListByType(developerId, reflect.TypeOf(TestStruct{}))
 	if err != nil {
 		return fmt.Errorf("failed to list by type: %v", err)
 	}
@@ -237,16 +237,16 @@ func testListByType(t *testing.T, store *KeyValueStore) error {
 }
 
 func testPersistence(t *testing.T, store *KeyValueStore) error {
-	user := "testUser"
+	developerId := "testDeveloper"
 	key := "persistenceKey"
 	value := TestStruct{ID: "1", Name: "Persistence Test"}
 
-	err := store.Store(user, key, value, 1)
+	err := store.Store(developerId, key, value, 1)
 	if err != nil {
 		return fmt.Errorf("failed to store value: %v", err)
 	}
 
-	retrieved, err := store.Retrieve(user, key)
+	retrieved, err := store.Retrieve(developerId, key)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve value: %v", err)
 	}
@@ -282,25 +282,25 @@ func TestKeyValueStore_StoreWithVersionReplacement(t *testing.T) {
 	}
 
 	// Test data
-	user := "testuser"
+	developerId := "testDeveloper"
 	key := "testkey"
 	value1 := TestStruct{ID: "1", Name: "Test1"}
 	value2 := TestStruct{ID: "1", Name: "Test2"}
 
 	// Store the first value with version 1
-	err = kvs.Store(user, key, value1, 1)
+	err = kvs.Store(developerId, key, value1, 1)
 	if err != nil {
 		t.Fatalf("Failed to store initial value: %v", err)
 	}
 
 	// Store a new value with the same version (1)
-	err = kvs.Store(user, key, value2, 1)
+	err = kvs.Store(developerId, key, value2, 1)
 	if err != nil {
 		t.Fatalf("Failed to store replacement value: %v", err)
 	}
 
 	// Retrieve the value
-	retrieved, err := kvs.Retrieve(user, key)
+	retrieved, err := kvs.Retrieve(developerId, key)
 	if err != nil {
 		t.Fatalf("Failed to retrieve value: %v", err)
 	}
@@ -316,7 +316,7 @@ func TestKeyValueStore_StoreWithVersionReplacement(t *testing.T) {
 	}
 
 	// Retrieve all versions
-	allVersions, err := kvs.RetrieveAllVersions(user, key)
+	allVersions, err := kvs.RetrieveAllVersions(developerId, key)
 	if err != nil {
 		t.Fatalf("Failed to retrieve all versions: %v", err)
 	}
@@ -328,13 +328,13 @@ func TestKeyValueStore_StoreWithVersionReplacement(t *testing.T) {
 
 	// Store a new value with a different version
 	value3 := TestStruct{ID: "1", Name: "Test3"}
-	err = kvs.Store(user, key, value3, 2)
+	err = kvs.Store(developerId, key, value3, 2)
 	if err != nil {
 		t.Fatalf("Failed to store new version: %v", err)
 	}
 
 	// Retrieve all versions again
-	allVersions, err = kvs.RetrieveAllVersions(user, key)
+	allVersions, err = kvs.RetrieveAllVersions(developerId, key)
 	if err != nil {
 		t.Fatalf("Failed to retrieve all versions after adding new version: %v", err)
 	}

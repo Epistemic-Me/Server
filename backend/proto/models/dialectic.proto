@@ -86,7 +86,7 @@ message Dialectic {
     // The user who the dialectic is "serving" in the sense
     // of who questions are being presented to and whose answers
     // represent the beliefs.
-    string user_id = 2; 
+    string self_model_id = 2; 
     Agent agent = 3;                      // The agent conducting the dialectic.
     repeated DialecticalInteraction user_interactions = 4; // Interactions within the dialectic.
     BeliefSystem belief_system = 5; // Add this line

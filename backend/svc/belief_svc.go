@@ -37,14 +37,14 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 	newBeliefId := "bi_" + uuid.New().String()
 
 	belief := models.Belief{
-		ID:      newBeliefId,
-		UserID:  input.UserID,
-		Content: []models.Content{{RawStr: input.BeliefContent}},
-		Type:    models.Statement,
-		Version: 1, // Start with version 1
+		ID:          newBeliefId,
+		SelfModelID: input.SelfModelID,
+		Content:     []models.Content{{RawStr: input.BeliefContent}},
+		Type:        models.Statement,
+		Version:     1,
 	}
 
-	err := bsvc.storeBeliefValue(input.UserID, &belief)
+	err := bsvc.storeBeliefValue(input.SelfModelID, &belief)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 }
 
 func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*models.UpdateBeliefOutput, error) {
-	existingBelief, err := bsvc.retrieveBeliefValue(input.UserID, input.BeliefID)
+	existingBelief, err := bsvc.retrieveBeliefValue(input.SelfModelID, input.ID)
 	if err != nil {
 		logf(LogLevelError, "Error in Retrieve: %v", err)
 		return nil, err
@@ -76,7 +76,7 @@ func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*model
 
 	// todo: @deen update temporal information
 	if !input.DryRun {
-		err = bsvc.storeBeliefValue(input.UserID, existingBelief)
+		err = bsvc.storeBeliefValue(input.SelfModelID, existingBelief)
 		if err != nil {
 			log.Printf("Error in Store: %v", err)
 			return nil, err
@@ -101,7 +101,7 @@ func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*model
 func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.ListBeliefsOutput, error) {
 	logf(LogLevelDebug, "ListBeliefs called with input: %+v", input)
 
-	beliefSystem, err := bsvc.retrieveBeliefSystem(input.UserID)
+	beliefSystem, err := bsvc.retrieveBeliefSystem(input.SelfModelID)
 	if err != nil {
 		logf(LogLevelError, "Error in ListBeliefs: %v", err)
 		return nil, fmt.Errorf("error retrieving beliefs: %v", err)
@@ -130,27 +130,6 @@ func (bsvc *BeliefService) getBeliefSystemFromBeliefs(beliefs []*models.Belief) 
 	}, nil
 }
 
-func (bsvc *BeliefService) GetBeliefSystemDetail(input *models.GetBeliefSystemDetailInput) (*models.GetBeliefSystemDetailOutput, error) {
-	logf(LogLevelDebug, "GetBeliefSystemDetail called for user: %s", input.UserID)
-
-	beliefSystem, err := bsvc.retrieveBeliefSystem(input.UserID)
-	if err != nil {
-		logf(LogLevelError, "Error in GetBeliefSystemDetail: %v", err)
-		return nil, err
-	}
-
-	logf(LogLevelDebug, "Retrieved BeliefSystem: %+v", beliefSystem)
-	logf(LogLevelDebug, "Number of beliefs: %d", len(beliefSystem.Beliefs))
-	logf(LogLevelDebug, "Number of observation contexts: %d", len(beliefSystem.ObservationContexts))
-
-	output := &models.GetBeliefSystemDetailOutput{
-		BeliefSystem: beliefSystem,
-		ExampleName:  "User's Belief System",
-	}
-
-	return output, nil
-}
-
 func (bsvc *BeliefService) filterBeliefsByObservationContexts(beliefs []*models.Belief, contextIDs []string) []*models.Belief {
 	var filteredBeliefs []*models.Belief
 	for _, belief := range beliefs {
@@ -173,13 +152,13 @@ func (bsvc *BeliefService) beliefMatchesContexts(belief models.Belief, contextID
 }
 
 // Add this method to BeliefService
-func (bsvc *BeliefService) storeBeliefValue(userID string, belief *models.Belief) error {
-	return bsvc.kvStore.Store(userID, belief.ID, *belief, int(belief.Version))
+func (bsvc *BeliefService) storeBeliefValue(selfModelID string, belief *models.Belief) error {
+	return bsvc.kvStore.Store(selfModelID, belief.ID, *belief, int(belief.Version))
 }
 
 // Add this method to BeliefService
-func (bsvc *BeliefService) retrieveBeliefValue(userID, beliefID string) (*models.Belief, error) {
-	value, err := bsvc.kvStore.Retrieve(userID, beliefID)
+func (bsvc *BeliefService) retrieveBeliefValue(selfModelID, beliefID string) (*models.Belief, error) {
+	value, err := bsvc.kvStore.Retrieve(selfModelID, beliefID)
 	if err != nil {
 		return nil, err
 	}
@@ -190,11 +169,11 @@ func (bsvc *BeliefService) retrieveBeliefValue(userID, beliefID string) (*models
 	return &belief, nil
 }
 
-func (bsvc *BeliefService) getAllBeliefs(userID string) ([]*models.Belief, error) {
+func (bsvc *BeliefService) getAllBeliefs(selfModelID string) ([]*models.Belief, error) {
 	beliefs := []*models.Belief{}
 
 	// Use ListByType to get all Belief objects for the user
-	beliefObjects, err := bsvc.kvStore.ListByType(userID, reflect.TypeOf(models.Belief{}))
+	beliefObjects, err := bsvc.kvStore.ListByType(selfModelID, reflect.TypeOf(models.Belief{}))
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving beliefs: %v", err)
 	}
@@ -216,8 +195,8 @@ func logf(level int, format string, v ...interface{}) {
 }
 
 // Add this method to BeliefService
-func (bsvc *BeliefService) retrieveBeliefSystem(userID string) (*models.BeliefSystem, error) {
-	value, err := bsvc.kvStore.Retrieve(userID, "BeliefSystemId")
+func (bsvc *BeliefService) retrieveBeliefSystem(selfModelID string) (*models.BeliefSystem, error) {
+	value, err := bsvc.kvStore.Retrieve(selfModelID, "BeliefSystemId")
 	if err != nil {
 		logf(LogLevelError, "Error retrieving belief system: %v", err)
 		return nil, fmt.Errorf("error retrieving belief system: %v", err)
@@ -227,6 +206,25 @@ func (bsvc *BeliefService) retrieveBeliefSystem(userID string) (*models.BeliefSy
 	if !ok {
 		logf(LogLevelError, "Retrieved value is not a BeliefSystem. Type: %T", value)
 		return nil, fmt.Errorf("invalid belief system data type")
+	}
+
+	return beliefSystem, nil
+}
+
+// Add this method to the BeliefService
+func (bsvc *BeliefService) GetBeliefSystem(selfModelID string) (*models.BeliefSystem, error) {
+	beliefSystem, err := bsvc.retrieveBeliefSystem(selfModelID)
+	if err != nil {
+		logf(LogLevelError, "Error retrieving belief system: %v", err)
+		return nil, fmt.Errorf("error retrieving belief system: %v", err)
+	}
+
+	if beliefSystem == nil {
+		// Return empty belief system if none exists
+		return &models.BeliefSystem{
+			Beliefs:             []*models.Belief{},
+			ObservationContexts: []*models.ObservationContext{},
+		}, nil
 	}
 
 	return beliefSystem, nil

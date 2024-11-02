@@ -20,11 +20,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBeliefSystemDetailAPIIntegration(t *testing.T) {
+func TestBeliefSystemAPIIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	userId := "fixture-user-id"
+	selfModelId := "fixture-self-model-id"
 
 	// Initialize the KeyValueStore
 	tempDir, err := os.MkdirTemp("", "test_kv_store_belief_system_detail")
@@ -50,7 +50,7 @@ func TestBeliefSystemDetailAPIIntegration(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Verify that fixtures were imported correctly
-	fixtureBeliefSystem, err := kvStore.Retrieve(userId, "BeliefSystemId")
+	fixtureBeliefSystem, err := kvStore.Retrieve(selfModelId, "BeliefSystemId")
 	if err != nil {
 		t.Fatalf("Failed to retrieve fixture belief system: %v", err)
 	}
@@ -80,18 +80,17 @@ func TestBeliefSystemDetailAPIIntegration(t *testing.T) {
 	// Create a client for this specific test
 	testClient := pbconnect.NewEpistemicMeServiceClient(http.DefaultClient, "http://localhost:"+port)
 
-	// Use the test client instead of the global client
-	resp, err := testClient.GetBeliefSystemDetail(context.Background(), connect.NewRequest(&pb.GetBeliefSystemDetailRequest{
-		UserId: userId,
+	resp, err := testClient.GetBeliefSystem(context.Background(), connect.NewRequest(&pb.GetBeliefSystemRequest{
+		SelfModelId: selfModelId,
 	}))
 	if err != nil {
-		t.Fatalf("GetBeliefSystemDetail failed: %v", err)
+		t.Fatalf("GetBeliefSystem failed: %v", err)
 	}
 
-	beliefSystemDetail := resp.Msg.BeliefSystemDetail
-	assert.NotNil(t, beliefSystemDetail)
-	assert.NotEmpty(t, beliefSystemDetail.BeliefSystem.Beliefs, "Beliefs should not be empty")
-	t.Logf("Retrieved BeliefSystemDetail: %+v", beliefSystemDetail)
-	t.Logf("Number of beliefs: %d", len(beliefSystemDetail.BeliefSystem.Beliefs))
-	t.Logf("Number of observation contexts: %d", len(beliefSystemDetail.BeliefSystem.ObservationContexts))
+	beliefSystem := resp.Msg.BeliefSystem
+	assert.NotNil(t, beliefSystem)
+	assert.NotEmpty(t, beliefSystem.Beliefs, "Beliefs should not be empty")
+	t.Logf("Retrieved BeliefSystem: %+v", beliefSystem)
+	t.Logf("Number of beliefs: %d", len(beliefSystem.Beliefs))
+	t.Logf("Number of observation contexts: %d", len(beliefSystem.ObservationContexts))
 }
