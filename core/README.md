@@ -15,7 +15,7 @@ brew install protoc-gen-go
 brew install protoc-gen-go-grpc
 ```
 
-Navigate to the `./backend` directory, and run `sh generate_protos.sh` to generate the golang files in the pb/ directory from the
+Navigate to the `./core` directory, and run `sh generate_protos.sh` to generate the golang files in the pb/ directory from the
 proto files. 
 
 ## Docker Instructions
