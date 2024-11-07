@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+option go_package = "epistemic-me-core/pb/models";
+
+import "proto/models/beliefs.proto";
+
+// A Question represents a request for information
+// from a user. The intent behind a question is to extract
+// beliefs from the end user in the form of an answer. 
+// This data model may evolve in the future to track
+// the origination of how the question is generated, 
+// as well as a "dialectical context" of which beliefs 
+// the agent is attempting to extract from the user. 
+message Question {
+    string question = 1;                  // The text of the question.
+    int64 created_at_millis_utc = 2; // Timestamp when the question was created.
+}
+
+// A User Answer is a response to a question that 
+// may or may not contain an embedded belief, which can be
+// extracted at a later point in time.
+message UserAnswer {
+    string user_answer = 1;               // The text of the user's answer.
+    int64 created_at_millis_utc = 2; // Timestamp when the answer was created.
+}
+
+// A Dialectical Interaction tracks a question
+// and a response to the question. It also tracks
+// the beliefs that may be generated and seen as being
+// extracted from the interaction.
+message DialecticalInteraction {
+    // Represents the states of user interaction
+    // within a specific dialectical interaction.
+    enum STATUS {
+        STATUS_INVALID = 0;               // Invalid status.
+        STATUS_PENDING_ANSWER = 1;        // Waiting for an answer.
+        STATUS_ANSWERED = 2;              // Answer has been provided.
+    }
+
+    Question question = 1;                // The question in the interaction.
+    UserAnswer userAnswer = 2;            // The user's answer in the interaction.
+    repeated Belief beliefs = 3;          // Beliefs extracted from the interaction.
+    int64 updated_at_millis_utc = 4; // Timestamp when the interaction was last updated.
+    STATUS status = 5;
+}
+
+// The Dialectic Type informs the "strategy" of how the 
+// agent will attempt to generate questions and interpret beliefs
+// from the user's responses.
+enum DialecticType {
+    INVALID = 0;
+    DEFAULT = 1;
+    HEGELIAN = 2;
+    SLEEP_DIET_EXERCISE = 3;
+}
+
+// The agent represents information about what underlying
+// system or user is responsible for interacting with the
+// user throughout the dialectic. This is intended to
+// be some AI system (e.g., LLM) but may evolve to be a human
+// user in the future.
+message Agent {
+
+    // Labels the system that is driving the agent's behavior.
+    // This may include generating the question, synthesizing
+    // the user's answers into beliefs, and then synthesizing
+    // the user's supposed beliefs into a belief system
+    // that can be used for further generations.
+    enum AgentType {
+        AGENT_TYPE_INVALID = 0;           // Invalid agent type.
+        AGENT_TYPE_GPT_LATEST = 1;        // Latest GPT model.
+    }
+
+    AgentType agent_type = 1;             // The type of the agent.
+    DialecticType dialectic_type = 2;     // The dialectic strategy used by the agent.
+}
+
+
+// The dialectic can be seen as a session that gets created
+// and presents a user with a series of questions designed to 
+// determine and clarify the user's beliefs. The beliefs produced
+// as part of the dialectic may or may not be fed into the user's
+// underlying belief system. 
+message Dialectic {
+    string id = 1;                        // Unique identifier for the dialectic.
+    // The user who the dialectic is "serving" in the sense
+    // of who questions are being presented to and whose answers
+    // represent the beliefs.
+    string self_model_id = 2; 
+    Agent agent = 3;                      // The agent conducting the dialectic.
+    repeated DialecticalInteraction user_interactions = 4; // Interactions within the dialectic.
+    BeliefSystem belief_system = 5; // Add this line
+    BeliefAnalysis analysis = 6;  // Add this line
+}
+
+// Add a new message for the analysis
+message BeliefAnalysis {
+    float coherence = 1;
+    float consistency = 2;
+    float falsifiability = 3;
+    float overall_score = 4;
+    string feedback = 5;
+    repeated string recommendations = 6;
+    repeated string verified_beliefs = 7;
+}

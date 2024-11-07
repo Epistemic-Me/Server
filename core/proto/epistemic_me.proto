@@ -1,0 +1,163 @@
+syntax = "proto3";
+
+option go_package = "epistemic-me-core/pb/";
+
+import "proto/models/beliefs.proto";
+import "proto/models/dialectic.proto";
+import "proto/models/self_model.proto";
+import "proto/models/developer.proto";
+import "proto/models/user.proto";
+
+service EpistemicMeService {
+    rpc CreateBelief(CreateBeliefRequest) returns (CreateBeliefResponse) {}
+    rpc ListBeliefs(ListBeliefsRequest) returns (ListBeliefsResponse) {}
+    rpc CreateDialectic(CreateDialecticRequest) returns (CreateDialecticResponse) {}
+    rpc ListDialectics(ListDialecticsRequest) returns (ListDialecticsResponse) {}
+    rpc UpdateDialectic(UpdateDialecticRequest) returns (UpdateDialecticResponse) {}
+    rpc GetBeliefSystem(GetBeliefSystemRequest) returns (GetBeliefSystemResponse) {}
+    rpc UpdateKeyValueStore(UpdateKeyValueStoreRequest) returns (UpdateKeyValueStoreResponse) {}
+    rpc CreateSelfModel(CreateSelfModelRequest) returns (CreateSelfModelResponse) {}
+    rpc GetSelfModel(GetSelfModelRequest) returns (GetSelfModelResponse) {}
+    rpc AddPhilosophy(AddPhilosophyRequest) returns (AddPhilosophyResponse) {}
+    rpc CreateDeveloper(CreateDeveloperRequest) returns (CreateDeveloperResponse) {}
+    rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {}
+    rpc GetDeveloper(GetDeveloperRequest) returns (GetDeveloperResponse);
+}
+
+// Request message for listing beliefs.
+message ListBeliefsRequest {
+    string self_model_id = 1;
+    repeated string belief_ids = 2;
+    // TODO (@deen): Allow filtering by belief attributes / types.
+}
+
+// Response message for listing beliefs.
+message ListBeliefsResponse {
+    repeated Belief beliefs = 1;
+    BeliefSystem belief_system = 2;
+}
+
+// Request message for creating a new belief.
+message CreateBeliefRequest {
+    string self_model_id = 1;
+    string belief_content = 2;
+}
+
+// Response message for creating a new belief.
+message CreateBeliefResponse {
+    Belief belief = 1;
+    BeliefSystem belief_system = 2;
+}
+
+// Request message for creating a new dialectic.
+message CreateDialecticRequest {
+    string self_model_id = 1;
+    DialecticType dialectic_type = 2;
+}
+
+// Response message for creating a new dialectic.
+message CreateDialecticResponse {
+    Dialectic dialectic = 1;
+}
+
+// Request message for listing dialectics.
+message ListDialecticsRequest {
+    string self_model_id = 1;
+}
+
+// Response message for listing dialectics.
+message ListDialecticsResponse {
+    repeated Dialectic dialectics = 1;
+}
+
+// Request message for updating an existing dialectic.
+message UpdateDialecticRequest {
+    string id = 1;
+    UserAnswer answer = 2; 
+    string self_model_id = 3;
+    bool dry_run = 4;
+}
+
+// Response message for updating an existing dialectic.
+message UpdateDialecticResponse {
+    Dialectic dialectic = 1;
+}
+
+message GetBeliefSystemRequest {
+    string self_model_id = 1;
+}
+
+message GetBeliefSystemResponse {
+    BeliefSystem belief_system = 1;
+}
+
+message UpdateKeyValueStoreRequest {
+    bytes serialized_kv_store = 1;
+}
+
+message UpdateKeyValueStoreResponse {
+    bool success = 1;
+}
+
+message CreateSelfModelRequest {
+    string id = 1;
+    repeated string philosophies = 2;
+}
+
+message CreateSelfModelResponse {
+    SelfModel self_model = 1;
+}
+
+message GetSelfModelRequest {
+    string self_model_id = 1;
+}
+
+message GetSelfModelResponse {
+    SelfModel self_model = 1;
+}
+
+message AddPhilosophyRequest {
+    string self_model_id = 1;
+    string philosophy_id = 2;
+}
+
+message AddPhilosophyResponse {
+    SelfModel updated_self_model = 1;
+}
+
+message CreatePhilosophyRequest {
+    string description = 1;
+    bool extrapolate_contexts = 2;
+}
+
+message CreatePhilosophyResponse {
+    Philosophy philosophy = 1;
+}
+
+message CreateDeveloperRequest {
+    string name = 1;
+    string email = 2;
+}
+
+message CreateDeveloperResponse {
+    Developer developer = 1;
+}
+
+message CreateUserRequest {
+    string developer_id = 1;
+    string name = 2;
+    string email = 3;
+}
+
+message CreateUserResponse {
+    User user = 1;
+}
+
+message GetDeveloperRequest {
+    string id = 1;
+}
+
+message GetDeveloperResponse {
+    Developer developer = 1;
+}
+

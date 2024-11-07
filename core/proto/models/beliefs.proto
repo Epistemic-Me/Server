@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+option go_package = "epistemic-me-core/pb/models";
+
+import "proto/models/observation_context.proto";
+
+// A confidence rating on a belief represents
+// a score that determines how likely the system
+// evaluates the belief to be given available evidence.
+message ConfidenceRating {
+    double confidence_score = 1; // The confidence score of the belief.
+    bool default = 2;            // Whether this confidence rating is the default.
+}
+
+// The content of a belief represents 
+// what that belief is about, through
+// natural language.
+message Content {
+    string raw_str = 1; // The raw string representation of the belief content.
+}
+
+// Enum to distinguish between causal and statement beliefs
+enum BeliefType {
+    BELIEF_TYPE_INVALID = 0;
+    CAUSAL = 1;
+    STATEMENT = 2;
+}
+
+// Message representing a belief
+message Belief {
+    string id = 1;                              // Unique identifier for the belief.
+    string self_model_id = 2;                   // Identifier for the self model who holds the belief.
+    int32 version = 3;                          // Version number of the belief.
+    repeated ConfidenceRating confidence_ratings = 4; // Confidence ratings of the belief.
+    repeated Content content = 5;               // Content of the belief.
+    BeliefType type = 6;                        // Type of the belief.
+    CausalBelief causal_belief = 7;             // Optional field for causal beliefs.
+    repeated string observation_context_ids = 8; // IDs of related observation contexts
+    map<string, float> probabilities = 9;        // Maps observation context value to probability
+    string action = 10;                          // Action associated with the belief
+    string result = 11;                          // Expected result of the action
+
+    // Nested message for causal belief details
+    message CausalBelief {
+        int32 intervention_id = 1;
+        string intervention_name = 2;            // External name for the intervention
+        int32 observation_context_id = 3;
+        string observation_context_name = 4;     // External name for the observation context
+    }
+}
+
+// A belief system represents a quick synthesis of a user's
+// beliefs into a compressed natural language representation
+// of the user's worldview. This belief system can be used
+// to initiate further dialectical questions to gain better
+// understanding of a user's beliefs.
+message BeliefSystem {
+    repeated Belief beliefs = 1;
+    repeated ObservationContext observation_contexts = 2;
+    string raw_str = 3; // The raw string representation of the belief system.
+    double overall_confidence_rating = 4; // Overall confidence rating produced as a result of all beliefs it summarizes
+    double clarification_score = 5; // Score indicating how much beliefs conflict with each other
+}

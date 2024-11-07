@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+option go_package = "epistemic-me-core/pb/models";
+
+// An Intervention is a data model for representing
+// a prescribed action. An Intervention can be bound
+// to a Habit as a "prescription" for a Causal Belief.
+//
+// Example:
+// id: 1
+// name: "drinking water"
+// description: "Drinking water upon waking."
+message Intervention {
+    int32 id = 1;               // Unique identifier for the intervention
+    string name = 2;            // Name of the intervention
+    string description = 3;     // Description of the intervention
+}
+
+// Message representing a habit
+// A habit represents a relationship between
+// some causal belief (e.g., "I believe that drinking water improves my mental clarity.")
+// and an intervention (e.g., "Drink 10 cups of water a day.").
+//
+// Example:
+// id: 1
+// name: "Drink Water Upon Waking"
+// intervention_id: 1
+// intervention_name: "drinking water"
+// causal_belief_id: 1
+// causal_belief_description: "If I drink water, I will have more mental clarity."
+// description: "Drinking water upon waking will improve hydration and mental clarity throughout the day."
+message Habit {
+    int32 id = 1;                          // Unique identifier for the habit
+    string name = 2;                       // Name of the habit
+    int32 intervention_id = 3;             // ID of the related intervention
+    string intervention_name = 4;          // External name for the intervention
+    int32 causal_belief_id = 5;            // ID of the related causal belief
+    string causal_belief_description = 6;  // External description for the causal belief
+    string description = 7;                // Detailed description of the habit
+}
