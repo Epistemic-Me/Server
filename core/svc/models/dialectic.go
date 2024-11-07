@@ -2,7 +2,7 @@ package models
 
 import (
 	"encoding/json"
-	pbmodels "epistemic-me-backend/pb/models"
+	pbmodels "epistemic-me-core/pb/models"
 )
 
 // Question represents a request for information from a user.

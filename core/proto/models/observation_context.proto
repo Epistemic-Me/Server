@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "proto/models/source.proto";
 
-option go_package = "epistemic-me-backend/pb/models";
+option go_package = "epistemic-me-core/pb/models";
 
 // Enum for the type of input
 enum InputType {

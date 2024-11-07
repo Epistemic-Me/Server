@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"epistemic-me-backend/db"
-	fixture_models "epistemic-me-backend/db/fixtures"
+	"epistemic-me-core/db"
+	fixture_models "epistemic-me-core/db/fixtures"
 )
 
 // This script is used to import the belief system from the fixture

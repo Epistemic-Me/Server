@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"testing"
 
-	pb "epistemic-me-backend/pb"
-	"epistemic-me-backend/pb/pbconnect"
+	pb "epistemic-me-core/pb"
+	"epistemic-me-core/pb/pbconnect"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"

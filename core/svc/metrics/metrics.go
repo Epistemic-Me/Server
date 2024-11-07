@@ -1,6 +1,6 @@
 package metric
 
-import "epistemic-me-backend/svc/models"
+import "epistemic-me-core/svc/models"
 
 // Clarification is a metric of how much a belief has been
 // engaged with by a user through using some Dialectical Strategy.

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	pb "epistemic-me-backend/pb"
+	pb "epistemic-me-core/pb"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"

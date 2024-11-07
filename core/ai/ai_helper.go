@@ -3,7 +3,7 @@ package ai_helper
 import (
 	"context"
 	"encoding/json"
-	"epistemic-me-backend/svc/models"
+	"epistemic-me-core/svc/models"
 	"fmt"
 	"log"
 	"regexp"

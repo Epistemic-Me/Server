@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	db "epistemic-me-backend/db"
-	"epistemic-me-backend/server"
+	db "epistemic-me-core/db"
+	"epistemic-me-core/server"
 )
 
 func main() {

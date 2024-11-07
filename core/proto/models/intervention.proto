@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "epistemic-me-backend/pb/models";
+option go_package = "epistemic-me-core/pb/models";
 
 // An Intervention is a data model for representing
 // a prescribed action. An Intervention can be bound

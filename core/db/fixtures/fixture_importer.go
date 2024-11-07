@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"epistemic-me-backend/db"
-	"epistemic-me-backend/svc/models"
+	"epistemic-me-core/db"
+	"epistemic-me-core/svc/models"
 
 	"gopkg.in/yaml.v3"
 )

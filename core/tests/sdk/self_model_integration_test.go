@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"epistemic-me-backend/db"
-	pb "epistemic-me-backend/pb"
-	"epistemic-me-backend/pb/pbconnect"
-	"epistemic-me-backend/server"
+	"epistemic-me-core/db"
+	pb "epistemic-me-core/pb"
+	"epistemic-me-core/pb/pbconnect"
+	"epistemic-me-core/server"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"

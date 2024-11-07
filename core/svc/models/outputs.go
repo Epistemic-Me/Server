@@ -1,7 +1,7 @@
 package models
 
 import (
-	pbmodels "epistemic-me-backend/pb/models"
+	pbmodels "epistemic-me-core/pb/models"
 )
 
 // ListBeliefsOutput represents an output containing a list of beliefs.

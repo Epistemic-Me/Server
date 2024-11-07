@@ -1,4 +1,4 @@
-module epistemic-me-backend
+module epistemic-me-core
 
 go 1.22.4
 

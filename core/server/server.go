@@ -17,13 +17,13 @@ import (
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc/metadata" // Changed from internal/metadata
 
-	ai "epistemic-me-backend/ai"
-	db "epistemic-me-backend/db"
-	pb "epistemic-me-backend/pb"
-	models "epistemic-me-backend/pb/models"
-	"epistemic-me-backend/pb/pbconnect"
-	svc "epistemic-me-backend/svc"
-	svcmodels "epistemic-me-backend/svc/models"
+	ai "epistemic-me-core/ai"
+	db "epistemic-me-core/db"
+	pb "epistemic-me-core/pb"
+	models "epistemic-me-core/pb/models"
+	"epistemic-me-core/pb/pbconnect"
+	svc "epistemic-me-core/svc"
+	svcmodels "epistemic-me-core/svc/models"
 )
 
 type Server struct {

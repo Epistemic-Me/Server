@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"epistemic-me-backend/db"
-	"epistemic-me-backend/svc/models"
+	"epistemic-me-core/db"
+	"epistemic-me-core/svc/models"
 
 	"github.com/google/uuid"
 )

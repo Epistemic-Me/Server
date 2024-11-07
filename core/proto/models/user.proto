@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "epistemic-me-backend/pb/models";
+option go_package = "epistemic-me-core/pb/models";
 
 message User {
     string id = 1;

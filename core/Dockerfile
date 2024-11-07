@@ -35,13 +35,13 @@ ENV OPENAI_API_KEY=${OPENAI_API_KEY}
 # Generate protobufs
 RUN find ./proto -name "*.proto" -print0 | xargs -0 protoc \
   --proto_path=./ \
-  --go_out=. --go_opt=module=epistemic-me-backend \
-  --go-grpc_out=. --go-grpc_opt=module=epistemic-me-backend \
-  --connect-go_out=. --connect-go_opt=module=epistemic-me-backend
+  --go_out=. --go_opt=module=epistemic-me-core \
+  --go-grpc_out=. --go-grpc_opt=module=epistemic-me-core \
+  --connect-go_out=. --connect-go_opt=module=epistemic-me-core
 
 # Fix import paths in generated Go files
 RUN for file in $(find pb -type f -name '*.go'); do \
-  sed 's|pb "epistemic-me-backend/pb/"|pb "epistemic-me-backend/pb"|' $file > temp.go; \
+  sed 's|pb "epistemic-me-core/pb/"|pb "epistemic-me-core/pb"|' $file > temp.go; \
   mv temp.go $file; \
   done
 

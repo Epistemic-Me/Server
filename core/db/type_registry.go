@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"epistemic-me-backend/pb/models"
+	"epistemic-me-core/pb/models"
 )
 
 // TestStruct is used for testing purposes

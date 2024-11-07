@@ -1,9 +1,9 @@
 package svc
 
 import (
-	ai "epistemic-me-backend/ai"
-	db "epistemic-me-backend/db"
-	"epistemic-me-backend/svc/models"
+	ai "epistemic-me-core/ai"
+	db "epistemic-me-core/db"
+	"epistemic-me-core/svc/models"
 	"errors"
 	"fmt"
 	"reflect"

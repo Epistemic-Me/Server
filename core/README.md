@@ -24,11 +24,11 @@ Download [Docker](https://www.docker.com/products/docker-desktop/)
 
 Build the docker image
 
-`docker build --build-arg OPENAI_API_KEY={OPEN_API_KEY} -t epistemic-me-backend .`
+`docker build --build-arg OPENAI_API_KEY={OPEN_API_KEY} -t epistemic-me-core .`
 
 Run the server and expose on port 8080 to mirror goland default port 8080
 
-`docker run -p 8080:8080 epistemic-me-backend`
+`docker run -p 8080:8080 epistemic-me-core`
 
 Run Integration Tests Against The Server
 
