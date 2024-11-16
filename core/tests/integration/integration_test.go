@@ -360,9 +360,23 @@ func TestIntegrationWithFixtures(t *testing.T) {
 		assert.NotEmpty(t, belief.ID, "Belief ID should not be empty")
 		assert.Equal(t, fixtureSelfModelId, belief.SelfModelID, "Belief SelfModelId should match fixture user ID")
 		assert.NotEmpty(t, belief.Content, "Belief Content should not be empty")
-		assert.NotEmpty(t, belief.ObservationContextIDs, "Belief ObservationContextIDs should not be empty")
-		assert.NotEmpty(t, belief.Probabilities, "Belief Probabilities should not be empty")
-		assert.NotEmpty(t, belief.Result, "Belief Result should not be empty")
+
+		// Find associated BeliefContexts
+		var contexts []*svc_models.BeliefContext
+		for _, bc := range bs.BeliefContexts {
+			if bc.BeliefID == belief.ID {
+				contexts = append(contexts, bc)
+			}
+		}
+
+		if belief.Type != svc_models.Statement {
+			assert.NotEmpty(t, contexts, "Non-Statement beliefs should have BeliefContexts")
+			if belief.Type == svc_models.Causal {
+				for _, bc := range contexts {
+					assert.NotEmpty(t, bc.ExpectedResult, "Causal Belief Context should have ExpectedResult")
+				}
+			}
+		}
 	}
 
 	// Verify the content of observation contexts
@@ -393,4 +407,97 @@ func CreateInitialBeliefSystemIfNotExists(selfModelId string) error {
 		}
 	}
 	return nil
+}
+
+// Add these test functions after existing tests
+
+func TestCreateBeliefTypes(t *testing.T) {
+	selfModelId := "test-user-id"
+	err := CreateInitialBeliefSystemIfNotExists(selfModelId)
+	require.NoError(t, err)
+
+	// Test creating a statement belief
+	t.Run("Create Statement Belief", func(t *testing.T) {
+		resp, err := client.CreateBelief(context.Background(), connect.NewRequest(&pb.CreateBeliefRequest{
+			SelfModelId:   selfModelId,
+			BeliefContent: "Meditation is beneficial for mental health",
+			BeliefType:    models.BeliefType_STATEMENT,
+		}))
+		require.NoError(t, err)
+		assert.NotNil(t, resp.Msg.Belief)
+		assert.Equal(t, models.BeliefType_STATEMENT, resp.Msg.Belief.Type)
+	})
+
+	// Test creating a falsifiable belief
+	t.Run("Create Falsifiable Belief", func(t *testing.T) {
+		resp, err := client.CreateBelief(context.Background(), connect.NewRequest(&pb.CreateBeliefRequest{
+			SelfModelId:   selfModelId,
+			BeliefContent: "Sleep quality improves after exercise",
+			BeliefType:    models.BeliefType_FALSIFIABLE,
+		}))
+		require.NoError(t, err)
+		assert.NotNil(t, resp.Msg.Belief)
+		assert.Equal(t, models.BeliefType_FALSIFIABLE, resp.Msg.Belief.Type)
+	})
+
+	// Test creating a causal belief
+	t.Run("Create Causal Belief", func(t *testing.T) {
+		resp, err := client.CreateBelief(context.Background(), connect.NewRequest(&pb.CreateBeliefRequest{
+			SelfModelId:   selfModelId,
+			BeliefContent: "Morning meditation reduces daily stress",
+			BeliefType:    models.BeliefType_CAUSAL,
+		}))
+		require.NoError(t, err)
+		assert.NotNil(t, resp.Msg.Belief)
+		assert.Equal(t, models.BeliefType_CAUSAL, resp.Msg.Belief.Type)
+	})
+}
+
+func TestGetBeliefSystemWithOptions(t *testing.T) {
+	selfModelId := "test-user-id"
+	err := CreateInitialBeliefSystemIfNotExists(selfModelId)
+	require.NoError(t, err)
+
+	// Create beliefs of different types first
+	_, err = client.CreateBelief(context.Background(), connect.NewRequest(&pb.CreateBeliefRequest{
+		SelfModelId:   selfModelId,
+		BeliefContent: "Meditation is beneficial",
+		BeliefType:    models.BeliefType_STATEMENT,
+	}))
+	require.NoError(t, err)
+
+	_, err = client.CreateBelief(context.Background(), connect.NewRequest(&pb.CreateBeliefRequest{
+		SelfModelId:   selfModelId,
+		BeliefContent: "Exercise improves sleep quality",
+		BeliefType:    models.BeliefType_FALSIFIABLE,
+	}))
+	require.NoError(t, err)
+
+	// Test getting belief system with metrics
+	t.Run("Get BeliefSystem with Metrics", func(t *testing.T) {
+		resp, err := client.GetBeliefSystem(context.Background(), connect.NewRequest(&pb.GetBeliefSystemRequest{
+			SelfModelId:    selfModelId,
+			IncludeMetrics: true,
+		}))
+		require.NoError(t, err)
+		assert.NotNil(t, resp.Msg.BeliefSystem)
+		assert.NotNil(t, resp.Msg.BeliefSystem.Metrics)
+		assert.Equal(t, int32(2), resp.Msg.BeliefSystem.Metrics.TotalBeliefs)
+		assert.Equal(t, int32(1), resp.Msg.BeliefSystem.Metrics.TotalFalsifiableBeliefs)
+		assert.Equal(t, int32(1), resp.Msg.BeliefSystem.Metrics.TotalBeliefStatements)
+	})
+
+	// Test getting belief system with ontology (previously conceptualization)
+	t.Run("Get BeliefSystem with Ontology", func(t *testing.T) {
+		resp, err := client.GetBeliefSystem(context.Background(), connect.NewRequest(&pb.GetBeliefSystemRequest{
+			SelfModelId:    selfModelId,
+			IncludeMetrics: true,
+			Conceptualize:  true,
+		}))
+		require.NoError(t, err)
+		assert.NotNil(t, resp.Msg.BeliefSystem)
+		assert.NotNil(t, resp.Msg.BeliefSystem.Ontology)
+		assert.NotEmpty(t, resp.Msg.BeliefSystem.Ontology.RawStr)
+		assert.NotEmpty(t, resp.Msg.BeliefSystem.Ontology.Contexts)
+	})
 }

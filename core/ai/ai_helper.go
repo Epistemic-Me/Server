@@ -297,3 +297,38 @@ func beliefSystemToString(bs *models.BeliefSystem) string {
 	// ... (implement this method)
 	return ""
 }
+
+func (h *AIHelper) PredictAnswer(question string) (string, error) {
+	prompt := fmt.Sprintf(`Given the question: "%s"
+	Based on typical human responses and common belief systems,
+	predict a likely answer to this question.
+	Provide only the predicted answer, no explanation.`, question)
+
+	return h.CompletePrompt(prompt)
+}
+
+// CompletePrompt sends a prompt to the AI model and returns the completion
+func (h *AIHelper) CompletePrompt(prompt string) (string, error) {
+	if h.client == nil {
+		return "", fmt.Errorf("AI client is not initialized")
+	}
+
+	resp, err := h.client.CreateCompletion(
+		context.Background(),
+		openai.CompletionRequest{
+			Model:       string(GPT_LATEST),
+			Prompt:      prompt,
+			MaxTokens:   1000,
+			Temperature: 0.7,
+		},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to complete prompt: %w", err)
+	}
+
+	if len(resp.Choices) == 0 {
+		return "", fmt.Errorf("no completion choices returned")
+	}
+
+	return resp.Choices[0].Text, nil
+}

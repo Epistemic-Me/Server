@@ -41,6 +41,11 @@ message ListBeliefsResponse {
 message CreateBeliefRequest {
     string self_model_id = 1;
     string belief_content = 2;
+    BeliefType belief_type = 3;
+    oneof evidence {
+        HypothesisEvidenceInteraction hypothesis_evidence = 4;
+        ActionOutcomeInteraction action_outcome = 5;
+    }
 }
 
 // Response message for creating a new belief.
@@ -76,6 +81,7 @@ message UpdateDialecticRequest {
     UserAnswer answer = 2; 
     string self_model_id = 3;
     bool dry_run = 4;
+    string custom_question = 5;  // Optional custom question for next interaction
 }
 
 // Response message for updating an existing dialectic.
@@ -85,6 +91,8 @@ message UpdateDialecticResponse {
 
 message GetBeliefSystemRequest {
     string self_model_id = 1;
+    bool include_metrics = 2;
+    bool conceptualize = 3;
 }
 
 message GetBeliefSystemResponse {

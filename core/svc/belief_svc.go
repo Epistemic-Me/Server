@@ -121,30 +121,40 @@ func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.
 func (bsvc *BeliefService) getBeliefSystemFromBeliefs(beliefs []*models.Belief) (*models.BeliefSystem, error) {
 	logf(LogLevelDebug, "getBeliefSystemFromBeliefs called with %d beliefs", len(beliefs))
 
-	// TODO: Implement logic to populate observation contexts
 	observationContexts := []*models.ObservationContext{}
+	beliefContexts := []*models.BeliefContext{}
 
 	return &models.BeliefSystem{
 		Beliefs:             beliefs,
 		ObservationContexts: observationContexts,
+		BeliefContexts:      beliefContexts,
 	}, nil
 }
 
 func (bsvc *BeliefService) filterBeliefsByObservationContexts(beliefs []*models.Belief, contextIDs []string) []*models.Belief {
 	var filteredBeliefs []*models.Belief
 	for _, belief := range beliefs {
-		if bsvc.beliefMatchesContexts(*belief, contextIDs) {
+		if bsvc.beliefMatchesContexts(belief, contextIDs) {
 			filteredBeliefs = append(filteredBeliefs, belief)
 		}
 	}
 	return filteredBeliefs
 }
 
-func (bsvc *BeliefService) beliefMatchesContexts(belief models.Belief, contextIDs []string) bool {
-	for _, contextID := range contextIDs {
-		for _, beliefContextID := range belief.ObservationContextIDs {
-			if contextID == beliefContextID {
-				return true
+func (bsvc *BeliefService) beliefMatchesContexts(belief *models.Belief, contextIDs []string) bool {
+	// Get the belief system for this belief's self model
+	beliefSystem, err := bsvc.retrieveBeliefSystem(belief.SelfModelID)
+	if err != nil {
+		return false
+	}
+
+	// Check if any of the belief contexts match the given context IDs
+	for _, bc := range beliefSystem.BeliefContexts {
+		if bc.BeliefID == belief.ID {
+			for _, contextID := range contextIDs {
+				if bc.ObservationContextID == contextID {
+					return true
+				}
 			}
 		}
 	}
@@ -228,4 +238,15 @@ func (bsvc *BeliefService) GetBeliefSystem(selfModelID string) (*models.BeliefSy
 	}
 
 	return beliefSystem, nil
+}
+
+// Add these methods to BeliefService
+func (bsvc *BeliefService) ConceptualizeBeliefSystem(beliefSystem *models.BeliefSystem) error {
+	// Implementation will use AI helper to generate conceptualization
+	return nil
+}
+
+func (bsvc *BeliefService) ComputeMetrics(beliefSystem *models.BeliefSystem) error {
+	// Implementation will use metrics package to compute scores
+	return nil
 }
