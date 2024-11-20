@@ -3,6 +3,31 @@ syntax = "proto3";
 option go_package = "epistemic-me-core/pb/models";
 
 import "proto/models/beliefs.proto";
+import "proto/models/source.proto";
+
+// Add STATUS enum definition
+enum STATUS {
+    STATUS_INVALID = 0;
+    PENDING_ANSWER = 1;
+    ANSWERED = 2;
+    BELIEFS_UPDATED = 3;
+}
+
+// Add InteractionType enum
+enum InteractionType {
+    INTERACTION_TYPE_INVALID = 0;
+    QUESTION_ANSWER = 1;
+    HYPOTHESIS_EVIDENCE = 2;
+    ACTION_OUTCOME = 3;
+}
+
+// Add ActionType enum
+enum ActionType {
+    ACTION_TYPE_INVALID = 0;
+    ANSWER_QUESTION = 1;
+    COLLECT_EVIDENCE = 2;
+    ACTUATE_OUTCOME = 3;
+}
 
 // A Question represents a request for information
 // from a user. The intent behind a question is to extract
@@ -12,36 +37,61 @@ import "proto/models/beliefs.proto";
 // as well as a "dialectical context" of which beliefs 
 // the agent is attempting to extract from the user. 
 message Question {
-    string question = 1;                  // The text of the question.
-    int64 created_at_millis_utc = 2; // Timestamp when the question was created.
+    string question = 1;
+    int64 created_at_millis_utc = 2;
 }
 
 // A User Answer is a response to a question that 
 // may or may not contain an embedded belief, which can be
 // extracted at a later point in time.
 message UserAnswer {
-    string user_answer = 1;               // The text of the user's answer.
-    int64 created_at_millis_utc = 2; // Timestamp when the answer was created.
+    string user_answer = 1;
+    int64 created_at_millis_utc = 2;
 }
 
-// A Dialectical Interaction tracks a question
-// and a response to the question. It also tracks
-// the beliefs that may be generated and seen as being
-// extracted from the interaction.
-message DialecticalInteraction {
-    // Represents the states of user interaction
-    // within a specific dialectical interaction.
-    enum STATUS {
-        STATUS_INVALID = 0;               // Invalid status.
-        STATUS_PENDING_ANSWER = 1;        // Waiting for an answer.
-        STATUS_ANSWERED = 2;              // Answer has been provided.
-    }
+// Question-Answer interaction for extracting beliefs
+message QuestionAnswerInteraction {
+    Question question = 1;
+    UserAnswer answer = 2;
+    repeated Belief extracted_beliefs = 3;
+    int64 updated_at_millis_utc = 4;
+}
 
-    Question question = 1;                // The question in the interaction.
-    UserAnswer userAnswer = 2;            // The user's answer in the interaction.
-    repeated Belief beliefs = 3;          // Beliefs extracted from the interaction.
-    int64 updated_at_millis_utc = 4; // Timestamp when the interaction was last updated.
-    STATUS status = 5;
+// Hypothesis-Evidence interaction for testing beliefs
+message HypothesisEvidenceInteraction {
+    string hypothesis = 1;
+    string evidence = 2;
+    bool is_counterfactual = 3;
+    repeated Belief updated_beliefs = 4;
+    int64 updated_at_millis_utc = 5;
+}
+
+// Action-Outcome interaction for testing causal beliefs
+message ActionOutcomeInteraction {
+    string action = 1;
+    string outcome = 2;
+    repeated Belief updated_beliefs = 3;
+    int64 updated_at_millis_utc = 4;
+}
+
+// Update DialecticalInteraction to use the new types
+message DialecticalInteraction {
+    STATUS status = 1;
+    InteractionType type = 2;
+    string id = 3;
+    
+    // One of these based on type
+    oneof interaction {
+        QuestionAnswerInteraction question_answer = 4;
+        HypothesisEvidenceInteraction hypothesis_evidence = 5;
+        ActionOutcomeInteraction action_outcome = 6;
+    }
+    
+    Observation predicted_observation = 7;
+    Action action = 8;
+    Observation observation = 9;
+    Discrepancy discrepancy = 10;
+    int64 updated_at_millis_utc = 11;
 }
 
 // The Dialectic Type informs the "strategy" of how the 
@@ -69,12 +119,12 @@ message Agent {
     enum AgentType {
         AGENT_TYPE_INVALID = 0;           // Invalid agent type.
         AGENT_TYPE_GPT_LATEST = 1;        // Latest GPT model.
+        AGENT_TYPE_HUMAN = 2;             // A human user.
     }
 
     AgentType agent_type = 1;             // The type of the agent.
     DialecticType dialectic_type = 2;     // The dialectic strategy used by the agent.
 }
-
 
 // The dialectic can be seen as a session that gets created
 // and presents a user with a series of questions designed to 
@@ -102,4 +152,38 @@ message BeliefAnalysis {
     string feedback = 5;
     repeated string recommendations = 6;
     repeated string verified_beliefs = 7;
+}
+
+// Action represents a way to change the world state
+message Action {
+    ActionType type = 1;
+    string dialectic_interaction_id = 2;  // Reference to the interaction
+    string resource_id = 3;               // Reference to the resource used
+    string intervention_id = 4;           // Optional reference to a defined intervention
+    int64 timestamp = 5;
+}
+
+// Move ObservationType here from beliefs.proto
+enum ObservationType {
+    OBSERVATION_TYPE_INVALID = 0;
+    ANSWER = 1;
+    EVIDENCE = 2;
+    OUTCOME = 3;
+}
+
+// Observation represents the observed state after an action
+message Observation {
+    string dialectic_interaction_id = 1;
+    ObservationType type = 2;
+    Source source = 3;
+    map<string, float> state_distribution = 4;  // Maps state_id to probability
+    int64 timestamp = 5;
+}
+
+// Update Discrepancy to remove observation_type
+message Discrepancy {
+    string dialectic_interaction_id = 1;  // Relationship to interaction
+    double kl_divergence = 2;            // KL(P||Q) where P is predicted and Q is observed
+    map<string, float> pointwise_kl_terms = 3;  // P(x) * log(P(x)/Q(x)) for each state
+    int64 timestamp = 4;
 }

@@ -2,18 +2,18 @@ syntax = "proto3";
 
 option go_package = "epistemic-me-core/pb/models";
 
-import "proto/models/dialectic.proto";
 import "proto/models/beliefs.proto";
+import "proto/models/dialectic.proto";
 
 message SelfModel {
-  string id = 1;
-  repeated string philosophies = 2;
-  BeliefSystem belief_system = 3;
-  repeated Dialectic dialectics = 4;
+    string id = 1;
+    repeated string philosophies = 2;
+    BeliefSystem belief_system = 3;
+    repeated Dialectic dialectics = 4;
 }
 
 message Philosophy {
-  string id = 1;
-  string description = 2;
-  bool extrapolate_contexts = 3;
+    string id = 1;
+    string description = 2;
+    bool extrapolate_contexts = 3;
 }

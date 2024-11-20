@@ -70,7 +70,7 @@ func validateAPIKey[T any](
 	return ctx, nil
 }
 
-// Update the server methods to use the standalone function
+// Update the CreateBelief method to handle evidence
 func (s *Server) CreateBelief(
 	ctx context.Context,
 	req *connect.Request[pb.CreateBeliefRequest],
@@ -86,7 +86,22 @@ func (s *Server) CreateBelief(
 		SelfModelID:   req.Msg.SelfModelId,
 		BeliefContent: req.Msg.BeliefContent,
 	}
-	log.Printf("CreateBelief input: %+v", input)
+
+	// Handle evidence if provided
+	switch evidence := req.Msg.Evidence.(type) {
+	case *pb.CreateBeliefRequest_HypothesisEvidence:
+		input.BeliefEvidence = &svcmodels.BeliefEvidence{
+			Type:      svcmodels.EvidenceTypeHypothesis,
+			Content:   evidence.HypothesisEvidence.Evidence,
+			IsCounter: evidence.HypothesisEvidence.IsCounterfactual,
+		}
+	case *pb.CreateBeliefRequest_ActionOutcome:
+		input.BeliefEvidence = &svcmodels.BeliefEvidence{
+			Type:    svcmodels.EvidenceTypeAction,
+			Action:  evidence.ActionOutcome.Action,
+			Outcome: evidence.ActionOutcome.Outcome,
+		}
+	}
 
 	response, err := s.bsvc.CreateBelief(input)
 	if err != nil {
@@ -94,20 +109,10 @@ func (s *Server) CreateBelief(
 		return nil, err
 	}
 
-	log.Printf("CreateBelief response: %+v", response)
-
-	// Ensure belief system is created
-	if response.BeliefSystem.Beliefs == nil {
-		response.BeliefSystem.Beliefs = []*svcmodels.Belief{&response.Belief}
-	}
-
-	protoResponse := &pb.CreateBeliefResponse{
+	return connect.NewResponse(&pb.CreateBeliefResponse{
 		Belief:       response.Belief.ToProto(),
 		BeliefSystem: response.BeliefSystem.ToProto(),
-	}
-	log.Printf("CreateBelief proto response: %+v", protoResponse)
-
-	return connect.NewResponse(protoResponse), nil
+	}), nil
 }
 
 func (s *Server) ListBeliefs(
@@ -221,6 +226,11 @@ func (s *Server) UpdateDialectic(
 
 	log.Println("UpdateDialectic called with request:", req.Msg)
 
+	var customQuestion *string
+	if req.Msg.CustomQuestion != "" {
+		customQuestion = &req.Msg.CustomQuestion
+	}
+
 	response, err := s.dsvc.UpdateDialectic(&svcmodels.UpdateDialecticInput{
 		SelfModelID: req.Msg.SelfModelId,
 		ID:          req.Msg.Id,
@@ -228,7 +238,8 @@ func (s *Server) UpdateDialectic(
 			UserAnswer:         req.Msg.Answer.UserAnswer,
 			CreatedAtMillisUTC: req.Msg.Answer.CreatedAtMillisUtc,
 		},
-		DryRun: req.Msg.DryRun,
+		DryRun:         req.Msg.DryRun,
+		CustomQuestion: customQuestion,
 	})
 
 	if err != nil {
@@ -246,6 +257,7 @@ func (s *Server) UpdateDialectic(
 	return connect.NewResponse(protoResponse), nil
 }
 
+// Update GetBeliefSystem to support conceptualization
 func (s *Server) GetBeliefSystem(
 	ctx context.Context,
 	req *connect.Request[pb.GetBeliefSystemRequest],
@@ -261,6 +273,24 @@ func (s *Server) GetBeliefSystem(
 	if err != nil {
 		log.Printf("GetBeliefSystem ERROR: %v", err)
 		return nil, err
+	}
+
+	// Generate conceptualization if requested
+	if req.Msg.Conceptualize {
+		err = s.bsvc.ConceptualizeBeliefSystem(beliefSystem)
+		if err != nil {
+			log.Printf("ConceptualizeBeliefSystem ERROR: %v", err)
+			return nil, err
+		}
+	}
+
+	// Include metrics if requested
+	if req.Msg.IncludeMetrics {
+		err = s.bsvc.ComputeMetrics(beliefSystem)
+		if err != nil {
+			log.Printf("ComputeMetrics ERROR: %v", err)
+			return nil, err
+		}
 	}
 
 	return connect.NewResponse(&pb.GetBeliefSystemResponse{

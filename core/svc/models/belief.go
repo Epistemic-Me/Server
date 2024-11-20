@@ -1,134 +1,149 @@
 package models
 
 import (
+	"strings"
+
 	pbmodels "epistemic-me-core/pb/models"
 )
 
-// ConfidenceRating represents a confidence score for a belief.
+type BeliefType int32
+
+const (
+	Statement BeliefType = iota + 1
+	Falsifiable
+	Causal
+	Clarification
+)
+
+type Content struct {
+	RawStr string `json:"raw_str"`
+}
+
 type ConfidenceRating struct {
 	ConfidenceScore float64 `json:"confidence_score"`
 	Default         bool    `json:"default"`
 }
 
-func (cr ConfidenceRating) ToProto() *pbmodels.ConfidenceRating {
-	return &pbmodels.ConfidenceRating{
-		ConfidenceScore: cr.ConfidenceScore,
-		Default:         cr.Default,
+// Assuming Source and TemporalInformation are defined elsewhere
+type Source struct {
+	// Fields for Source
+}
+
+func (s Source) ToProto() *pbmodels.Source {
+	// Implement the conversion
+	return &pbmodels.Source{}
+}
+
+type ObservationContext struct {
+	ID             string   `json:"id"`
+	Name           string   `json:"name"`
+	ParentID       string   `json:"parent_id"`
+	PossibleStates []string `json:"possible_states"`
+}
+
+func (oc ObservationContext) ToProto() *pbmodels.ObservationContext {
+	states := make([]*pbmodels.State, len(oc.PossibleStates))
+	for i, s := range oc.PossibleStates {
+		states[i] = &pbmodels.State{Name: s}
+	}
+	return &pbmodels.ObservationContext{
+		Id:             oc.ID,
+		Name:           oc.Name,
+		ParentId:       oc.ParentID,
+		PossibleStates: states,
 	}
 }
 
-// Content represents the content of a belief in natural language.
-type Content struct {
-	RawStr string `json:"raw_str"`
-}
+type EpistemicEmotion int32
 
-func (c Content) ToProto() *pbmodels.Content {
-	return &pbmodels.Content{
-		RawStr: c.RawStr,
-	}
-}
-
-// BeliefType represents the type of belief, either causal or statement.
-type BeliefType int32
-
-// todo: @deen this may imply a state machine on beleifs
-// hypothesis -> revisit
-// a belief begins as a statement, may be clarified and updated, and
-// eventually instantiated as a habit. when a habit is instantiated
-// a belief is "locked" until the observation context associated with
-// a belief ends
 const (
-	Causal        BeliefType = 0
-	Statement     BeliefType = 1
-	Clarification BeliefType = 2
+	EmotionInvalid EpistemicEmotion = iota
+	Confirmation
+	Surprise
+	Curiosity
+	Confusion
 )
 
-func (bt BeliefType) ToProto() pbmodels.BeliefType {
-	switch bt {
-	case Causal:
-		return pbmodels.BeliefType_CAUSAL
-	case Statement:
-		return pbmodels.BeliefType_STATEMENT
-	default:
-		return pbmodels.BeliefType_STATEMENT
-	}
+type ObservationType int32
+
+const (
+	ObservationInvalid ObservationType = iota
+	Answer
+	ObservationEvidence
+	Outcome
+)
+
+// Discrepancy represents the difference between prediction and observation
+type Discrepancy struct {
+	DialecticInteractionID string             `json:"dialectic_interaction_id"`
+	PriorProbabilities     map[string]float32 `json:"prior_probabilities"`
+	PosteriorProbabilities map[string]float32 `json:"posterior_probabilities"`
+	IsCounterfactual       bool               `json:"is_counterfactual"`
+	Timestamp              int64              `json:"timestamp"`
+	KlDivergence           float32            `json:"kl_divergence"`
+	PointwiseKlTerms       map[string]float32 `json:"pointwise_kl_terms"`
 }
 
-// Belief represents a user's belief.
+// BeliefContext represents the relationship between a Belief and an ObservationContext
+type BeliefContext struct {
+	BeliefID                string             `json:"belief_id"`
+	ObservationContextID    string             `json:"observation_context_id"`
+	ConfidenceRatings       []ConfidenceRating `json:"confidence_ratings"`
+	Evidence                []*Source          `json:"evidence"`
+	Action                  string             `json:"action,omitempty"`
+	ExpectedResult          string             `json:"expected_result,omitempty"`
+	ConditionalProbs        map[string]float32 `json:"conditional_probabilities,omitempty"`
+	DialecticInteractionIDs []string           `json:"dialectic_interaction_ids"`
+	EpistemicEmotion        EpistemicEmotion   `json:"epistemic_emotion"`
+	EmotionIntensity        float32            `json:"emotion_intensity"`
+}
+
+// Base Belief structure (simplified)
 type Belief struct {
-	ID                    string             `json:"id"`
-	SelfModelID           string             `json:"self_model_id"`
-	Version               int32              `json:"version"`
-	ConfidenceRatings     []ConfidenceRating `json:"confidence_ratings"`
-	Content               []Content          `json:"content"`
-	Type                  BeliefType         `json:"type"`
-	CausalBelief          *CausalBelief      `json:"causal_belief,omitempty"`
-	ObservationContextIDs []string           `json:"observation_context_ids"`
-	Probabilities         map[string]float32 `json:"probabilities"`
-	Action                string             `json:"action"`
-	Result                string             `json:"result"`
+	ID          string     `json:"id"`
+	SelfModelID string     `json:"self_model_id"`
+	Version     int32      `json:"version"`
+	Type        BeliefType `json:"type"`
+	Content     []Content  `json:"content"`
 }
 
-func (b Belief) GetContentAsString() string {
-	var contentStrings string
-	for _, content := range b.Content {
-		contentStrings += content.RawStr
-	}
-	return contentStrings
-}
-
-func (b Belief) ToProto() *pbmodels.Belief {
-	confidenceRatingsPb := make([]*pbmodels.ConfidenceRating, len(b.ConfidenceRatings))
-	for i, cr := range b.ConfidenceRatings {
-		confidenceRatingsPb[i] = cr.ToProto()
-	}
-
-	contentPb := make([]*pbmodels.Content, len(b.Content))
-	for i, c := range b.Content {
-		contentPb[i] = c.ToProto()
-	}
-
-	var causalBeliefPb *pbmodels.Belief_CausalBelief
-	if b.CausalBelief != nil {
-		causalBeliefPb = b.CausalBelief.ToProto()
-	}
-
-	return &pbmodels.Belief{
-		Id:                    b.ID,
-		SelfModelId:           b.SelfModelID,
-		Version:               b.Version,
-		ConfidenceRatings:     confidenceRatingsPb,
-		Content:               contentPb,
-		Type:                  b.Type.ToProto(),
-		CausalBelief:          causalBeliefPb,
-		ObservationContextIds: b.ObservationContextIDs,
-		Probabilities:         b.Probabilities,
-		Action:                b.Action,
-		Result:                b.Result,
-	}
-}
-
-// CausalBelief represents the details of a causal belief.
-type CausalBelief struct {
-	InterventionID         int32  `json:"intervention_id"`
-	InterventionName       string `json:"intervention_name"`
-	ObservationContextID   int32  `json:"observation_context_id"`
-	ObservationContextName string `json:"observation_context_name"`
-}
-
-func (cb CausalBelief) ToProto() *pbmodels.Belief_CausalBelief {
-	return &pbmodels.Belief_CausalBelief{
-		InterventionId:         cb.InterventionID,
-		InterventionName:       cb.InterventionName,
-		ObservationContextId:   cb.ObservationContextID,
-		ObservationContextName: cb.ObservationContextName,
-	}
-}
-
-// BeliefSystem represents a summary of a user's beliefs.
+// BeliefSystem with BeliefContexts
 type BeliefSystem struct {
 	Beliefs             []*Belief             `json:"beliefs"`
 	ObservationContexts []*ObservationContext `json:"observation_contexts"`
+	BeliefContexts      []*BeliefContext      `json:"belief_contexts"`
+	Metrics             *BeliefSystemMetrics  `json:"metrics,omitempty"`
+	Ontology            *Ontology             `json:"ontology,omitempty"`
+}
+
+type BeliefSystemMetrics struct {
+	ClarificationScore      float64 `json:"clarification_score"`
+	TotalBeliefs            int32   `json:"total_beliefs"`
+	TotalFalsifiableBeliefs int32   `json:"total_falsifiable_beliefs"`
+	TotalCausalBeliefs      int32   `json:"total_causal_beliefs"`
+	TotalBeliefStatements   int32   `json:"total_belief_statements"`
+}
+
+// Update Ontology struct to use BeliefContexts instead of ObservationContexts
+type Ontology struct {
+	RawStr      string           `json:"raw_str"`
+	GeneratedAt int64            `json:"generated_at"`
+	Contexts    []*BeliefContext `json:"contexts"` // Changed from ObservationContext to BeliefContext
+}
+
+func ontologyToProto(o *Ontology) *pbmodels.BeliefSystem_Ontology {
+	if o == nil {
+		return nil
+	}
+	protoContexts := make([]*pbmodels.BeliefContext, len(o.Contexts))
+	for i, ctx := range o.Contexts {
+		protoContexts[i] = ctx.ToProto()
+	}
+	return &pbmodels.BeliefSystem_Ontology{
+		RawStr:      o.RawStr,
+		GeneratedAt: o.GeneratedAt,
+		Contexts:    protoContexts,
+	}
 }
 
 func (bs BeliefSystem) ToProto() *pbmodels.BeliefSystem {
@@ -143,40 +158,119 @@ func (bs BeliefSystem) ToProto() *pbmodels.BeliefSystem {
 	return &pbmodels.BeliefSystem{
 		Beliefs:             protoBeliefs,
 		ObservationContexts: protoObservationContexts,
+		Metrics:             metricsToProto(bs.Metrics),
+		Ontology:            ontologyToProto(bs.Ontology),
 	}
 }
 
-// Assuming Source and TemporalInformation are defined elsewhere
-type Source struct {
-	// Fields for Source
-}
-
-func (s Source) ToProto() *pbmodels.Source {
-	// Implement the conversion
-	return &pbmodels.Source{}
-}
-
-type TemporalInformation struct {
-	// Fields for TemporalInformation
-}
-
-func (ti TemporalInformation) ToProto() *pbmodels.TemporalInformation {
-	// Implement the conversion
-	return &pbmodels.TemporalInformation{}
-}
-
-type ObservationContext struct {
-	ID             string   `json:"id"`
-	Name           string   `json:"name"`
-	ParentID       string   `json:"parent_id"`
-	PossibleValues []string `json:"possible_values"`
-}
-
-func (oc ObservationContext) ToProto() *pbmodels.ObservationContext {
-	return &pbmodels.ObservationContext{
-		Id:             oc.ID,
-		Name:           oc.Name,
-		ParentId:       oc.ParentID,
-		PossibleValues: oc.PossibleValues,
+func (b Belief) ToProto() *pbmodels.Belief {
+	return &pbmodels.Belief{
+		Id:          b.ID,
+		SelfModelId: b.SelfModelID,
+		Version:     b.Version,
+		Type:        pbmodels.BeliefType(b.Type),
+		Content:     contentToProto(b.Content),
 	}
+}
+
+func (bc BeliefContext) ToProto() *pbmodels.BeliefContext {
+	return &pbmodels.BeliefContext{
+		BeliefId:                 bc.BeliefID,
+		ObservationContextId:     bc.ObservationContextID,
+		ConfidenceRatings:        confidenceRatingsToProto(bc.ConfidenceRatings),
+		ConditionalProbabilities: bc.ConditionalProbs,
+		DiscrepancyIds:           bc.DialecticInteractionIDs,
+		EpistemicEmotion:         pbmodels.EpistemicEmotion(bc.EpistemicEmotion),
+		EmotionIntensity:         bc.EmotionIntensity,
+	}
+}
+
+func sourcesToProto(sources []*Source) []*pbmodels.Source {
+	result := make([]*pbmodels.Source, len(sources))
+	for i, s := range sources {
+		result[i] = s.ToProto()
+	}
+	return result
+}
+
+func discrepanciesToProto(discrepancies []Discrepancy) []*pbmodels.Discrepancy {
+	result := make([]*pbmodels.Discrepancy, len(discrepancies))
+	for i, d := range discrepancies {
+		result[i] = d.ToProto()
+	}
+	return result
+}
+
+func observationContextsToProto(contexts []*ObservationContext) []*pbmodels.ObservationContext {
+	result := make([]*pbmodels.ObservationContext, len(contexts))
+	for i, c := range contexts {
+		states := make([]*pbmodels.State, len(c.PossibleStates))
+		for j, s := range c.PossibleStates {
+			states[j] = &pbmodels.State{Name: s}
+		}
+		result[i] = &pbmodels.ObservationContext{
+			Id:             c.ID,
+			Name:           c.Name,
+			ParentId:       c.ParentID,
+			PossibleStates: states,
+		}
+	}
+	return result
+}
+
+func contentToProto(content []Content) []*pbmodels.Content {
+	result := make([]*pbmodels.Content, len(content))
+	for i, c := range content {
+		result[i] = &pbmodels.Content{RawStr: c.RawStr}
+	}
+	return result
+}
+
+func confidenceRatingsToProto(ratings []ConfidenceRating) []*pbmodels.ConfidenceRating {
+	result := make([]*pbmodels.ConfidenceRating, len(ratings))
+	for i, r := range ratings {
+		result[i] = &pbmodels.ConfidenceRating{
+			ConfidenceScore: r.ConfidenceScore,
+			Default:         r.Default,
+		}
+	}
+	return result
+}
+
+func beliefsToProto(beliefs []*Belief) []*pbmodels.Belief {
+	result := make([]*pbmodels.Belief, len(beliefs))
+	for i, b := range beliefs {
+		result[i] = b.ToProto()
+	}
+	return result
+}
+
+func metricsToProto(m *BeliefSystemMetrics) *pbmodels.BeliefSystem_Metrics {
+	if m == nil {
+		return nil
+	}
+	return &pbmodels.BeliefSystem_Metrics{
+		ClarificationScore:      m.ClarificationScore,
+		TotalBeliefs:            m.TotalBeliefs,
+		TotalFalsifiableBeliefs: m.TotalFalsifiableBeliefs,
+		TotalCausalBeliefs:      m.TotalCausalBeliefs,
+		TotalBeliefStatements:   m.TotalBeliefStatements,
+	}
+}
+
+func (d Discrepancy) ToProto() *pbmodels.Discrepancy {
+	return &pbmodels.Discrepancy{
+		DialecticInteractionId: d.DialecticInteractionID,
+		KlDivergence:           float64(d.KlDivergence),
+		PointwiseKlTerms:       d.PointwiseKlTerms,
+		Timestamp:              d.Timestamp,
+	}
+}
+
+func (b *Belief) GetContentAsString() string {
+	var contentStrings []string
+	for _, content := range b.Content {
+		contentStrings = append(contentStrings, content.RawStr)
+	}
+	return strings.Join(contentStrings, " ")
 }
