@@ -1,0 +1,715 @@
+{
+  "beliefStatements": {
+    "jonathan": {
+      "sleepHabits": [
+        "good sleep helps manage energy through circadian rhythm",
+        "good sleep helps manage nervous system as measured by morning HRV"
+      ],
+      "dietaryChoices": [
+        "should manage metabolic health through diverse sources of natural foods",
+        "body signals (energy, gut health, overall feeling) are the best short-term measurement for what is good for me",
+        "biomarkers are a strong long-term indicator for how to adjust diet",
+        "current diet is healthy as measured by blood tests",
+        "eating foods that are healthy will reduce mortality risk"
+      ],
+      "exerciseRoutine": [
+        "exercise routine can stress muscle fibers and metabolic functions to create the healthiest version of my body"
+      ],
+      "lifestyleChoices": [
+        "lifestyle should mitigate risk of death while living life to the fullest",
+        "broad experiences, social connection and continual learning are important",
+        "learning about health and the world is valuable",
+        "philosophy and learning how to ask better questions is important"
+      ],
+      "philosophyOnLongevity": [
+        "consistent sleep, diet and exercise contribute to longevity",
+        "caring for cells, organs and body as a whole is important",
+        "managing circadian rhythm, ultradian rhythm, stress/recovery cycles is important",
+        "current practices will add 6-10 years of healthspan",
+        "future longevity practices will continue to emerge with technology and understanding"
+      ]
+    },
+    "khanhyen_ta": {
+      "sleepHabits": [
+        "people should sleep at least 7 hours per night to be healthy",
+        "sleep is very important"
+      ],
+      "dietaryChoices": ["food should be chosen based on health benefits"],
+      "exerciseRoutine": ["exercise helps with health and pain relief"],
+      "lifestyleChoices": [
+        "social connections are important",
+        "reading and searching for information is valuable"
+      ],
+      "philosophyOnLongevity": [
+        "eating healthy foods contributes to longevity",
+        "exercise contributes to longevity",
+        "good social connections contribute to longevity",
+        "being happy contributes to longevity"
+      ]
+    },
+    "ben": {
+      "sleepHabits": [
+        "consistent sleep is beneficial in many ways, both short and long term",
+        "ability to sleep well has long-ranging effects on quality of life"
+      ],
+      "dietaryChoices": [
+        "whole foods are important",
+        "ultra-processed foods should be minimized",
+        "intuitive eating has long-ranging health benefits"
+      ],
+      "exerciseRoutine": [
+        "routine around exercise helps maintain both physical and mental health",
+        "balancing aerobic and anaerobic exercise feels good and helps keep me healthy"
+      ],
+      "lifestyleChoices": [
+        "work-life balance helps reduce stress",
+        "mindfulness should be a consistent part of life",
+        "social connections are key drivers of joy and happiness",
+        "staying balanced with priorities is important"
+      ],
+      "philosophyOnLongevity": [
+        "not overeating is important to longevity",
+        "focusing on breath and cardiovascular health to increase lung capacity helps longevity",
+        "fostering human connection and loving relationships is key to longevity"
+      ]
+    },
+    "tu": {
+      "sleepHabits": [
+        "sleeping longer than before is beneficial",
+        "sound sleep is important"
+      ],
+      "dietaryChoices": [
+        "staying healthy through diet is important",
+        "avoiding harm and suffering to animals matters",
+        "avoiding pollutants by eating whole foods is beneficial",
+        "feeling connected to food consumption is valuable"
+      ],
+      "exerciseRoutine": [
+        "need to improve workout routine",
+        "want to gain some muscle but not too much"
+      ],
+      "lifestyleChoices": [
+        "positive health changes are important to act upon",
+        "keeping positive and optimistic stance on life matters",
+        "being a positive beacon for others is valuable"
+      ],
+      "philosophyOnLongevity": [
+        "staying positive and happy is a major factor in longevity",
+        "optimism for shared future with humans and AI living together matters",
+        "humans can overcome obstacles previously thought impossible",
+        "retaining health and mental faculty for hundreds of years is attainable",
+        "working together with AI can help overcome death"
+      ]
+    },
+    "dorka": {
+      "sleepHabits": ["sleep is the foundation of health and longevity"],
+      "dietaryChoices": ["being fully vegan is best for the environment"],
+      "exerciseRoutine": [
+        "exercise is important for being in best shape mentally, physically and healthwise"
+      ],
+      "lifestyleChoices": [
+        "becoming an integrated person who helps others is important",
+        "mental health is more important than career goals",
+        "rest and connection with loved ones should be prioritized"
+      ],
+      "philosophyOnLongevity": [
+        "sleep, diet, exercise, mental health, love and peace are foundations of longevity",
+        "would love to live forever",
+        "want to show loved ones they can extend their lifespans"
+      ]
+    },
+    "marcus": {
+      "sleepHabits": [
+        "using phone/computer too much before bed has lasting energizing effects",
+        "using phone too long before bed can cause morning headaches",
+        "winding down naturally is preferable but forcing it when needed is acceptable"
+      ],
+      "dietaryChoices": [
+        "food choices should be based on processing level and plastic exposure",
+        "non-processed foods and foods that don't touch plastic are preferable",
+        "dietary choices should be based on human evolution",
+        "balance and moderation is key to a good diet",
+        "eating enough to fuel yourself and gain muscle/strength when working out is important"
+      ],
+      "exerciseRoutine": [
+        "exercise is key to a positive mind and well-working body",
+        "lack of exercise leads to poor choices and irritated mood"
+      ],
+      "lifestyleChoices": [
+        "living at slower pace helps avoid stress",
+        "focus on having fun, working hard, and resting is important"
+      ],
+      "philosophyOnLongevity": [
+        "sauna use contributes to longevity",
+        "exercise contributes to longevity",
+        "good relationships with family and friends contribute to longevity",
+        "diet and minimal intake of environmental toxins matter for longevity",
+        "not abusing alcohol or drugs is important for longevity",
+        "staying challenged and experiencing change matters for longevity",
+        "having passions contributes to longevity"
+      ]
+    },
+    "elizabeth": {
+      "sleepHabits": [
+        "current sleep habits could be better",
+        "shutting down earlier would be wiser"
+      ],
+      "dietaryChoices": [
+        "food should be considered as medicine for the body",
+        "plant-based foods are preferable"
+      ],
+      "exerciseRoutine": [
+        "it's important to move your body",
+        "we lose what we don't use"
+      ],
+      "lifestyleChoices": [
+        "reducing fear is important",
+        "living in and for love matters"
+      ],
+      "philosophyOnLongevity": [
+        "fasting contributes to longevity",
+        "plant-based diets contribute to longevity",
+        "minimal stress contributes to longevity",
+        "body movement contributes to longevity",
+        "sleep/rest contributes to longevity"
+      ]
+    },
+    "brian": {
+      "sleepHabits": [
+        "reading non-fiction helps wind down",
+        "waking up fresh allows clear thinking",
+        "waking up fresh enables a healthy approach to the day"
+      ],
+      "dietaryChoices": [
+        "balanced diet with fresh ingredients is important",
+        "proper nourishment comes from eating foods humans have traditionally eaten for generations",
+        "balanced diet of meat, vegetables, and grains is what bodies are designed to consume"
+      ],
+      "exerciseRoutine": [
+        "maintaining certain weight and BMI is important",
+        "exercise benefits body health, image health and mental health"
+      ],
+      "lifestyleChoices": [
+        "maintaining calm and reducing stress is important",
+        "showing children balance and how to stay peaceful matters",
+        "learning from articles, books, and podcasts is valuable"
+      ],
+      "philosophyOnLongevity": [
+        "social interaction contributes to longevity",
+        "learning contributes to longevity",
+        "maintaining a healthy body contributes to longevity",
+        "getting into nature contributes to longevity"
+      ]
+    },
+    "richard": {
+      "sleepHabits": [
+        "sleep has many positive benefits on health",
+        "sleep allows functioning at best the next day",
+        "watching comedy before bed may help fall asleep more easily"
+      ],
+      "dietaryChoices": [
+        "foods consumed have positive effects on multiple organ systems",
+        "diet supports gut microbiome",
+        "diet supports detoxification",
+        "diet supports cognitive function",
+        "diet helps delay degenerative disease"
+      ],
+      "exerciseRoutine": [
+        "exercise is important for mind and body",
+        "exercise makes for more restful sleep",
+        "exercise is important for overall health, cardiovascular and brain health"
+      ],
+      "lifestyleChoices": [
+        "work-relaxation balance is important",
+        "social connections matter",
+        "spending time studying health-related topics is valuable"
+      ],
+      "philosophyOnLongevity": [
+        "diet, nutrition, exercise, and quality sleep contribute significantly to longevity",
+        "stress management contributes to longevity",
+        "avoiding toxins and supporting detoxification through diet and nutrition is important",
+        "avoiding pesticides and herbicides by eating organic food matters",
+        "avoiding environmental toxins from plastics and cookware is important",
+        "filtered water and air purification contribute to longevity",
+        "genetic factors play a role in longevity",
+        "healthy relationships with family, friends and community are important",
+        "spiritual beliefs and religious practices support health and longevity",
+        "sense of purpose and societal contribution matter for mental well-being"
+      ]
+    },
+    "kate": {
+      "sleepHabits": [
+        "sleep is important to function well the next day",
+        "poor sleep makes a noticeable difference"
+      ],
+      "dietaryChoices": [
+        "following blueprint protocol while allowing occasional treats is beneficial"
+      ],
+      "exerciseRoutine": ["being outside in nature is valuable"],
+      "lifestyleChoices": [
+        "self-care as a lifestyle is important",
+        "teaching children principles of health care for body, soul, and mind matters",
+        "want to live a long healthy life"
+      ],
+      "philosophyOnLongevity": [
+        "following blueprint protocol contributes to longevity",
+        "staying calm and relaxed about life contributes to longevity"
+      ]
+    },
+    "kevin_chen": {
+      "sleepHabits": [
+        "sleep is important for physical and mental recovery",
+        "sleep helps bodies repair",
+        "sleep boosts immune system",
+        "sleep enhances cognitive functioning"
+      ],
+      "dietaryChoices": [
+        "whole non-processed foods should be prioritized",
+        "limiting calories helps maintain healthy weight"
+      ],
+      "exerciseRoutine": ["movement is important for the body to stay healthy"],
+      "lifestyleChoices": [
+        "work-life balance is important",
+        "stress management matters",
+        "social connections are valuable",
+        "leaning on social groups rather than influencers is beneficial"
+      ],
+      "philosophyOnLongevity": [
+        "active habits contribute to longevity",
+        "eating healthy foods contributes to longevity",
+        "prioritizing friends and family contributes to longevity"
+      ]
+    },
+    "gabriella": {
+      "sleepHabits": ["hard to fall asleep but sleep is very important"],
+      "dietaryChoices": [
+        "trying to be as healthy as possible within available options is important"
+      ],
+      "exerciseRoutine": ["exercise is very important"],
+      "lifestyleChoices": [
+        "work boundaries are important but challenging",
+        "overworking negatively impacts health and exercise routine",
+        "stress affects overall wellbeing"
+      ],
+      "philosophyOnLongevity": [
+        "eating well contributes to longevity",
+        "reducing stress contributes to longevity",
+        "exercising contributes to longevity",
+        "connecting with loved ones contributes to longevity",
+        "sleeping well contributes to longevity"
+      ]
+    },
+    "jenna": {
+      "sleepHabits": [
+        "sleeping 7-9 hours is a good range",
+        "less than that range is bad for health",
+        "9 hours is optimal possibly due to being female or genetics",
+        "inconsistent sleep times put stress on the body"
+      ],
+      "dietaryChoices": [
+        "food choices should optimize athletic performance",
+        "high protein helps grow and maintain muscle mass",
+        "whole foods are important",
+        "processed foods should be minimized",
+        "not restricting food but practicing moderation is important",
+        "current diet benefits athletic performance, daily feeling, and healthy aging"
+      ],
+      "exerciseRoutine": [
+        "climbing provides strength training and cardio combined",
+        "muscle mass is good for health",
+        "weight lifting improves climbing",
+        "surfing provides cardiovascular exercise while being fun"
+      ],
+      "lifestyleChoices": [
+        "sitting is very bad for health",
+        "movement helps both body and mind",
+        "exercise helps maintain mental health",
+        "everyone could benefit from more whole foods and less sitting/screen time"
+      ],
+      "philosophyOnLongevity": [
+        "exercise contributes to longevity",
+        "walking for an hour daily contributes to longevity",
+        "eating whole foods contributes to longevity",
+        "limiting processed foods and alcohol contributes to longevity"
+      ]
+    },
+    "elena": {
+      "sleepHabits": [
+        "9 hours of sleep helps regain health",
+        "total time in bed matters"
+      ],
+      "dietaryChoices": [
+        "sleep and stopping snacking are most important for hormonal balance",
+        "stress management affects diet effectiveness"
+      ],
+      "exerciseRoutine": ["regular exercise helps with back pain"],
+      "lifestyleChoices": [
+        "investing time in health improvement is valuable",
+        "learning from multiple health professionals is beneficial"
+      ],
+      "philosophyOnLongevity": [
+        "setting the tone for the day starts with nighttime routine",
+        "sauna contributes to longevity",
+        "grounding contributes to longevity",
+        "walking out stress contributes to longevity"
+      ]
+    },
+    "jim": {
+      "sleepHabits": ["9 hours of sleep is beneficial"],
+      "dietaryChoices": [],
+      "exerciseRoutine": [],
+      "lifestyleChoices": [],
+      "philosophyOnLongevity": []
+    },
+    "jacqueline": {
+      "sleepHabits": [
+        "avoiding electronics before bed is beneficial",
+        "reading and meditation provide a calm and relaxed way to start sleep"
+      ],
+      "dietaryChoices": [],
+      "exerciseRoutine": [],
+      "lifestyleChoices": [],
+      "philosophyOnLongevity": []
+    },
+    "anonymous_3": {
+      "sleepHabits": ["5-6 hours of sleep is less than recommended"],
+      "dietaryChoices": [],
+      "exerciseRoutine": [],
+      "lifestyleChoices": [],
+      "philosophyOnLongevity": []
+    },
+    "scott": {
+      "sleepHabits": [
+        "current sleep habits are healthy",
+        "good sleep helps maintain sharpness throughout the day",
+        "avoiding drowsiness is important"
+      ],
+      "dietaryChoices": [
+        "media overemphasizes animal protein",
+        "health risks of animal protein outweigh benefits of low carb diet",
+        "nutritional guidance should be based on personal relevance and facts"
+      ],
+      "exerciseRoutine": [
+        "regular exercise helps with weight loss",
+        "regular exercise increases energy levels",
+        "regular exercise improves overall mood"
+      ],
+      "lifestyleChoices": [
+        "there is too much misinformation about health",
+        "contradictory health information is problematic",
+        "starting the day with physical activity is beneficial"
+      ],
+      "philosophyOnLongevity": [
+        "not smoking contributes to longevity",
+        "not drinking contributes to longevity",
+        "engaging with others contributes to longevity"
+      ]
+    },
+    "craig": {
+      "sleepHabits": [
+        "current sleep quality is poor due to sleep apnea",
+        "wind down time before sleep is beneficial but challenging with busy schedule"
+      ],
+      "dietaryChoices": [
+        "Mediterranean diet is beneficial for heart health",
+        "moderation in diet helps avoid excessive weight gain",
+        "high protein and lower carbs are important",
+        "everything is okay in moderation"
+      ],
+      "exerciseRoutine": [
+        "rucking is easy to adhere to",
+        "exercise builds endurance and strength",
+        "consistent exercise routine provides an all-around great workout"
+      ],
+      "lifestyleChoices": [
+        "work-life balance is important",
+        "everything is okay in moderation"
+      ],
+      "philosophyOnLongevity": [
+        "eating well contributes to longevity",
+        "strong social connections contribute to longevity",
+        "routine healthcare checks contribute to longevity",
+        "staying mentally sharp through continuous education contributes to longevity"
+      ]
+    },
+    "anon": {
+      "sleepHabits": [
+        "body feels okay despite uncertainty about sleep quality",
+        "staying out of trouble is a benefit of current sleep routine"
+      ],
+      "dietaryChoices": [
+        "sport-supportive diet trends should be followed",
+        "maintaining decent weight while having enough energy is important",
+        "avoiding excessively low calories is important",
+        "avoiding wheat is important"
+      ],
+      "exerciseRoutine": [
+        "exercise contributes to general happiness",
+        "exercise may help in looking younger"
+      ],
+      "lifestyleChoices": [
+        "fellow athletes provide good guidance",
+        "staying healthy is important",
+        "engaging in mentally stimulating activities matters",
+        "having freedom to do what you want is important"
+      ],
+      "philosophyOnLongevity": ["working out contributes to longevity"]
+    },
+    "hali": {
+      "sleepHabits": [
+        "minimum 8 hours of sleep is important for health",
+        "waking up fresh influences clarity and a healthy approach to daily activities"
+      ],
+      "dietaryChoices": [
+        "eating organic fresh produce from farmers markets is important",
+        "color and diversity in food choices matter",
+        "trying new foods is valuable",
+        "home cooking and making meals from scratch is important",
+        "avoiding seed oils but using quality EVOO is beneficial"
+      ],
+      "exerciseRoutine": [
+        "regular exercise contributes to offsetting diseases of mind and body",
+        "more exercise improves mood and mental health"
+      ],
+      "lifestyleChoices": [
+        "living fully is more beneficial than just focusing on money",
+        "mindful behaviors like meditation and yoga help with full body alignment",
+        "learning from health professionals is valuable"
+      ],
+      "philosophyOnLongevity": [
+        "most day-to-day living should focus on longevity",
+        "food choices contribute to longevity",
+        "exercise contributes to longevity",
+        "community engagement contributes to longevity",
+        "maintaining good relationships with family and partner contributes to longevity",
+        "using sauna contributes to longevity",
+        "continuous learning about health contributes to longevity"
+      ]
+    },
+    "mario": {
+      "sleepHabits": ["sleep works well as measured by Garmin score over 85"],
+      "dietaryChoices": [
+        "reducing Omega-6 and saturated fatty acids is important",
+        "increasing Omega-3, vegetables and fiber intake is beneficial"
+      ],
+      "exerciseRoutine": [
+        "improving VO2 max helps living longer",
+        "muscle strength helps avoid accidents in older age"
+      ],
+      "lifestyleChoices": [
+        "work-life balance is important",
+        "stress management is important",
+        "mindfulness is important",
+        "social connections are important"
+      ],
+      "philosophyOnLongevity": []
+    },
+    "nupur_thakur": {
+      "sleepHabits": [
+        "sleep has many positive benefits on daily life mental health",
+        "poor sleep makes everything more difficult",
+        "strict bedtime routine helps prepare body for sleep",
+        "foot massage before sleep helps the next day"
+      ],
+      "dietaryChoices": [
+        "sufficient amounts of protein, healthy fats and complex carbohydrates are important",
+        "eating fruits and vegetables every day is optimal for health"
+      ],
+      "exerciseRoutine": [
+        "exercise is needed to keep healthy and functional",
+        "ignoring exercise for too long leads to decreased energy and strength"
+      ],
+      "lifestyleChoices": [
+        "work-life balance and stress management are important",
+        "prioritizing balance is important"
+      ],
+      "philosophyOnLongevity": []
+    },
+    "tiny": {
+      "sleepHabits": [
+        "current sleep habits could be improved",
+        "more sleep is needed"
+      ],
+      "dietaryChoices": [
+        "one should eat healthy foods",
+        "having most food groups in diet is beneficial"
+      ],
+      "exerciseRoutine": [
+        "exercise is healthy for the body and mind",
+        "exercise helps relieve stress"
+      ],
+      "lifestyleChoices": [
+        "work-life balance is important",
+        "mindfulness living is important"
+      ],
+      "philosophyOnLongevity": [
+        "meditation contributes to longevity",
+        "living mindfully contributes to longevity"
+      ]
+    },
+    "tricia": {
+      "sleepHabits": [
+        "generational trauma contributes to anxiety about sleep",
+        "modern emphasis on sleep importance can increase worry about sleep",
+        "sleep is important to mental wellbeing"
+      ],
+      "dietaryChoices": [
+        "diet equals longevity",
+        "choosing best possible food within budget is important",
+        "growing own food is valuable"
+      ],
+      "exerciseRoutine": [
+        "meditation through dance and somatic movements helps heal",
+        "kundalini energy flow is important",
+        "movement is the only way to live"
+      ],
+      "lifestyleChoices": ["life is meaningless until we give it meaning"],
+      "philosophyOnLongevity": [
+        "living in unconditional love contributes to longevity"
+      ]
+    },
+    "anonymous_11_26": {
+      "sleepHabits": ["falling asleep quickly indicates good sleep quality"],
+      "dietaryChoices": [
+        "texture, smell, and nutritional value are important factors in food choices",
+        "organic and real foods should be prioritized over processed alternatives",
+        "food should be as preservative-free as possible"
+      ],
+      "exerciseRoutine": [
+        "exercise is healthy for body and mind",
+        "exercise helps relieve stress"
+      ],
+      "lifestyleChoices": [
+        "comfort is important especially regarding temperature regulation",
+        "being prepared and researching choices is valuable"
+      ],
+      "philosophyOnLongevity": [
+        "breathing properly and starting with exhale is important",
+        "sleeping well contributes to longevity",
+        "consistent stretching and movement contribute to longevity",
+        "being happy and confident in one's own skin contributes to longevity"
+      ]
+    },
+    "cairo_anonymous": {
+      "sleepHabits": [
+        "proper sleep helps create baseline vitality essential for decision-making",
+        "good sleep helps maintain positive outlook",
+        "sleep is essential for physical recovery",
+        "poor sleep increases resting heart rate",
+        "poor sleep decreases heart rate variability",
+        "poor sleep increases stress levels"
+      ],
+      "dietaryChoices": [
+        "nourishment works on many levels including mood and connections",
+        "food choices should consider sustainability when possible",
+        "skepticism of marketing claims is important",
+        "diet should help feel healthy and capable while satisfying desire for good food and company"
+      ],
+      "exerciseRoutine": [
+        "exercise helps maintain sanity",
+        "exercise builds confidence and feeling of capability",
+        "exercise is important for building connections with like-minded people",
+        "exercise provides opportunities for learning"
+      ],
+      "lifestyleChoices": [
+        "well-being is personal and requires experimentation",
+        "exploring values alongside experimentation is important",
+        "learning, adventure and connection are key values"
+      ],
+      "philosophyOnLongevity": [
+        "humans are incredibly adaptable",
+        "being honest about capabilities at different ages is important",
+        "adjusting activities based on daily capacity matters",
+        "balancing rest with action is important",
+        "being self-aware of personal biases helps with intentional rest"
+      ]
+    },
+    "ginny": {
+      "sleepHabits": [
+        "night owls can get deep work done late at night",
+        "going to bed earlier can be difficult when productive energy is high",
+        "winding down time is needed before sleep",
+        "earlier bedtimes can lead to difficulty falling asleep"
+      ],
+      "dietaryChoices": [
+        "getting enough protein is important due to age",
+        "current food choices could be wiser",
+        "consuming too much fat and carbs is problematic"
+      ],
+      "exerciseRoutine": [
+        "strength building exercises are needed to avoid losing muscle mass due to age",
+        "sweating indicates calorie burning",
+        "exercise tracking helps maintain routine",
+        "group exercise classes can be beneficial but require time commitment"
+      ],
+      "lifestyleChoices": [
+        "work-life balance is important but challenging to achieve",
+        "exercise helps with stress management",
+        "regular exercise improves happiness and body image",
+        "self-reflection and right-sizing career and family life is valuable"
+      ],
+      "philosophyOnLongevity": [
+        "exercising contributes to longevity",
+        "socializing contributes to longevity",
+        "worshiping contributes to longevity",
+        "resting contributes to longevity",
+        "traveling contributes to longevity",
+        "spending time with healthy family members contributes to longevity",
+        "connections with chosen family and friends matter",
+        "family time with spouse, children, and grandchildren is most important",
+        "having sense of purpose through work is valuable",
+        "reducing excessive work is essential for longevity and wellbeing"
+      ]
+    },
+    "lynne": {
+      "sleepHabits": [
+        "morning rituals of journaling and meditation are crucial for better sleep",
+        "exercise contributes to better sleep quality",
+        "unresolved mental and emotional overhead creates resistance to bedtime discipline",
+        "consistent sleep habits lead to better sleep quality",
+        "better sleep quality improves brain function, mood, and energy",
+        "better sleep increases confidence levels",
+        "alcohol consumption and late nights reduce sleep quality even with longer duration",
+        "quality sleep is indicated by higher HRV, lower heart rate, more deep sleep, and lower respiration"
+      ],
+      "dietaryChoices": [
+        "80% of food choices should be homemade and healthy",
+        "whole foods should be prioritized",
+        "variety in vegetables and spices (30 different types weekly) correlates with gut bacteria diversity",
+        "gut bacteria diversity correlates with better gut health",
+        "90g of protein daily is important",
+        "balanced carbs are necessary to maintain energy",
+        "40g of fiber (or more) is optimal",
+        "at least 60oz of clean filtered water daily is necessary",
+        "real food provides better cellular information than processed alternatives",
+        "joy and pleasure in food choices are part of life"
+      ],
+      "exerciseRoutine": [
+        "strength is the antidote to frailty in older age",
+        "continuous effort and pushing beyond comfort is necessary for strength gains",
+        "exercise helps mood, energy, and sleep",
+        "exercise after high carb meals reduces glucose spikes",
+        "consistent exercise provides better mood and sleep benefits",
+        "weight training is important for preventing osteopenia",
+        "exercise should be done even when unmotivated"
+      ],
+      "lifestyleChoices": [
+        "health is an ecosystem of different aspects working together",
+        "sleep, exercise, and nutrition are the biggest modifiable pillars of health",
+        "maintaining meaningful connections requires dedicated time",
+        "good relationships feed the soul and help manage stress levels",
+        "friends who share health values provide positive influence through inspiration or competition"
+      ],
+      "philosophyOnLongevity": [
+        "regular medical testing provides reassurance and motivation",
+        "exercise is currently the biggest lever for health",
+        "home-cooked whole foods help body function naturally",
+        "stress tolerance and perception impacts longevity",
+        "chronic stress can manifest as physical illness",
+        "emotional regulation and mindfulness practices reduce health risks",
+        "tending to mental and emotional health is crucial",
+        "understanding internal health through testing reduces mental overhead"
+      ]
+    }
+  }
+}

@@ -1,0 +1,837 @@
+[
+  {
+    "participantId": "jonathan@teammachine.ai",
+    "sleepHabits": {
+      "averageDuration": 8,
+      "bedtimeRoutine": [
+        "wind-down",
+        "take supplements",
+        "other"
+      ],
+      "screenFreeTimeBeforeBed": null,
+      "perceivedBenefits": [
+        "energy management",
+        "physical well-being"
+      ],
+      "environmentalFactors": {
+        "whiteNoiseMachine": true,
+        "sleepMask": true,
+        "weightedBlanket": true,
+        "coolingMattress": true
+      }
+    },
+    "dietaryChoices": {
+      "typicalMeals": {
+        "regularComponents": [
+          "protein",
+          "vegetables",
+          "healthy fats"
+        ],
+        "dietaryRestrictions": [],
+        "intermittentFasting": false,
+        "specificMeals": {
+          "breakfast": "MCT oil powder shake",
+          "snacks": "Nutty pudding mix (vegetable protein, cocoa, nuts, berries), protein snack",
+          "dinner": "Vegetables and protein (eggs and/or meat)"
+        }
+      },
+      "influences": [
+        "nutrition",
+        "hunger",
+        "personal preferences"
+      ],
+      "perceivedBenefits": [
+        "energy levels",
+        "overall health",
+        "mortality risk reduction"
+      ],
+      "nutritionalPriorities": {
+        "metabolicHealth": true,
+        "diverseFoods": true,
+        "naturalFoods": true
+      }
+    },
+    "exerciseRoutine": {
+      "frequency": 6,
+      "activities": [
+        "cycling",
+        "running",
+        "strength training"
+      ],
+      "perceivedBenefits": [
+        "physical fitness",
+        "metabolic health",
+        "muscle fiber development"
+      ]
+    },
+    "lifestyleChoices": {
+      "guidingBeliefs": [
+        "mitigating risk of death",
+        "living life to the fullest",
+        "social connections",
+        "continual learning"
+      ],
+      "healthInfluencers": [
+        {
+          "type": "other",
+          "name": "Bryan Johnson"
+        },
+        {
+          "type": "other",
+          "name": "Siim Land"
+        },
+        {
+          "type": "other",
+          "name": "Rhonda Patrick"
+        },
+        {
+          "type": "other",
+          "name": "Andrew Huberman"
+        },
+        {
+          "type": "other",
+          "name": "Peter Attia"
+        },
+        {
+          "type": "other",
+          "name": "Mark Hyman"
+        }
+      ]
+    },
+    "philosophyOnLongevity": {
+      "practices": [
+        "consistent sleep",
+        "balanced diet",
+        "regular exercise",
+        "circadian rhythm management",
+        "ultradian rhythm management",
+        "stress/recovery cycles management"
+      ],
+      "beliefs": {
+        "geneticsRole": "secondary",
+        "lifestyleRole": "primary"
+      },
+      "expectedHealthspanIncrease": "6-10 years",
+      "additionalComments": "Believes future longevity practices are showing up every day and will continue as technology and understanding of biology, the human body and life expands."
+    }
+  },
+  {
+    "participantId": "khanhyenta",
+    "sleepHabits": {
+      "averageDuration": 5.5,
+      "bedtimeRoutine": [
+        "screens",
+        "prayer"
+      ],
+      "screenFreeTimeBeforeBed": 0,
+      "perceivedBenefits": [
+        "other"
+      ]
+    },
+    "dietaryChoices": {
+      "typicalMeals": {
+        "regularComponents": [
+          "other"
+        ],
+        "dietaryRestrictions": [],
+        "intermittentFasting": false,
+        "specificMeals": {
+          "breakfast": "",
+          "lunch": "",
+          "dinner": ""
+        }
+      },
+      "influences": [
+        "health concerns"
+      ],
+      "perceivedBenefits": [
+        "overall health"
+      ]
+    },
+    "exerciseRoutine": {
+      "frequency": 7,
+      "activities": [
+        "other"
+      ],
+      "perceivedBenefits": [
+        "physical fitness",
+        "pain relief"
+      ]
+    },
+    "lifestyleChoices": {
+      "guidingBeliefs": [
+        "social connections"
+      ],
+      "healthInfluencers": []
+    },
+    "philosophyOnLongevity": {
+      "practices": [
+        "healthy eating",
+        "exercise",
+        "social connections",
+        "positive mindset"
+      ],
+      "beliefs": {
+        "geneticsRole": "unsure",
+        "lifestyleRole": "primary"
+      }
+    }
+  },
+  {
+    "participantId": "kevin_chen",
+    "sleepHabits": {
+      "averageDuration": 7,
+      "bedtimeRoutine": [
+        "shower",
+        "reading"
+      ],
+      "screenFreeTimeBeforeBed": null,
+      "perceivedBenefits": [
+        "mental clarity",
+        "physical well-being"
+      ]
+    },
+    "dietaryChoices": {
+      "typicalMeals": {
+        "regularComponents": [
+          "whole grains",
+          "lean proteins",
+          "other"
+        ],
+        "dietaryRestrictions": [],
+        "intermittentFasting": false,
+        "specificMeals": {
+          "breakfast": "Bagel and coffee",
+          "lunch": "Poke bowl",
+          "dinner": "Homemade burger and fries"
+        }
+      },
+      "influences": [
+        "personal preferences",
+        "health concerns"
+      ],
+      "perceivedBenefits": [
+        "weight management"
+      ]
+    },
+    "exerciseRoutine": {
+      "frequency": 1,
+      "activities": [
+        "strength training"
+      ],
+      "perceivedBenefits": [
+        "physical fitness"
+      ]
+    },
+    "lifestyleChoices": {
+      "guidingBeliefs": [
+        "work-life balance",
+        "stress management",
+        "social connections"
+      ],
+      "healthInfluencers": []
+    },
+    "philosophyOnLongevity": {
+      "practices": [
+        "active habits",
+        "healthy eating",
+        "social connections"
+      ],
+      "beliefs": {
+        "geneticsRole": "unsure",
+        "lifestyleRole": "primary"
+      }
+    }
+  },
+  {
+    "participantId": "jenna",
+    "sleepHabits": {
+      "averageDuration": 8,
+      "bedtimeRoutine": [
+        "oral care",
+        "skincare",
+        "other"
+      ],
+      "screenFreeTimeBeforeBed": null,
+      "perceivedBenefits": [
+        "mental clarity",
+        "physical well-being"
+      ]
+    },
+    "dietaryChoices": {
+      "typicalMeals": {
+        "regularComponents": [
+          "fruits",
+          "vegetables",
+          "whole grains",
+          "lean proteins"
+        ],
+        "dietaryRestrictions": [],
+        "intermittentFasting": false,
+        "specificMeals": {
+          "breakfast": "4 eggs and sourdough toast with avocado or peanut butter, coffee",
+          "lunch": "Tuna salad or salad with chicken",
+          "dinner": "Chicken breast, salad, sweet potato or yukon gold potato"
+        }
+      },
+      "influences": [
+        "athletic performance",
+        "personal preferences"
+      ],
+      "perceivedBenefits": [
+        "athletic performance",
+        "energy levels",
+        "overall health"
+      ]
+    },
+    "exerciseRoutine": {
+      "frequency": 7,
+      "activities": [
+        "rock climbing",
+        "surfing",
+        "strength training",
+        "other"
+      ],
+      "perceivedBenefits": [
+        "physical fitness",
+        "mental clarity",
+        "stress reduction"
+      ]
+    },
+    "lifestyleChoices": {
+      "guidingBeliefs": [
+        "physical activity",
+        "mindfulness",
+        "stress management"
+      ],
+      "healthInfluencers": []
+    },
+    "philosophyOnLongevity": {
+      "practices": [
+        "exercise",
+        "walking",
+        "whole foods",
+        "limiting processed foods",
+        "limiting alcohol"
+      ],
+      "beliefs": {
+        "geneticsRole": "unsure",
+        "lifestyleRole": "primary"
+      }
+    }
+  },
+  {
+    "participantId": "dorka",
+    "sleepHabits": {
+      "averageDuration": 9,
+      "bedtimeRoutine": [
+        "shower",
+        "bath",
+        "oral care",
+        "skincare"
+      ],
+      "screenFreeTimeBeforeBed": null,
+      "perceivedBenefits": [
+        "physical well-being",
+        "mental clarity"
+      ]
+    },
+    "dietaryChoices": {
+      "typicalMeals": {
+        "regularComponents": [
+          "fruits",
+          "vegetables",
+          "whole grains"
+        ],
+        "dietaryRestrictions": ["mostly plant-based"],
+        "intermittentFasting": false,
+        "specificMeals": {
+          "breakfast": "Black coffee, savory breakfast with protein",
+          "lunch": "Oatmeal",
+          "dinner": "Carb-filled meal"
+        }
+      },
+      "influences": [
+        "environmental concerns",
+        "health concerns"
+      ],
+      "perceivedBenefits": [
+        "overall health",
+        "energy levels"
+      ]
+    },
+    "exerciseRoutine": {
+      "frequency": 7,
+      "activities": [
+        "yoga",
+        "running",
+        "strength training"
+      ],
+      "perceivedBenefits": [
+        "physical fitness",
+        "mental clarity",
+        "overall health"
+      ]
+    },
+    "lifestyleChoices": {
+      "guidingBeliefs": [
+        "mindfulness",
+        "social connections",
+        "personal growth"
+      ],
+      "healthInfluencers": [
+        {
+          "type": "other",
+          "name": "Talia Sutra"
+        },
+        {
+          "type": "other",
+          "name": "Dr. Walter Longo"
+        },
+        {
+          "type": "other",
+          "name": "Andrew Huberman"
+        },
+        {
+          "type": "other",
+          "name": "Bryan Johnson"
+        },
+        {
+          "type": "other",
+          "name": "Sadhguru"
+        },
+        {
+          "type": "other",
+          "name": "David Sinclair"
+        }
+      ]
+    },
+    "philosophyOnLongevity": {
+      "practices": [
+        "sleep",
+        "diet",
+        "exercise",
+        "mental health",
+        "love",
+        "peace"
+      ],
+      "beliefs": {
+        "geneticsRole": "unsure",
+        "lifestyleRole": "primary"
+      },
+      "additionalComments": "Would love to live forever and show loved ones they can extend their lifespans."
+    }
+  },
+  {
+    "participantId": "richard",
+    "sleepHabits": {
+      "averageDuration": 7.75,
+      "bedtimeRoutine": [
+        "watching TV",
+        "comedy shows"
+      ],
+      "screenFreeTimeBeforeBed": 0,
+      "perceivedBenefits": [
+        "mental clarity",
+        "physical well-being",
+        "improved functioning"
+      ]
+    },
+    "dietaryChoices": {
+      "typicalMeals": {
+        "regularComponents": [
+          "fruits",
+          "vegetables",
+          "whole grains",
+          "lean proteins",
+          "healthy fats"
+        ],
+        "dietaryRestrictions": [],
+        "intermittentFasting": false,
+        "specificMeals": {
+          "breakfast": "High-protein shake with vegetable greens and supplements",
+          "lunch": "Salad with meat or sandwich with olives",
+          "dinner": "Meat or fish with vegetables and rice"
+        }
+      },
+      "influences": [
+        "health concerns",
+        "nutrition"
+      ],
+      "perceivedBenefits": [
+        "brain health",
+        "cardiovascular health",
+        "gut health",
+        "liver health"
+      ]
+    },
+    "exerciseRoutine": {
+      "frequency": 3,
+      "activities": [
+        "biking",
+        "weight training",
+        "racquetball",
+        "yoga"
+      ],
+      "perceivedBenefits": [
+        "physical fitness",
+        "mental clarity",
+        "cardiovascular health",
+        "brain health"
+      ]
+    },
+    "lifestyleChoices": {
+      "guidingBeliefs": [
+        "work-life balance",
+        "stress management",
+        "social connections",
+        "spiritual beliefs"
+      ],
+      "healthInfluencers": [
+        {
+          "type": "other",
+          "name": "Jeff Bland"
+        },
+        {
+          "type": "other",
+          "name": "Mark Hyman"
+        },
+        {
+          "type": "other",
+          "name": "Datis Karrazian"
+        },
+        {
+          "type": "other",
+          "name": "Tom O'Brian"
+        }
+      ]
+    },
+    "philosophyOnLongevity": {
+      "practices": [
+        "diet and nutrition",
+        "exercise",
+        "quality sleep",
+        "stress management",
+        "toxin avoidance",
+        "healthy relationships",
+        "spiritual practices",
+        "sense of purpose"
+      ],
+      "beliefs": {
+        "geneticsRole": "secondary",
+        "lifestyleRole": "primary"
+      }
+    }
+  },
+  {
+    "participantId": "brian",
+    "sleepHabits": {
+      "averageDuration": 7,
+      "bedtimeRoutine": [
+        "reading"
+      ],
+      "screenFreeTimeBeforeBed": null,
+      "perceivedBenefits": [
+        "mental clarity",
+        "improved functioning"
+      ]
+    },
+    "dietaryChoices": {
+      "typicalMeals": {
+        "regularComponents": [
+          "lean proteins",
+          "whole grains",
+          "vegetables"
+        ],
+        "dietaryRestrictions": [],
+        "intermittentFasting": false,
+        "specificMeals": {
+          "breakfast": "Eggs",
+          "lunch": "Chicken",
+          "dinner": "Chicken or fish with vegetables"
+        }
+      },
+      "influences": [
+        "nutritional value",
+        "caloric awareness",
+        "fat content",
+        "sugar content"
+      ],
+      "perceivedBenefits": [
+        "energy levels",
+        "overall health"
+      ]
+    },
+    "exerciseRoutine": {
+      "frequency": 5,
+      "activities": [
+        "weight lifting",
+        "running"
+      ],
+      "perceivedBenefits": [
+        "physical fitness",
+        "mental health",
+        "body image"
+      ]
+    },
+    "lifestyleChoices": {
+      "guidingBeliefs": [
+        "work-life balance",
+        "stress management",
+        "family balance"
+      ],
+      "healthInfluencers": []
+    },
+    "philosophyOnLongevity": {
+      "practices": [
+        "social interaction",
+        "continuous learning",
+        "healthy body",
+        "nature connection"
+      ],
+      "beliefs": {
+        "geneticsRole": "unsure",
+        "lifestyleRole": "primary"
+      }
+    }
+  },
+  {
+    "participantId": "kate",
+    "sleepHabits": {
+      "averageDuration": 8.5,
+      "bedtimeRoutine": [
+        "oral care",
+        "skincare",
+        "hair care",
+        "red light therapy"
+      ],
+      "screenFreeTimeBeforeBed": null,
+      "perceivedBenefits": [
+        "improved functioning",
+        "overall health"
+      ]
+    },
+    "dietaryChoices": {
+      "typicalMeals": {
+        "regularComponents": [
+          "vegetables",
+          "whole grains",
+          "fruits"
+        ],
+        "dietaryRestrictions": [
+          "no red meat"
+        ],
+        "intermittentFasting": false,
+        "specificMeals": {
+          "breakfast": "Oatmeal, avocado toast, or eggs with broccoli",
+          "lunch": "Super veggie bowls",
+          "dinner": "Super veggie bowls"
+        }
+      },
+      "influences": [
+        "blueprint protocol",
+        "personal preferences"
+      ],
+      "perceivedBenefits": [
+        "overall health"
+      ]
+    },
+    "exerciseRoutine": {
+      "frequency": 7,
+      "activities": [
+        "walking"
+      ],
+      "perceivedBenefits": [
+        "physical fitness",
+        "nature connection"
+      ]
+    },
+    "lifestyleChoices": {
+      "guidingBeliefs": [
+        "self-care",
+        "teaching health principles",
+        "family health"
+      ],
+      "healthInfluencers": []
+    },
+    "philosophyOnLongevity": {
+      "practices": [
+        "blueprint protocol adherence",
+        "staying calm",
+        "relaxation"
+      ],
+      "beliefs": {
+        "geneticsRole": "unsure",
+        "lifestyleRole": "primary"
+      }
+    }
+  },
+  {
+    "participantId": "marcus",
+    "sleepHabits": {
+      "averageDuration": 7.5,
+      "bedtimeRoutine": [
+        "dimming lights",
+        "fireplace",
+        "reading",
+        "music",
+        "calming videos"
+      ],
+      "screenFreeTimeBeforeBed": 30,
+      "perceivedBenefits": [
+        "mental clarity",
+        "physical well-being"
+      ]
+    },
+    "dietaryChoices": {
+      "typicalMeals": {
+        "regularComponents": [
+          "fruits",
+          "vegetables",
+          "lean proteins",
+          "whole grains"
+        ],
+        "dietaryRestrictions": [],
+        "intermittentFasting": false,
+        "specificMeals": {
+          "breakfast": "Coffee and yogurt, later eggs and toast",
+          "lunch": "Sandwich or frozen burrito",
+          "dinner": "Vegetables and protein with dessert"
+        }
+      },
+      "influences": [
+        "processing level",
+        "packaging",
+        "organic options",
+        "evolutionary approach"
+      ],
+      "perceivedBenefits": [
+        "seasonal adaptation",
+        "mood regulation",
+        "temperature regulation"
+      ]
+    },
+    "exerciseRoutine": {
+      "frequency": 4,
+      "activities": [
+        "weight lifting",
+        "strength training",
+        "sauna"
+      ],
+      "perceivedBenefits": [
+        "positive mindset",
+        "physical well-being",
+        "mood improvement",
+        "better decision making"
+      ]
+    },
+    "lifestyleChoices": {
+      "guidingBeliefs": [
+        "slower pace of life",
+        "stress management",
+        "work-life balance",
+        "having fun"
+      ],
+      "healthInfluencers": [
+        {
+          "type": "other",
+          "name": "Dr. Rhonda Patrick"
+        }
+      ]
+    },
+    "philosophyOnLongevity": {
+      "practices": [
+        "sauna use",
+        "exercise",
+        "good relationships",
+        "healthy diet",
+        "toxin avoidance",
+        "substance moderation",
+        "staying challenged",
+        "experiencing change",
+        "having passions"
+      ],
+      "beliefs": {
+        "geneticsRole": "secondary",
+        "lifestyleRole": "primary"
+      }
+    }
+  },
+  {
+    "participantId": "elizabeth",
+    "sleepHabits": {
+      "averageDuration": 7,
+      "bedtimeRoutine": [
+        "flossing",
+        "oral care",
+        "shower",
+        "skincare",
+        "reading"
+      ],
+      "screenFreeTimeBeforeBed": null,
+      "perceivedBenefits": [
+        "other"
+      ]
+    },
+    "dietaryChoices": {
+      "typicalMeals": {
+        "regularComponents": [
+          "vegetables",
+          "whole foods"
+        ],
+        "dietaryRestrictions": [
+          "mostly plant-based"
+        ],
+        "intermittentFasting": false,
+        "specificMeals": {
+          "breakfast": "",
+          "lunch": "",
+          "dinner": ""
+        }
+      },
+      "influences": [
+        "medicinal approach to food",
+        "health concerns"
+      ],
+      "perceivedBenefits": [
+        "overall health"
+      ]
+    },
+    "exerciseRoutine": {
+      "frequency": 7,
+      "activities": [
+        "TRX",
+        "pilates",
+        "peloton",
+        "yoga",
+        "strength training",
+        "walking"
+      ],
+      "perceivedBenefits": [
+        "physical fitness",
+        "maintaining functionality"
+      ]
+    },
+    "lifestyleChoices": {
+      "guidingBeliefs": [
+        "reducing fear",
+        "living in love"
+      ],
+      "healthInfluencers": []
+    },
+    "philosophyOnLongevity": {
+      "practices": [
+        "fasting",
+        "plant-based diet",
+        "minimal stress",
+        "body movement",
+        "sleep",
+        "rest"
+      ],
+      "beliefs": {
+        "geneticsRole": "unsure",
+        "lifestyleRole": "primary"
+      }
+    }
+  }
+]

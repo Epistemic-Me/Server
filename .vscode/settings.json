@@ -1,0 +1,11 @@
+{
+  "yaml.schemas": {
+    "https://json.schemastore.org/github-workflow.json": "file:///Users/jonmc12/workspace/Epistemic-Me/.github/workflows/deploy.yaml"
+  },
+  "protoc": {
+    "path": "protoc",
+    "options": [
+      "--proto_path=${workspaceFolder}/"
+    ]
+  }
+}

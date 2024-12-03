@@ -1,0 +1,114 @@
+name: 'Terraform'
+
+on:
+  pull_request:
+    types: [closed]
+
+env:
+  IMAGE_NAME: docker/backend
+  PROJECT_ID: epistemicme
+  REGION: us-west1
+  REGISTRY: us-west1-docker.pkg.dev
+  BACKEND_DOCKERFILE_LOCATION: ./
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: 'Terraform Apply Changes'
+    runs-on: ubuntu-latest
+    environment: production
+
+    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./terraform
+
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GOOGLE_ACCOUNT_KEY_JSON }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1  
+
+    - name: Install gke-gcloud-auth-plugin
+      run: |
+        gcloud components install gke-gcloud-auth-plugin
+
+    - name: Configure kubectl
+      run: |
+        gcloud container clusters get-credentials epistemicme-cluster --zone us-west1 --project epistemicme
+        echo "K8S_HOST=$(kubectl config view --raw -o=jsonpath='{.clusters[0].cluster.server}')" >> $GITHUB_ENV
+        echo "K8S_CA_CERTIFICATE=$(kubectl config view --raw -o=jsonpath='{.clusters[0].cluster.certificate-authority-data}')" >> $GITHUB_ENV
+  
+    - name: Terraform Init
+      run: terraform init -lock-timeout=10m
+      env: 
+        GOOGLE_CREDENTIALS: "${{ secrets.GOOGLE_ACCOUNT_KEY_JSON }}"
+
+    - name: Terraform Format
+      run: terraform fmt -check
+
+    - name: Create Terraform variable file
+      run: |
+        echo 'k8s_host = "${{ env.K8S_HOST }}"' > terraform.tfvars
+        echo 'k8s_ca_certificate = "${{ env.K8S_CA_CERTIFICATE }}"' >> terraform.tfvars
+
+    - name: Terraform Plan
+      run: terraform plan -input=false -var-file=terraform.tfvars
+      env:
+        GOOGLE_CREDENTIALS: "${{ secrets.GOOGLE_ACCOUNT_KEY_JSON }}"
+
+    - name: Terraform Apply
+      if: github.event.pull_request.merged
+      run: terraform apply -auto-approve -input=false -var-file=terraform.tfvars
+      env: 
+        GOOGLE_CREDENTIALS: "${{ secrets.GOOGLE_ACCOUNT_KEY_JSON }}"
+  cd:
+    name: 'Continuous Deployment'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - id: auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GOOGLE_ACCOUNT_KEY_JSON }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin
+
+      - name: Use gcloud CLI
+        run: gcloud info
+
+      - name: Docker auth
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push
+        if: github.event.pull_request.merged
+        uses: docker/build-push-action@v3
+        with:
+          context: ${{ env.BACKEND_DOCKERFILE_LOCATION }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest
+          build-args: |
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
