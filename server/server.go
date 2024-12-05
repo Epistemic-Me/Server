@@ -226,22 +226,29 @@ func (s *Server) UpdateDialectic(
 
 	log.Println("UpdateDialectic called with request:", req.Msg)
 
-	var customQuestion *string
-	if req.Msg.CustomQuestion != "" {
-		customQuestion = &req.Msg.CustomQuestion
+	input := &svcmodels.UpdateDialecticInput{
+		ID:           req.Msg.Id,
+		SelfModelID:  req.Msg.SelfModelId,
+		DryRun:       req.Msg.DryRun,
+		QuestionBlob: req.Msg.QuestionBlob,
+		AnswerBlob:   req.Msg.AnswerBlob,
 	}
 
-	response, err := s.dsvc.UpdateDialectic(&svcmodels.UpdateDialecticInput{
-		SelfModelID: req.Msg.SelfModelId,
-		ID:          req.Msg.Id,
-		Answer: svcmodels.UserAnswer{
+	// Set Answer if provided
+	if req.Msg.Answer != nil {
+		input.Answer = svcmodels.UserAnswer{
 			UserAnswer:         req.Msg.Answer.UserAnswer,
 			CreatedAtMillisUTC: req.Msg.Answer.CreatedAtMillisUtc,
-		},
-		DryRun:         req.Msg.DryRun,
-		CustomQuestion: customQuestion,
-	})
+		}
+	}
 
+	// Set CustomQuestion if provided
+	if req.Msg.CustomQuestion != "" {
+		customQ := req.Msg.CustomQuestion
+		input.CustomQuestion = &customQ
+	}
+
+	response, err := s.dsvc.UpdateDialectic(input)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -250,11 +257,9 @@ func (s *Server) UpdateDialectic(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unexpected nil response"))
 	}
 
-	protoResponse := &pb.UpdateDialecticResponse{
+	return connect.NewResponse(&pb.UpdateDialecticResponse{
 		Dialectic: response.Dialectic.ToProto(),
-	}
-
-	return connect.NewResponse(protoResponse), nil
+	}), nil
 }
 
 // Update GetBeliefSystem to support conceptualization
