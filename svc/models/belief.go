@@ -24,16 +24,6 @@ type ConfidenceRating struct {
 	Default         bool    `json:"default"`
 }
 
-// Assuming Source and TemporalInformation are defined elsewhere
-type Source struct {
-	// Fields for Source
-}
-
-func (s Source) ToProto() *pbmodels.Source {
-	// Implement the conversion
-	return &pbmodels.Source{}
-}
-
 type ObservationContext struct {
 	ID             string   `json:"id"`
 	Name           string   `json:"name"`
@@ -183,14 +173,6 @@ func (bc BeliefContext) ToProto() *pbmodels.BeliefContext {
 		EpistemicEmotion:         pbmodels.EpistemicEmotion(bc.EpistemicEmotion),
 		EmotionIntensity:         bc.EmotionIntensity,
 	}
-}
-
-func sourcesToProto(sources []*Source) []*pbmodels.Source {
-	result := make([]*pbmodels.Source, len(sources))
-	for i, s := range sources {
-		result[i] = s.ToProto()
-	}
-	return result
 }
 
 func discrepanciesToProto(discrepancies []Discrepancy) []*pbmodels.Discrepancy {

@@ -122,18 +122,18 @@ const (
 
 // Action represents a way to change the world state
 type Action struct {
+	ID                     string     `json:"id"`
 	Type                   ActionType `json:"type"`
 	DialecticInteractionID string     `json:"dialectic_interaction_id"`
-	ResourceID             string     `json:"resource_id"`
 	InterventionID         string     `json:"intervention_id,omitempty"`
 	Timestamp              int64      `json:"timestamp"`
 }
 
 func (a Action) ToProto() *pbmodels.Action {
 	return &pbmodels.Action{
+		Id:                     a.ID,
 		Type:                   pbmodels.ActionType(a.Type),
 		DialecticInteractionId: a.DialecticInteractionID,
-		ResourceId:             a.ResourceID,
 		InterventionId:         a.InterventionID,
 		Timestamp:              a.Timestamp,
 	}
@@ -143,19 +143,25 @@ func (a Action) ToProto() *pbmodels.Action {
 type Observation struct {
 	DialecticInteractionID string             `json:"dialectic_interaction_id"`
 	Type                   ObservationType    `json:"type"`
-	Source                 *Source            `json:"source"`
+	Resource               *Resource          `json:"resource"`
 	StateDistribution      map[string]float32 `json:"state_distribution"`
 	Timestamp              int64              `json:"timestamp"`
 }
 
 func (o Observation) ToProto() *pbmodels.Observation {
-	return &pbmodels.Observation{
+	obs := &pbmodels.Observation{
 		DialecticInteractionId: o.DialecticInteractionID,
 		Type:                   pbmodels.ObservationType(o.Type),
-		Source:                 o.Source.ToProto(),
 		StateDistribution:      o.StateDistribution,
 		Timestamp:              o.Timestamp,
 	}
+
+	// Only convert Resource if it exists
+	if o.Resource != nil {
+		obs.Resource = o.Resource.ToProto()
+	}
+
+	return obs
 }
 
 // InteractionType represents the type of dialectical interaction.
