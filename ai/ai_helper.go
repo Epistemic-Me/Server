@@ -313,13 +313,20 @@ func (h *AIHelper) CompletePrompt(prompt string) (string, error) {
 		return "", fmt.Errorf("AI client is not initialized")
 	}
 
-	resp, err := h.client.CreateCompletion(
+	resp, err := h.client.CreateChatCompletion(
 		context.Background(),
-		openai.CompletionRequest{
-			Model:       string(GPT_LATEST),
-			Prompt:      prompt,
-			MaxTokens:   1000,
-			Temperature: 0.7,
+		openai.ChatCompletionRequest{
+			Model: string(GPT_LATEST),
+			Messages: []openai.ChatCompletionMessage{
+				{
+					Role:    "system",
+					Content: "You are a helpful assistant.",
+				},
+				{
+					Role:    "user",
+					Content: prompt,
+				},
+			},
 		},
 	)
 	if err != nil {
@@ -330,5 +337,100 @@ func (h *AIHelper) CompletePrompt(prompt string) (string, error) {
 		return "", fmt.Errorf("no completion choices returned")
 	}
 
-	return resp.Choices[0].Text, nil
+	return resp.Choices[0].Message.Content, nil
+}
+
+func (h *AIHelper) IsAnswerToQuestion(question, potentialAnswer string) (bool, error) {
+	prompt := fmt.Sprintf(`Given this question: "%s"
+	
+Is this a direct answer to the question: "%s"
+
+Reply with only "true" if it answers the question, or "false" if it does not.`,
+		question, potentialAnswer)
+
+	response, err := h.CompletePrompt(prompt)
+	if err != nil {
+		return false, err
+	}
+
+	return strings.TrimSpace(strings.ToLower(response)) == "true", nil
+}
+
+func (h *AIHelper) ExtractQuestionsFromText(text string) ([]string, error) {
+	prompt := fmt.Sprintf(`Extract all distinct questions from this text. Return only the questions, one per line, without any numbering or bullets:
+
+Text: %s`, text)
+
+	response, err := h.CompletePrompt(prompt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract questions: %w", err)
+	}
+
+	// Split response into lines and clean up
+	var questions []string
+	for _, line := range strings.Split(strings.TrimSpace(response), "\n") {
+		line = strings.TrimSpace(line)
+		// Only include non-empty lines that end with a question mark
+		if line != "" && strings.HasSuffix(line, "?") {
+			questions = append(questions, line)
+		}
+	}
+
+	if len(questions) == 0 {
+		return nil, fmt.Errorf("no valid questions found in text")
+	}
+
+	return questions, nil
+}
+
+func (h *AIHelper) MatchAnswersToQuestions(answerBlob string, questions []string) ([]string, error) {
+	prompt := fmt.Sprintf(`Given this text that may contain answers: "%s"
+
+And these questions:
+%s
+
+For each question, extract the relevant answer from the text.
+If no answer is found for a question, return an empty string.
+Return answers in the same order as questions, one per line.`,
+		answerBlob, strings.Join(questions, "\n"))
+
+	response, err := h.client.CreateChatCompletion(
+		context.Background(),
+		openai.ChatCompletionRequest{
+			Model: string(GPT_LATEST),
+			Messages: []openai.ChatCompletionMessage{
+				{
+					Role:    "system",
+					Content: prompt,
+				},
+				{
+					Role:    "user",
+					Content: "Please extract the answers.",
+				},
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to complete prompt: %w", err)
+	}
+
+	if len(response.Choices) == 0 {
+		return nil, fmt.Errorf("no completion choices returned")
+	}
+
+	// Get the message content from the response
+	content := response.Choices[0].Message.Content
+
+	// Split response into lines and clean up
+	answers := strings.Split(strings.TrimSpace(content), "\n")
+	for i := range answers {
+		answers[i] = strings.TrimSpace(answers[i])
+	}
+
+	// Pad with empty strings if needed
+	for len(answers) < len(questions) {
+		answers = append(answers, "")
+	}
+
+	return answers[:len(questions)], nil
 }

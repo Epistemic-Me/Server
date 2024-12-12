@@ -59,6 +59,8 @@ type UpdateDialecticInput struct {
 	Answer         UserAnswer `json:"answer"`
 	DryRun         bool       `json:"dry_run"`
 	CustomQuestion *string    `json:"custom_question,omitempty"`
+	QuestionBlob   string
+	AnswerBlob     string
 }
 
 // GetBeliefSystemInput represents an input to get belief system details.

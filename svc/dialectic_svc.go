@@ -102,90 +102,162 @@ func (dsvc *DialecticService) ListDialectics(input *models.ListDialecticsInput) 
 }
 
 func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput) (*models.UpdateDialecticOutput, error) {
-	log.Printf("UpdateDialectic called with input: %+v", input)
-
 	dialectic, err := dsvc.retrieveDialecticValue(input.SelfModelID, input.ID)
 	if err != nil {
-		log.Printf("Error retrieving dialectic: %v", err)
 		return nil, err
 	}
 
-	interaction, err := getPendingInteraction(*dialectic)
-	if err != nil {
-		log.Printf("Error getting pending interaction: %v", err)
-		return nil, err
-	}
+	// Handle question blob (from assistant)
+	if input.QuestionBlob != "" {
+		// Extract potential questions from the blob using AI
+		questions, err := dsvc.aih.ExtractQuestionsFromText(input.QuestionBlob)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract questions: %w", err)
+		}
 
-	// Update the interaction's answer and status
-	interaction.UserAnswer = input.Answer
-	interaction.Status = models.StatusAnswered
+		// Create new interactions for each question
+		for _, q := range questions {
+			// Generate predicted observation for this question
+			interaction := models.DialecticalInteraction{
+				ID:     uuid.New().String(),
+				Status: models.StatusPendingAnswer,
+				Type:   models.InteractionTypeQuestionAnswer,
+				Question: models.Question{
+					Question:           q,
+					CreatedAtMillisUTC: time.Now().UnixMilli(),
+				},
+			}
 
-	// Update the interaction in the dialectic's UserInteractions slice
-	for i := range dialectic.UserInteractions {
-		if dialectic.UserInteractions[i].Status == models.StatusPendingAnswer {
-			dialectic.UserInteractions[i] = *interaction
-			break
+			// Add predicted observation
+			predictedObs, err := dsvc.generatePredictedObservation(&interaction)
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate predicted observation: %w", err)
+			}
+			interaction.PredictedObservation = predictedObs
+
+			dialectic.UserInteractions = append(dialectic.UserInteractions, interaction)
 		}
 	}
 
-	interactionEvent, err := getDialecticalInteractionAsEvent(*interaction)
-	if err != nil {
-		log.Printf("Error in getDialecticalInteractionAsEvent: %v", err)
-		return nil, err
+	// Handle answer blob (from user)
+	if input.AnswerBlob != "" {
+		// Find all pending questions
+		var pendingIndices []int
+		for i, interaction := range dialectic.UserInteractions {
+			if interaction.Status == models.StatusPendingAnswer {
+				pendingIndices = append(pendingIndices, i)
+			}
+		}
+
+		if len(pendingIndices) > 0 {
+			// Try to match answers to questions using AI
+			matches, err := dsvc.aih.MatchAnswersToQuestions(
+				input.AnswerBlob,
+				getPendingQuestions(dialectic.UserInteractions, pendingIndices),
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to match answers: %w", err)
+			}
+
+			// Update matched interactions
+			for questionIdx, answer := range matches {
+				if answer != "" {
+					idx := pendingIndices[questionIdx]
+
+					// Create action for this answer
+					action := &models.Action{
+						ID:                     uuid.New().String(),
+						Type:                   models.ActionTypeAnswerQuestion,
+						DialecticInteractionID: dialectic.UserInteractions[idx].ID,
+						Timestamp:              time.Now().UnixMilli(),
+					}
+
+					// Execute action to get observation
+					observation, err := dsvc.ExecuteAction(action, &dialectic.UserInteractions[idx])
+					if err != nil {
+						return nil, fmt.Errorf("failed to execute action: %w", err)
+					}
+
+					// Update the interaction
+					dialectic.UserInteractions[idx].Status = models.StatusAnswered
+					dialectic.UserInteractions[idx].Action = action
+					dialectic.UserInteractions[idx].Observation = observation
+					dialectic.UserInteractions[idx].UserAnswer = models.UserAnswer{
+						UserAnswer:         answer,
+						CreatedAtMillisUTC: time.Now().UnixMilli(),
+					}
+
+					// Create belief from this Q&A pair
+					interactionEvent := ai.InteractionEvent{
+						Question: dialectic.UserInteractions[idx].Question.Question,
+						Answer:   answer,
+					}
+
+					// Update belief system
+					beliefSystem, err := dsvc.updateBeliefSystemForInteraction(interactionEvent, input.SelfModelID, input.DryRun)
+					if err != nil {
+						return nil, fmt.Errorf("failed to update belief system: %w", err)
+					}
+
+					dialectic.BeliefSystem = beliefSystem
+				}
+			}
+		}
 	}
 
-	strategy := determineDialecticStrategy(dialectic.Agent.DialecticType)
-
-	dryRun := input.DryRun
-
-	// given the interaction event update the users existing belief system
-	// by updating old beliefs or creating new ones
-	beliefSystem, err := dsvc.updateBeliefSystemForInteraction(*interactionEvent, input.SelfModelID, dryRun)
-	if err != nil {
-		return nil, err
-	}
-
-	// generate a new interaction given updated state of dialectic and user belief system
-	newInteraction, err := dsvc.generatePendingDialecticalInteraction(
-		input.SelfModelID,
-		dialectic.UserInteractions,
-		*beliefSystem,
-		input.CustomQuestion,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	dialectic.UserInteractions = append(dialectic.UserInteractions, *newInteraction)
-
-	analysis, err := dsvc.aih.GenerateAnalysisForStrategy(strategy, beliefSystem, dialectic.UserInteractions, *interactionEvent)
-	if err != nil {
-		log.Printf("Error generating belief analysis: %v", err)
-		return nil, err
-	}
-
-	dialectic.Analysis = analysis
-
-	if !dryRun {
+	if !input.DryRun {
 		err = dsvc.storeDialecticValue(input.SelfModelID, dialectic)
 		if err != nil {
-			return nil, fmt.Errorf("failed to store updated dialectic: %w", err)
+			return nil, err
 		}
 	}
 
-	log.Printf("Final dialectic before returning: %+v", dialectic)
 	return &models.UpdateDialecticOutput{
 		Dialectic: *dialectic,
 	}, nil
 }
 
+// Helper function to get questions from pending interactions
+func getPendingQuestions(interactions []models.DialecticalInteraction, indices []int) []string {
+	questions := make([]string, len(indices))
+	for i, idx := range indices {
+		questions[i] = interactions[idx].Question.Question
+	}
+	return questions
+}
+
 func (dsvc *DialecticService) updateBeliefSystemForInteraction(interactionEvent ai.InteractionEvent, selfModelID string, dryRun bool) (*models.BeliefSystem, error) {
+	// Try to get existing beliefs
 	listBeliefsOutput, err := dsvc.bsvc.ListBeliefs(&models.ListBeliefsInput{
 		SelfModelID: selfModelID,
 	})
 
-	if err != nil {
-		return nil, err
+	// Initialize an empty belief system if none exists
+	if err != nil && strings.Contains(err.Error(), "key not found") {
+		// Create initial belief from the interaction
+		interpretedBeliefStr, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
+		if err != nil {
+			return nil, err
+		}
+
+		createBeliefOutput, err := dsvc.bsvc.CreateBelief(&models.CreateBeliefInput{
+			SelfModelID:   selfModelID,
+			BeliefContent: interpretedBeliefStr,
+			DryRun:        dryRun,
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to create initial belief: %w", err)
+		}
+
+		// Return the new belief system
+		return &models.BeliefSystem{
+			Beliefs:             []*models.Belief{&createBeliefOutput.Belief},
+			ObservationContexts: []*models.ObservationContext{},
+			BeliefContexts:      []*models.BeliefContext{},
+		}, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("error retrieving beliefs: %w", err)
 	}
 
 	var updatedBeliefs []models.Belief
@@ -333,38 +405,64 @@ func determineDialecticStrategy(dialecticType models.DialecticType) ai.Dialectic
 }
 
 // ExecuteAction performs an action and produces an observation
-func (dsvc *DialecticService) ExecuteAction(action *models.Action, interaction *models.DialecticalInteraction) (*models.Observation, error) {
-	// Get the observation context from the interaction
-	beliefContext, err := dsvc.getBeliefContextFromInteraction(interaction)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get belief context: %w", err)
+func (dsvc *DialecticService) ExecuteAction(action *models.Action, interaction *models.DialecticalInteraction, answer ...string) (*models.Observation, error) {
+	// beliefContext, err := dsvc.getBeliefContextFromInteraction(interaction)
+	// if err != nil {
+	//  return nil, fmt.Errorf("failed to get belief context: %w", err)
+	// }
+	// Set action ID if not already set
+	if action.ID == "" {
+		action.ID = uuid.New().String()
 	}
 
-	// Generate source based on action type
-	var source *models.Source
+	// Generate resource based on action type
+	var resource *models.Resource
 	switch action.Type {
 	case models.ActionTypeAnswerQuestion:
-		source, err = dsvc.generateAnswerSource(action, interaction)
+		resource = &models.Resource{
+			ID:       uuid.New().String(),
+			Type:     models.ResourceTypeChatLog,
+			Content:  interaction.UserAnswer.UserAnswer,
+			SourceID: interaction.ID,
+			ActionID: action.ID,
+			Metadata: map[string]string{"interaction_type": "survey"},
+		}
 	case models.ActionTypeCollectEvidence:
-		source, err = dsvc.generateEvidenceSource(action, interaction)
+		resource = &models.Resource{
+			ID:       uuid.New().String(),
+			Type:     models.ResourceTypeScientificPaper,
+			Content:  interaction.Question.Question,
+			SourceID: interaction.ID,
+			ActionID: action.ID,
+			Metadata: map[string]string{"interaction_type": "evidence"},
+		}
 	case models.ActionTypeActuateOutcome:
-		source, err = dsvc.generateOutcomeSource(action, interaction)
+		resource = &models.Resource{
+			ID:       uuid.New().String(),
+			Type:     models.ResourceTypeMeasurementData,
+			Content:  interaction.Question.Question,
+			SourceID: interaction.ID,
+			ActionID: action.ID,
+			Metadata: map[string]string{"interaction_type": "outcome"},
+		}
 	default:
 		return nil, fmt.Errorf("invalid action type: %v", action.Type)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate source: %w", err)
+
+	// Use provided answer if available, otherwise use existing interpretation
+	stateDistribution := map[string]float32{}
+	if len(answer) > 0 && answer[0] != "" {
+		stateDistribution[answer[0]] = 1.0
+	} else {
+		stateDistribution[dsvc.interpretResourceAsState(resource, nil)] = 1.0
 	}
 
-	// Create observation
 	observation := &models.Observation{
 		DialecticInteractionID: action.DialecticInteractionID,
-		Type:                   models.ObservationType(1),
-		Source:                 source,
-		StateDistribution: map[string]float32{
-			dsvc.interpretSourceAsState(source, beliefContext): 1.0,
-		},
-		Timestamp: time.Now().UnixMilli(),
+		Type:                   models.Answer,
+		Resource:               resource,
+		StateDistribution:      stateDistribution,
+		Timestamp:              time.Now().UnixMilli(),
 	}
 
 	return observation, nil
@@ -376,24 +474,8 @@ func (dsvc *DialecticService) getBeliefContextFromInteraction(interaction *model
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (dsvc *DialecticService) generateAnswerSource(action *models.Action, interaction *models.DialecticalInteraction) (*models.Source, error) {
-	// Implementation
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (dsvc *DialecticService) generateEvidenceSource(action *models.Action, interaction *models.DialecticalInteraction) (*models.Source, error) {
-	// Implementation
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (dsvc *DialecticService) generateOutcomeSource(action *models.Action, interaction *models.DialecticalInteraction) (*models.Source, error) {
-	// Implementation
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (dsvc *DialecticService) interpretSourceAsState(source *models.Source, context *models.BeliefContext) string {
-	// Implementation
-	return ""
+func (dsvc *DialecticService) interpretResourceAsState(resource *models.Resource, context *models.BeliefContext) string {
+	return resource.Content
 }
 
 // generatePredictedObservation creates a predicted observation for a dialectical interaction
@@ -402,11 +484,6 @@ func (dsvc *DialecticService) generatePredictedObservation(interaction *models.D
 		return nil, fmt.Errorf("interaction cannot be nil")
 	}
 
-	if interaction.Question.Question == "" {
-		return nil, fmt.Errorf("interaction question cannot be empty")
-	}
-
-	// Use AI helper to predict likely answer based on belief system
 	predictedAnswer, err := dsvc.aih.PredictAnswer(interaction.Question.Question)
 	if err != nil {
 		return nil, fmt.Errorf("failed to predict answer: %w", err)
@@ -415,7 +492,6 @@ func (dsvc *DialecticService) generatePredictedObservation(interaction *models.D
 	return &models.Observation{
 		DialecticInteractionID: interaction.ID,
 		Type:                   models.Answer,
-		Source:                 nil,
 		StateDistribution:      map[string]float32{predictedAnswer: 1.0},
 		Timestamp:              time.Now().UnixMilli(),
 	}, nil
@@ -439,9 +515,9 @@ func (dsvc *DialecticService) handleQuestionAnswerInteraction(interaction *model
 	interaction.PredictedObservation = predictedObs
 
 	action := &models.Action{
+		ID:                     uuid.New().String(),
 		Type:                   models.ActionTypeAnswerQuestion,
 		DialecticInteractionID: interaction.ID,
-		ResourceID:             selfModelID,
 		Timestamp:              time.Now().UnixMilli(),
 	}
 
@@ -451,4 +527,9 @@ func (dsvc *DialecticService) handleQuestionAnswerInteraction(interaction *model
 	}
 
 	return observation, nil
+}
+
+func (dsvc *DialecticService) MatchAnswerToQuestion(question, potentialAnswer string) (bool, error) {
+	// Use AI helper to determine if the answer matches the question
+	return dsvc.aih.IsAnswerToQuestion(question, potentialAnswer)
 }
