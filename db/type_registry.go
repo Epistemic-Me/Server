@@ -20,7 +20,7 @@ var typeRegistry = map[string]reflect.Type{
 	"int":           reflect.TypeOf(0),
 	"bool":          reflect.TypeOf(true),
 	"TestStruct":    reflect.TypeOf(TestStruct{}),
-	"db.TestStruct": reflect.TypeOf(TestStruct{}), // Add this line
+	"db.TestStruct": reflect.TypeOf(TestStruct{}),
 }
 
 // RegisterType registers a type with the type registry
@@ -61,12 +61,16 @@ func getTypeFromName(name string) (reflect.Type, error) {
 
 // Initialize the type registry with your known types
 func init() {
+	// Register models.Developer
+	RegisterType(models.Developer{})
 	// Register models.Belief
 	RegisterType(models.Belief{})
 	// Register models.BeliefSystem
 	RegisterType(models.BeliefSystem{})
 	// Register models.Dialectic
 	RegisterType(models.Dialectic{})
+	RegisterType(models.SelfModel{})
+	RegisterType(models.Philosophy{})
 	// Register TestStruct
 	RegisterType(TestStruct{})
 }

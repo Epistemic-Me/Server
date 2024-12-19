@@ -106,6 +106,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("Retrieved dialectic with %d interactions", len(dialectic.UserInteractions))
 
 	// Handle question blob (from assistant)
 	if input.QuestionBlob != "" {
@@ -117,7 +118,12 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 		// Create new interactions for each question
 		for _, q := range questions {
-			// Generate predicted observation for this question
+			// Skip if question is empty
+			if q == "" {
+				log.Printf("Skipping empty question")
+				continue
+			}
+
 			interaction := models.DialecticalInteraction{
 				ID:     uuid.New().String(),
 				Status: models.StatusPendingAnswer,
@@ -125,6 +131,12 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 				Question: models.Question{
 					Question:           q,
 					CreatedAtMillisUTC: time.Now().UnixMilli(),
+				},
+				Interaction: &models.QuestionAnswerInteraction{
+					Question: models.Question{
+						Question:           q,
+						CreatedAtMillisUTC: time.Now().UnixMilli(),
+					},
 				},
 			}
 
@@ -161,46 +173,85 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 			// Update matched interactions
 			for questionIdx, answer := range matches {
-				if answer != "" {
-					idx := pendingIndices[questionIdx]
+				// Skip if answer is empty
+				if answer == "" {
+					log.Printf("Skipping empty answer for question index %d", questionIdx)
+					continue
+				}
 
-					// Create action for this answer
-					action := &models.Action{
-						ID:                     uuid.New().String(),
-						Type:                   models.ActionTypeAnswerQuestion,
-						DialecticInteractionID: dialectic.UserInteractions[idx].ID,
-						Timestamp:              time.Now().UnixMilli(),
-					}
+				idx := pendingIndices[questionIdx]
 
-					// Execute action to get observation
-					observation, err := dsvc.ExecuteAction(action, &dialectic.UserInteractions[idx])
-					if err != nil {
-						return nil, fmt.Errorf("failed to execute action: %w", err)
-					}
+				// Validate the existing question is not empty
+				if dialectic.UserInteractions[idx].Question.Question == "" {
+					log.Printf("Skipping interaction with empty question at index %d", idx)
+					continue
+				}
 
-					// Update the interaction
-					dialectic.UserInteractions[idx].Status = models.StatusAnswered
-					dialectic.UserInteractions[idx].Action = action
-					dialectic.UserInteractions[idx].Observation = observation
-					dialectic.UserInteractions[idx].UserAnswer = models.UserAnswer{
+				// Create the QuestionAnswer interaction
+				qa := &models.QuestionAnswerInteraction{
+					Question: dialectic.UserInteractions[idx].Question,
+					Answer: models.UserAnswer{
 						UserAnswer:         answer,
 						CreatedAtMillisUTC: time.Now().UnixMilli(),
-					}
-
-					// Create belief from this Q&A pair
-					interactionEvent := ai.InteractionEvent{
-						Question: dialectic.UserInteractions[idx].Question.Question,
-						Answer:   answer,
-					}
-
-					// Update belief system
-					beliefSystem, err := dsvc.updateBeliefSystemForInteraction(interactionEvent, input.SelfModelID, input.DryRun)
-					if err != nil {
-						return nil, fmt.Errorf("failed to update belief system: %w", err)
-					}
-
-					dialectic.BeliefSystem = beliefSystem
+					},
 				}
+
+				// Double-check both question and answer
+				if qa.Question.Question == "" || qa.Answer.UserAnswer == "" {
+					log.Printf("Skipping interaction - missing question or answer. Question: %q, Answer: %q",
+						qa.Question.Question, qa.Answer.UserAnswer)
+					continue
+				}
+
+				log.Printf("Created QuestionAnswer interaction with Question: %q, Answer: %q",
+					qa.Question.Question, qa.Answer.UserAnswer)
+
+				// Extract beliefs for this Q&A pair
+				interactionEvent := ai.InteractionEvent{
+					Question: qa.Question.Question,
+					Answer:   answer,
+				}
+
+				extractedBeliefStr, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
+				if err != nil {
+					return nil, fmt.Errorf("failed to extract belief: %w", err)
+				}
+
+				extractedBelief := &models.Belief{
+					ID:      uuid.New().String(),
+					Content: []models.Content{{RawStr: extractedBeliefStr}},
+					Type:    models.Statement,
+				}
+
+				log.Printf("Extracted belief: %+v", extractedBelief)
+
+				qa.ExtractedBeliefs = append(qa.ExtractedBeliefs, extractedBelief)
+				log.Printf("QuestionAnswer interaction after adding belief: %+v", qa)
+
+				dialectic.UserInteractions[idx].Type = models.InteractionTypeQuestionAnswer
+				dialectic.UserInteractions[idx].Interaction = qa
+				dialectic.UserInteractions[idx].Status = models.StatusAnswered
+
+				// Create action and observation
+				action := &models.Action{
+					ID:                     uuid.New().String(),
+					Type:                   models.ActionTypeAnswerQuestion,
+					DialecticInteractionID: dialectic.UserInteractions[idx].ID,
+					Timestamp:              time.Now().UnixMilli(),
+				}
+
+				observation, err := dsvc.ExecuteAction(action, &dialectic.UserInteractions[idx])
+				if err != nil {
+					return nil, fmt.Errorf("failed to execute action: %w", err)
+				}
+
+				// Update the interaction
+				dialectic.UserInteractions[idx].Action = action
+				dialectic.UserInteractions[idx].Observation = observation
+
+				log.Printf("Created QuestionAnswer interaction with Question: %q, Answer: %q", qa.Question.Question, qa.Answer.UserAnswer)
+				log.Printf("Extracted belief: %+v", extractedBelief)
+				log.Printf("QuestionAnswer interaction after adding belief: %+v", qa)
 			}
 		}
 	}
@@ -211,6 +262,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 			return nil, err
 		}
 	}
+	log.Printf("Storing dialectic with %d interactions", len(dialectic.UserInteractions))
 
 	return &models.UpdateDialecticOutput{
 		Dialectic: *dialectic,
@@ -278,7 +330,7 @@ func (dsvc *DialecticService) updateBeliefSystemForInteraction(interactionEvent 
 				ID:                   existingBelief.ID,
 				CurrentVersion:       existingBelief.Version,
 				UpdatedBeliefContent: interpretedBeliefStr,
-				BeliefType:           models.Clarification,
+				BeliefType:           models.Statement,
 				DryRun:               dryRun,
 			})
 
@@ -357,14 +409,23 @@ func (dsvc *DialecticService) generatePendingDialecticalInteraction(selfModelID 
 		}
 	}
 
-	return &models.DialecticalInteraction{
+	// Create the interaction with QuestionAnswer initialized
+	interaction := &models.DialecticalInteraction{
+		Status: models.StatusPendingAnswer,
+		Type:   models.InteractionTypeQuestionAnswer,
 		Question: models.Question{
 			Question:           question,
 			CreatedAtMillisUTC: time.Now().UnixMilli(),
 		},
-		Status: models.StatusPendingAnswer,
-		Type:   models.InteractionTypeQuestionAnswer, // Set default type
-	}, nil
+		Interaction: &models.QuestionAnswerInteraction{
+			Question: models.Question{
+				Question:           question,
+				CreatedAtMillisUTC: time.Now().UnixMilli(),
+			},
+		},
+	}
+
+	return interaction, nil
 }
 
 func getPendingInteraction(dialectic models.Dialectic) (*models.DialecticalInteraction, error) {
