@@ -139,15 +139,30 @@ func (aih *AIHelper) GetInteractionEventAsBelief(event InteractionEvent) (string
 	response, err := aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
 		Model: string(GPT_LATEST),
 		Messages: []openai.ChatCompletionMessage{
-			{Role: "system", Content: fmt.Sprintf("Given these definitions %s. Construct a belief that underlies the information present in the user event", DIALECTICAL_STRATEGY)},
-			{Role: "user", Content: fmt.Sprintf("Please just respond curtly with the belief summary, %s", eventJson)},
+			{Role: "system", Content: fmt.Sprintf(`Given these definitions %s. 
+				Extract a belief from the user's response. 
+				Return ONLY a JSON object with a "belief" field containing the belief statement.
+				Example: {"belief": "I believe that quality sleep is essential for energy"}`, DIALECTICAL_STRATEGY)},
+			{Role: "user", Content: fmt.Sprintf("Extract a belief from this interaction: %s", eventJson)},
 		},
 	})
 	if err != nil {
+		log.Printf("Error from AI: %v", err)
 		return "", err
 	}
 
-	return response.Choices[0].Message.Content, nil
+	// Log the AI response
+	log.Printf("AI response: %s", response.Choices[0].Message.Content)
+
+	// Parse the JSON response
+	var beliefResponse struct {
+		Belief string `json:"belief"`
+	}
+	if err := json.Unmarshal([]byte(response.Choices[0].Message.Content), &beliefResponse); err != nil {
+		return "", fmt.Errorf("failed to parse belief response: %w", err)
+	}
+
+	return beliefResponse.Belief, nil
 }
 
 func (aih *AIHelper) UpdateBeliefWithInteractionEvent(event InteractionEvent, existingBeliefStr string) (bool, string, error) {

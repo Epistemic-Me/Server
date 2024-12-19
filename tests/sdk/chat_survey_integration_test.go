@@ -3,8 +3,10 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -80,6 +82,54 @@ func TestChatSurveyIntegration(t *testing.T) {
 
 		updateResp, err := client.UpdateDialectic(ctx, connect.NewRequest(updateReq))
 		require.NoError(t, err)
+
+		// Verify the response has extracted beliefs
+		if message.Role == "user" {
+			// Skip the initialization message
+			if strings.Contains(updateReq.AnswerBlob, "User name is") {
+				continue
+			}
+
+			// Get the latest answered interaction
+			var latestAnsweredInteraction *pbmodels.DialecticalInteraction
+			for i := len(updateResp.Msg.Dialectic.UserInteractions) - 1; i >= 0; i-- {
+				interaction := updateResp.Msg.Dialectic.UserInteractions[i]
+				if interaction.Status == pbmodels.STATUS_ANSWERED {
+					latestAnsweredInteraction = interaction
+					break
+				}
+			}
+
+			require.NotNil(t, latestAnsweredInteraction, "Should have at least one answered interaction")
+
+			// Check if it's a QuestionAnswerInteraction
+			require.Equal(t, pbmodels.InteractionType_QUESTION_ANSWER, latestAnsweredInteraction.Type,
+				"Latest interaction should be QUESTION_ANSWER type")
+
+			// Check if it has the question_answer field
+			qa, ok := latestAnsweredInteraction.Interaction.(*pbmodels.DialecticalInteraction_QuestionAnswer)
+			require.True(t, ok, "Latest interaction should have QuestionAnswer field")
+
+			// Skip belief verification for initialization message
+			if !strings.Contains(updateReq.AnswerBlob, "User name is") {
+				// Verify extracted beliefs
+				require.NotEmpty(t, qa.QuestionAnswer.ExtractedBeliefs,
+					"Question-Answer interaction should have extracted beliefs for Q: %s, A: %s",
+					qa.QuestionAnswer.Question.Question, updateReq.AnswerBlob)
+
+				// Log the extracted beliefs
+				t.Logf("Extracted beliefs for Q: %s, A: %s", updateReq.QuestionBlob, updateReq.AnswerBlob)
+				for _, belief := range qa.QuestionAnswer.ExtractedBeliefs {
+					t.Logf("  Belief: %v", belief)
+				}
+			}
+
+			log.Printf("Latest interaction: %+v", latestAnsweredInteraction)
+			if qa, ok := latestAnsweredInteraction.Interaction.(*pbmodels.DialecticalInteraction_QuestionAnswer); ok {
+				log.Printf("QuestionAnswer interaction: %+v", qa.QuestionAnswer)
+				log.Printf("Extracted beliefs: %+v", qa.QuestionAnswer.ExtractedBeliefs)
+			}
+		}
 
 		// Track beliefs from the response
 		if updateResp != nil && updateResp.Msg.Dialectic != nil &&
@@ -157,19 +207,4 @@ func TestChatSurveyIntegration(t *testing.T) {
 			}
 		}
 	}
-}
-
-// getSurveyStep returns the step name based on the interaction number
-func getSurveyStep(step int) string {
-	steps := map[int]string{
-		1: "sleep_habits",
-		2: "dietary_choices",
-		3: "exercise_routine",
-		4: "lifestyle_choices",
-		5: "longevity_philosophy",
-	}
-	if name, ok := steps[step]; ok {
-		return name
-	}
-	return "follow_up"
 }

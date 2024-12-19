@@ -484,7 +484,7 @@ func RunServer(kvStore *db.KeyValueStore, port string) (*http.Server, *sync.Wait
 	mux.Handle(path, handler)
 
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:8081", "http://localhost:3000", "http://localhost"},
+		AllowedOrigins: []string{"http://localhost:8081", "http://localhost:3001", "http://localhost:3000", "http://localhost"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{
 			"Accept",
@@ -494,8 +494,9 @@ func RunServer(kvStore *db.KeyValueStore, port string) (*http.Server, *sync.Wait
 			"X-CSRF-Token",
 			"Authorization",
 			"Connect-Protocol-Version",
+			"Connect-Timeout-Ms",
 			"x-api-key",
-			"Origin", // Add Origin to allowed headers
+			"Origin",
 		},
 		ExposedHeaders:   []string{"Content-Length", "Content-Type"},
 		AllowCredentials: true,

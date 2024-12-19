@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	pbmodels "epistemic-me-core/pb/models"
+	"log"
 )
 
 // Question represents a request for information from a user.
@@ -223,14 +224,47 @@ type DialecticalInteraction struct {
 	Type                 InteractionType              `json:"type"`
 	Question             Question                     `json:"question"`
 	UserAnswer           UserAnswer                   `json:"user_answer"`
-	PredictedObservation *Observation                 `json:"predicted_observation,omitempty"`
 	Action               *Action                      `json:"action,omitempty"`
 	Observation          *Observation                 `json:"observation,omitempty"`
 	Discrepancy          *Discrepancy                 `json:"discrepancy,omitempty"`
+	PredictedObservation *Observation                 `json:"predicted_observation,omitempty"`
 	UpdatedAtMillisUTC   int64                        `json:"updated_at_millis_utc"`
+	Interaction          interface{}                  `json:"interaction,omitempty"`
+}
+
+type QuestionAnswerInteraction struct {
+	Question         Question   `json:"question"`
+	Answer           UserAnswer `json:"answer"`
+	ExtractedBeliefs []*Belief  `json:"extracted_beliefs,omitempty"`
+}
+
+func (qa *QuestionAnswerInteraction) ToProto() *pbmodels.QuestionAnswerInteraction {
+	if qa == nil {
+		return nil
+	}
+
+	// Convert extracted beliefs to proto
+	extractedBeliefs := make([]*pbmodels.Belief, len(qa.ExtractedBeliefs))
+	for i, belief := range qa.ExtractedBeliefs {
+		extractedBeliefs[i] = belief.ToProto()
+	}
+
+	return &pbmodels.QuestionAnswerInteraction{
+		Question:         qa.Question.ToProto(),
+		Answer:           qa.Answer.ToProto(),
+		ExtractedBeliefs: extractedBeliefs,
+	}
 }
 
 func (di DialecticalInteraction) ToProto() *pbmodels.DialecticalInteraction {
+	log.Printf("Converting DialecticalInteraction to proto. Interaction type: %T", di.Interaction)
+	if qa, ok := di.Interaction.(*QuestionAnswerInteraction); ok {
+		log.Printf("QuestionAnswer interaction has %d beliefs before proto conversion", len(qa.ExtractedBeliefs))
+		for i, belief := range qa.ExtractedBeliefs {
+			log.Printf("Belief %d: %+v", i, belief)
+		}
+	}
+
 	proto := &pbmodels.DialecticalInteraction{
 		Status:             pbmodels.STATUS(di.Status),
 		Type:               pbmodels.InteractionType(di.Type),
@@ -247,22 +281,18 @@ func (di DialecticalInteraction) ToProto() *pbmodels.DialecticalInteraction {
 	if di.Observation != nil {
 		proto.Observation = di.Observation.ToProto()
 	}
-	if di.Discrepancy != nil {
-		proto.Discrepancy = di.Discrepancy.ToProto()
-	}
 
-	switch di.Type {
-	case InteractionTypeQuestionAnswer:
-		proto.Interaction = &pbmodels.DialecticalInteraction_QuestionAnswer{
-			QuestionAnswer: &pbmodels.QuestionAnswerInteraction{
-				Question: di.Question.ToProto(),
-				Answer:   di.UserAnswer.ToProto(),
-			},
+	if di.Interaction != nil {
+		switch v := di.Interaction.(type) {
+		case *QuestionAnswerInteraction:
+			protoQA := v.ToProto()
+			log.Printf("QuestionAnswer interaction has %d beliefs after proto conversion", len(protoQA.ExtractedBeliefs))
+			proto.Interaction = &pbmodels.DialecticalInteraction_QuestionAnswer{
+				QuestionAnswer: protoQA,
+			}
+		default:
+			log.Printf("Unknown interaction type: %T", v)
 		}
-	case InteractionTypeHypothesisEvidence:
-		// Add implementation for hypothesis evidence
-	case InteractionTypeActionOutcome:
-		// Add implementation for action outcome
 	}
 
 	return proto
@@ -331,4 +361,127 @@ func (d *Dialectic) ToProto() *pbmodels.Dialectic {
 	}
 
 	return protoDialectic
+}
+
+// Add custom JSON marshaling/unmarshaling for DialecticalInteraction
+type InteractionJSON struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
+func (di *DialecticalInteraction) MarshalJSON() ([]byte, error) {
+	type Alias DialecticalInteraction
+	aux := struct {
+		*Alias
+		Interaction *InteractionJSON `json:"interaction,omitempty"`
+	}{
+		Alias: (*Alias)(di),
+	}
+
+	if di.Interaction != nil {
+		if qa, ok := di.Interaction.(*QuestionAnswerInteraction); ok {
+			data, err := json.Marshal(qa)
+			if err != nil {
+				return nil, err
+			}
+			aux.Interaction = &InteractionJSON{
+				Type: "QuestionAnswer",
+				Data: data,
+			}
+		}
+	}
+
+	return json.Marshal(aux)
+}
+
+func (di *DialecticalInteraction) UnmarshalJSON(data []byte) error {
+	type Alias DialecticalInteraction
+	aux := struct {
+		*Alias
+		Interaction *InteractionJSON `json:"interaction,omitempty"`
+	}{
+		Alias: (*Alias)(di),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	if aux.Interaction != nil {
+		switch aux.Interaction.Type {
+		case "QuestionAnswer":
+			var qa QuestionAnswerInteraction
+			if err := json.Unmarshal(aux.Interaction.Data, &qa); err != nil {
+				return err
+			}
+			di.Interaction = &qa
+		}
+	}
+
+	return nil
+}
+
+func QuestionAnswerInteractionFromProto(proto *pbmodels.QuestionAnswerInteraction) *QuestionAnswerInteraction {
+	if proto == nil {
+		return nil
+	}
+
+	// Convert extracted beliefs from proto
+	extractedBeliefs := make([]*Belief, len(proto.ExtractedBeliefs))
+	for i, belief := range proto.ExtractedBeliefs {
+		extractedBeliefs[i] = BeliefFromProto(belief)
+	}
+
+	return &QuestionAnswerInteraction{
+		Question:         QuestionFromProto(proto.Question),
+		Answer:           UserAnswerFromProto(proto.Answer),
+		ExtractedBeliefs: extractedBeliefs,
+	}
+}
+
+// Add these conversion functions
+func BeliefFromProto(proto *pbmodels.Belief) *Belief {
+	if proto == nil {
+		return nil
+	}
+	return &Belief{
+		ID:          proto.Id,
+		SelfModelID: proto.SelfModelId,
+		Version:     proto.Version,
+		Type:        BeliefType(proto.Type),
+		Content:     ContentFromProto(proto.Content),
+	}
+}
+
+func QuestionFromProto(proto *pbmodels.Question) Question {
+	if proto == nil {
+		return Question{}
+	}
+	return Question{
+		Question:           proto.Question,
+		CreatedAtMillisUTC: proto.CreatedAtMillisUtc,
+	}
+}
+
+func UserAnswerFromProto(proto *pbmodels.UserAnswer) UserAnswer {
+	if proto == nil {
+		return UserAnswer{}
+	}
+	return UserAnswer{
+		UserAnswer:         proto.UserAnswer,
+		CreatedAtMillisUTC: proto.CreatedAtMillisUtc,
+	}
+}
+
+func ContentFromProto(protoContent []*pbmodels.Content) []Content {
+	if protoContent == nil {
+		return nil
+	}
+	content := make([]Content, len(protoContent))
+	for i, c := range protoContent {
+		content[i] = Content{
+			RawStr: c.RawStr,
+		}
+	}
+	return content
 }
