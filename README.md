@@ -15,10 +15,18 @@ brew install protoc-gen-go
 brew install protoc-gen-go-grpc
 ```
 
-Navigate to the `./core` directory, and run `sh generate_protos.sh` to generate the golang files in the pb/ directory from the
+Initialize the git submodules (proto)
+
+```git submodule init && git submodule update``
+
+Navigate to the root directory, and run `sh generate_protos.sh` to generate the golang files in the epistemic-me-core/ directory from the
 proto files. 
 
 ## Docker Instructions
+
+Initialize the git submodules (proto)
+
+```git submodule init && git submodule update```
 
 Download [Docker](https://www.docker.com/products/docker-desktop/)
 
