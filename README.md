@@ -17,7 +17,7 @@ brew install protoc-gen-go-grpc
 
 Initialize the git submodules (proto)
 
-```git submodule init && git submodule update``
+```git submodule init && git submodule update```
 
 Navigate to the root directory, and run `sh generate_protos.sh` to generate the golang files in the epistemic-me-core/ directory from the
 proto files. 
