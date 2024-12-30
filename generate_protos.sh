@@ -11,3 +11,9 @@ find ./proto -name "*.proto" -print0 | xargs -0 protoc \
   --connect-go_out=. --connect-go_opt=module=epistemic-me-core
 
 echo "Protobuf files generated in ./pb"
+
+# Find and remove trailing slashes from import paths in generated Go files
+for file in $(find pb -type f -name '*.go'); do
+  sed 's|pb "epistemic-me-core/pb/"|pb "epistemic-me-core/pb"|' $file > temp.go
+  mv temp.go $file
+done
