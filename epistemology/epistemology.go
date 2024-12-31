@@ -24,6 +24,9 @@ type Epistemology interface {
 
 	// Clarify Beleif, examines a belief appropriately some given event. Optionally can produce new beleifs with epistemic contexts in the update step
 	UpdateBelief(belief *models.Belief, contexts []*models.EpistemicContext, events []*models.EpistemicEvent) ([]*models.Belief, []*models.EpistemicContext, error)
+}
 
-	Predict(event []*models.EpistemicEvent) models.EpistemicPrediction
+type PredictiveEpistemology interface {
+	// Given an existing beleif system predict the outcome to a given Epistemic Event
+	Predict(bs *models.BeliefSystem, event []*models.EpistemicEvent) (models.EpistemicPrediction, error)
 }
