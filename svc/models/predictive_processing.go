@@ -28,6 +28,13 @@ const (
 	Confusion
 )
 
+type PredictionContext struct {
+	Action               *Action      `json:"action,omitempty"`
+	Observation          *Observation `json:"observation,omitempty"`
+	Discrepancy          *Discrepancy `json:"discrepancy,omitempty"`
+	PredictedObservation *Observation `json:"predicted_observation,omitempty"`
+}
+
 type BeliefSystemMetrics struct {
 	ClarificationScore      float64 `json:"clarification_score"`
 	TotalBeliefs            int32   `json:"total_beliefs"`
