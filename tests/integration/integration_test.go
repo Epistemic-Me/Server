@@ -293,7 +293,7 @@ func TestGetBeliefSystem(t *testing.T) {
 
 	t.Logf("Retrieved BeliefSystem: %+v", getResp.Msg.BeliefSystem)
 	t.Logf("Number of beliefs: %d", len(getResp.Msg.BeliefSystem.Beliefs))
-	t.Logf("Number of observation contexts: %d", len(getResp.Msg.BeliefSystem.ObservationContexts))
+	t.Logf("Number of epistemic contexts: %d", len(getResp.Msg.BeliefSystem.EpistemicContexts.EpistemicContexts))
 
 	// Check if the created belief is in the belief system
 	foundCreatedBelief := false
@@ -349,11 +349,11 @@ func TestIntegrationWithFixtures(t *testing.T) {
 
 	// Verify the structure of the retrieved BeliefSystem
 	assert.NotEmpty(t, bs.Beliefs, "BeliefSystem should have beliefs")
-	assert.NotEmpty(t, bs.ObservationContexts, "BeliefSystem should have observation contexts")
+	assert.NotEmpty(t, bs.EpistemicContexts, "BeliefSystem should have observation contexts")
 
 	// Verify the number of beliefs and observation contexts
 	assert.Equal(t, 12, len(bs.Beliefs), "Number of beliefs should match")
-	assert.Equal(t, 16, len(bs.ObservationContexts), "Number of observation contexts should match")
+	assert.Equal(t, 16, len(bs.EpistemicContexts), "Number of observation contexts should match")
 
 	// Verify the content of beliefs
 	for _, belief := range bs.Beliefs {
@@ -363,9 +363,11 @@ func TestIntegrationWithFixtures(t *testing.T) {
 
 		// Find associated BeliefContexts
 		var contexts []*svc_models.BeliefContext
-		for _, bc := range bs.BeliefContexts {
-			if bc.BeliefID == belief.ID {
-				contexts = append(contexts, bc)
+		for _, ec := range bs.EpistemicContexts {
+			for _, bc := range ec.PredictiveProcessingContext.BeliefContexts {
+				if bc.BeliefID == belief.ID {
+					contexts = append(contexts, bc)
+				}
 			}
 		}
 
@@ -380,9 +382,11 @@ func TestIntegrationWithFixtures(t *testing.T) {
 	}
 
 	// Verify the content of observation contexts
-	for _, context := range bs.ObservationContexts {
-		assert.NotEmpty(t, context.ID, "ObservationContext ID should not be empty")
-		assert.NotEmpty(t, context.Name, "ObservationContext Name should not be empty")
+	for _, ec := range bs.EpistemicContexts {
+		for _, oc := range ec.PredictiveProcessingContext.ObservationContexts {
+			assert.NotEmpty(t, oc.ID, "ObservationContext ID should not be empty")
+			assert.NotEmpty(t, oc.Name, "ObservationContext Name should not be empty")
+		}
 	}
 
 	t.Logf("Successfully verified BeliefSystem with %d beliefs and %d observation contexts", len(bs.Beliefs), len(bs.ObservationContexts))

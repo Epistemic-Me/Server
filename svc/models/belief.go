@@ -26,7 +26,7 @@ type EpistemicContext struct {
 func (ec EpistemicContext) ToProto() *pbmodels.EpistemicContext {
 	if ec.PredictiveProcessingContext != nil {
 		return &pbmodels.EpistemicContext{
-			PredictiveProcessingContext: ec.PredictiveProcessingContext.toProto(),
+			Context: ec.PredictiveProcessingContext.toProto(),
 		}
 	}
 	return nil
@@ -58,8 +58,10 @@ func (bs BeliefSystem) ToProto() *pbmodels.BeliefSystem {
 	}
 
 	return &pbmodels.BeliefSystem{
-		Beliefs:           protoBeliefs,
-		EpistemicContexts: protoEpistemicContexts,
+		Beliefs: protoBeliefs,
+		EpistemicContexts: &pbmodels.EpistemicContexts{
+			EpistemicContexts: protoEpistemicContexts,
+		},
 	}
 }
 

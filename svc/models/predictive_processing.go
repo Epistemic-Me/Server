@@ -9,10 +9,12 @@ type PredictiveProcessingContext struct {
 	BeliefContexts      []*BeliefContext      `json:"belief_contexts"`
 }
 
-func (ppc PredictiveProcessingContext) toProto() *pbmodels.PredictiveProcessingContext {
-	return &pbmodels.PredictiveProcessingContext{
-		ObservationContexts: observationContextsToProto(ppc.ObservationContexts),
-		BeliefContexts:      beliefContextsToProto(ppc.BeliefContexts),
+func (ppc PredictiveProcessingContext) toProto() *pbmodels.EpistemicContext_PredictiveProcessingContext {
+	return &pbmodels.EpistemicContext_PredictiveProcessingContext{
+		PredictiveProcessingContext: &pbmodels.PredictiveProcessingContext{
+			ObservationContexts: observationContextsToProto(ppc.ObservationContexts),
+			BeliefContexts:      beliefContextsToProto(ppc.BeliefContexts),
+		},
 	}
 }
 
