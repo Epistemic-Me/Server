@@ -7,8 +7,13 @@ import (
 type PredictiveProcessingContext struct {
 	ObservationContexts []*ObservationContext `json:"observation_contexts"`
 	BeliefContexts      []*BeliefContext      `json:"belief_contexts"`
-	Ontology            *Ontology             `json:"ontology,omitempty"`
-	Metrics             *BeliefSystemMetrics  `json:"metrics,omitempty"`
+}
+
+func (ppc PredictiveProcessingContext) toProto() *pbmodels.PredictiveProcessingContext {
+	return &pbmodels.PredictiveProcessingContext{
+		ObservationContexts: observationContextsToProto(ppc.ObservationContexts),
+		BeliefContexts:      beliefContextsToProto(ppc.BeliefContexts),
+	}
 }
 
 type EpistemicEmotion int32
@@ -141,7 +146,7 @@ type Ontology struct {
 	Contexts    []*BeliefContext `json:"contexts"` // Changed from ObservationContext to BeliefContext
 }
 
-func ontologyToProto(o *Ontology) *pbmodels.BeliefSystem_Ontology {
+func ontologyToProto(o *Ontology) *pbmodels.Ontology {
 	if o == nil {
 		return nil
 	}
@@ -149,7 +154,7 @@ func ontologyToProto(o *Ontology) *pbmodels.BeliefSystem_Ontology {
 	for i, ctx := range o.Contexts {
 		protoContexts[i] = ctx.ToProto()
 	}
-	return &pbmodels.BeliefSystem_Ontology{
+	return &pbmodels.Ontology{
 		RawStr:      o.RawStr,
 		GeneratedAt: o.GeneratedAt,
 		Contexts:    protoContexts,
@@ -177,6 +182,14 @@ func observationContextsToProto(contexts []*ObservationContext) []*pbmodels.Obse
 			ParentId:       c.ParentID,
 			PossibleStates: states,
 		}
+	}
+	return result
+}
+
+func beliefContextsToProto(contexts []*BeliefContext) []*pbmodels.BeliefContext {
+	result := make([]*pbmodels.BeliefContext, len(contexts))
+	for i, c := range contexts {
+		result[i] = c.ToProto()
 	}
 	return result
 }

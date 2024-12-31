@@ -20,7 +20,16 @@ type Content struct {
 }
 
 type EpistemicContext struct {
-	Context *PredictiveProcessingContext `json:"context,omitempty"`
+	PredictiveProcessingContext *PredictiveProcessingContext `json:"context,omitempty"`
+}
+
+func (ec EpistemicContext) ToProto() *pbmodels.EpistemicContext {
+	if ec.PredictiveProcessingContext != nil {
+		return &pbmodels.EpistemicContext{
+			PredictiveProcessingContext: ec.PredictiveProcessingContext.toProto(),
+		}
+	}
+	return nil
 }
 
 // Base Belief structure (simplified)
@@ -43,15 +52,14 @@ func (bs BeliefSystem) ToProto() *pbmodels.BeliefSystem {
 	for i, belief := range bs.Beliefs {
 		protoBeliefs[i] = belief.ToProto()
 	}
-	protoObservationContexts := make([]*pbmodels.ObservationContext, len(bs.ObservationContexts))
-	for i, oc := range bs.ObservationContexts {
-		protoObservationContexts[i] = oc.ToProto()
+	protoEpistemicContexts := make([]*pbmodels.EpistemicContext, len(bs.EpistemicContexts))
+	for i, ec := range bs.EpistemicContexts {
+		protoEpistemicContexts[i] = ec.ToProto()
 	}
+
 	return &pbmodels.BeliefSystem{
-		Beliefs:             protoBeliefs,
-		ObservationContexts: protoObservationContexts,
-		Metrics:             metricsToProto(bs.Metrics),
-		Ontology:            ontologyToProto(bs.Ontology),
+		Beliefs:           protoBeliefs,
+		EpistemicContexts: protoEpistemicContexts,
 	}
 }
 
@@ -92,11 +100,11 @@ func beliefsToProto(beliefs []*Belief) []*pbmodels.Belief {
 	return result
 }
 
-func metricsToProto(m *BeliefSystemMetrics) *pbmodels.BeliefSystem_Metrics {
+func metricsToProto(m *BeliefSystemMetrics) *pbmodels.Metrics {
 	if m == nil {
 		return nil
 	}
-	return &pbmodels.BeliefSystem_Metrics{
+	return &pbmodels.Metrics{
 		ClarificationScore:      m.ClarificationScore,
 		TotalBeliefs:            m.TotalBeliefs,
 		TotalFalsifiableBeliefs: m.TotalFalsifiableBeliefs,

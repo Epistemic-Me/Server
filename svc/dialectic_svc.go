@@ -302,11 +302,19 @@ func (dsvc *DialecticService) updateBeliefSystemForInteraction(interactionEvent 
 			return nil, fmt.Errorf("failed to create initial belief: %w", err)
 		}
 
-		// Return the new belief system
-		return &models.BeliefSystem{
-			Beliefs:             []*models.Belief{&createBeliefOutput.Belief},
+		predictiveProcessingContext := models.PredictiveProcessingContext{
 			ObservationContexts: []*models.ObservationContext{},
 			BeliefContexts:      []*models.BeliefContext{},
+		}
+
+		// Return the new belief system
+		return &models.BeliefSystem{
+			Beliefs: []*models.Belief{&createBeliefOutput.Belief},
+			EpistemicContexts: []*models.EpistemicContext{
+				{
+					PredictiveProcessingContext: &predictiveProcessingContext,
+				},
+			},
 		}, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("error retrieving beliefs: %w", err)

@@ -140,31 +140,6 @@ func (a Action) ToProto() *pbmodels.Action {
 	}
 }
 
-// Observation represents an observed state after an action
-type Observation struct {
-	DialecticInteractionID string             `json:"dialectic_interaction_id"`
-	Type                   ObservationType    `json:"type"`
-	Resource               *Resource          `json:"resource"`
-	StateDistribution      map[string]float32 `json:"state_distribution"`
-	Timestamp              int64              `json:"timestamp"`
-}
-
-func (o Observation) ToProto() *pbmodels.Observation {
-	obs := &pbmodels.Observation{
-		DialecticInteractionId: o.DialecticInteractionID,
-		Type:                   pbmodels.ObservationType(o.Type),
-		StateDistribution:      o.StateDistribution,
-		Timestamp:              o.Timestamp,
-	}
-
-	// Only convert Resource if it exists
-	if o.Resource != nil {
-		obs.Resource = o.Resource.ToProto()
-	}
-
-	return obs
-}
-
 // InteractionType represents the type of dialectical interaction.
 type InteractionType int32
 
@@ -272,14 +247,10 @@ func (di DialecticalInteraction) ToProto() *pbmodels.DialecticalInteraction {
 		UpdatedAtMillisUtc: di.UpdatedAtMillisUTC,
 	}
 
-	if di.PredictedObservation != nil {
-		proto.PredictedObservation = di.PredictedObservation.ToProto()
-	}
-	if di.Action != nil {
-		proto.Action = di.Action.ToProto()
-	}
-	if di.Observation != nil {
-		proto.Observation = di.Observation.ToProto()
+	proto.PredictionContext = &pbmodels.PredictionContext{
+		PredictedObservation: di.PredictedObservation.ToProto(),
+		Action:               di.Action.ToProto(),
+		Observation:          di.Observation.ToProto(),
 	}
 
 	if di.Interaction != nil {
