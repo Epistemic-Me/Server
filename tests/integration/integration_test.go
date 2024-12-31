@@ -389,7 +389,7 @@ func TestIntegrationWithFixtures(t *testing.T) {
 		}
 	}
 
-	t.Logf("Successfully verified BeliefSystem with %d beliefs and %d observation contexts", len(bs.Beliefs), len(bs.ObservationContexts))
+	t.Logf("Successfully verified BeliefSystem with %d beliefs and %d observation contexts", len(bs.Beliefs), len(bs.EpistemicContexts))
 
 	// Clean up
 	clearStore()
@@ -399,8 +399,15 @@ func CreateInitialBeliefSystemIfNotExists(selfModelId string) error {
 	bs, err := kvStore.Retrieve(selfModelId, "BeliefSystemId")
 	if err != nil || bs == nil {
 		initialBS := svc_models.BeliefSystem{
-			Beliefs:             []*svc_models.Belief{},
-			ObservationContexts: []*svc_models.ObservationContext{},
+			Beliefs: []*svc_models.Belief{},
+			EpistemicContexts: []*svc_models.EpistemicContext{
+				{
+					PredictiveProcessingContext: &svc_models.PredictiveProcessingContext{
+						ObservationContexts: []*svc_models.ObservationContext{},
+						BeliefContexts:      []*svc_models.BeliefContext{},
+					},
+				},
+			},
 		}
 
 		log.Printf("Creating initial BeliefSystem: %+v", initialBS)
