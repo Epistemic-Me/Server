@@ -31,8 +31,15 @@ func (s *SelfModelService) CreateSelfModel(ctx context.Context, input *models.Cr
 
 	// Create an empty belief system for the self model
 	emptyBeliefSystem := &models.BeliefSystem{
-		Beliefs:             []*models.Belief{},
-		ObservationContexts: []*models.ObservationContext{},
+		Beliefs: []*models.Belief{},
+		EpistemicContexts: []*models.EpistemicContext{
+			{
+				PredictiveProcessingContext: &models.PredictiveProcessingContext{
+					ObservationContexts: []*models.ObservationContext{},
+					BeliefContexts:      []*models.BeliefContext{},
+				},
+			},
+		},
 	}
 
 	// Store the belief system separately

@@ -61,9 +61,9 @@ func TestBeliefSystemAPIIntegration(t *testing.T) {
 	// Try to cast to different possible types
 	switch bs := fixtureBeliefSystem.(type) {
 	case *models.BeliefSystem:
-		t.Logf("Successfully cast to *models.BeliefSystem with %d beliefs and %d observation contexts", len(bs.Beliefs), len(bs.ObservationContexts))
+		t.Logf("Successfully cast to *models.BeliefSystem with %d beliefs and %d epistemic contexts", len(bs.Beliefs), len(bs.EpistemicContexts.EpistemicContexts))
 	case *svc_models.BeliefSystem:
-		t.Logf("Successfully cast to *svc_models.BeliefSystem with %d beliefs and %d observation contexts", len(bs.Beliefs), len(bs.ObservationContexts))
+		t.Logf("Successfully cast to *svc_models.BeliefSystem with %d beliefs and %d epistemic contexts", len(bs.Beliefs), len(bs.EpistemicContexts))
 	default:
 		t.Fatalf("Retrieved object is not a recognized BeliefSystem type: %T", fixtureBeliefSystem)
 	}

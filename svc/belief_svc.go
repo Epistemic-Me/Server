@@ -57,9 +57,15 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 		if strings.Contains(err.Error(), "key not found") {
 			// Create new belief system
 			beliefSystem = models.BeliefSystem{
-				Beliefs:             []*models.Belief{&belief},
-				ObservationContexts: []*models.ObservationContext{},
-				BeliefContexts:      []*models.BeliefContext{},
+				Beliefs: []*models.Belief{&belief},
+				EpistemicContexts: []*models.EpistemicContext{
+					{
+						PredictiveProcessingContext: &models.PredictiveProcessingContext{
+							ObservationContexts: []*models.ObservationContext{},
+							BeliefContexts:      []*models.BeliefContext{},
+						},
+					},
+				},
 			}
 		} else {
 			return nil, fmt.Errorf("failed to retrieve belief system: %w", err)
@@ -139,13 +145,16 @@ func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.
 func (bsvc *BeliefService) getBeliefSystemFromBeliefs(beliefs []*models.Belief) (*models.BeliefSystem, error) {
 	logf(LogLevelDebug, "getBeliefSystemFromBeliefs called with %d beliefs", len(beliefs))
 
-	observationContexts := []*models.ObservationContext{}
-	beliefContexts := []*models.BeliefContext{}
-
 	return &models.BeliefSystem{
-		Beliefs:             beliefs,
-		ObservationContexts: observationContexts,
-		BeliefContexts:      beliefContexts,
+		Beliefs: beliefs,
+		EpistemicContexts: []*models.EpistemicContext{
+			{
+				PredictiveProcessingContext: &models.PredictiveProcessingContext{
+					ObservationContexts: []*models.ObservationContext{},
+					BeliefContexts:      []*models.BeliefContext{},
+				},
+			},
+		},
 	}, nil
 }
 
@@ -167,11 +176,16 @@ func (bsvc *BeliefService) beliefMatchesContexts(belief *models.Belief, contextI
 	}
 
 	// Check if any of the belief contexts match the given context IDs
-	for _, bc := range beliefSystem.BeliefContexts {
-		if bc.BeliefID == belief.ID {
-			for _, contextID := range contextIDs {
-				if bc.ObservationContextID == contextID {
-					return true
+	for _, ec := range beliefSystem.EpistemicContexts {
+		predictiveProcessingContext := ec.PredictiveProcessingContext
+		if predictiveProcessingContext != nil {
+			for _, bc := range predictiveProcessingContext.BeliefContexts {
+				if bc.BeliefID == belief.ID {
+					for _, contextID := range contextIDs {
+						if bc.ObservationContextID == contextID {
+							return true
+						}
+					}
 				}
 			}
 		}
@@ -229,9 +243,15 @@ func (bsvc *BeliefService) retrieveBeliefSystem(selfModelID string) (models.Beli
 		if err == db.ErrNotFound {
 			// Return empty belief system if none exists
 			return models.BeliefSystem{
-				Beliefs:             []*models.Belief{},
-				ObservationContexts: []*models.ObservationContext{},
-				BeliefContexts:      []*models.BeliefContext{},
+				Beliefs: []*models.Belief{},
+				EpistemicContexts: []*models.EpistemicContext{
+					{
+						PredictiveProcessingContext: &models.PredictiveProcessingContext{
+							ObservationContexts: []*models.ObservationContext{},
+							BeliefContexts:      []*models.BeliefContext{},
+						},
+					},
+				},
 			}, nil
 		}
 		return models.BeliefSystem{}, err
