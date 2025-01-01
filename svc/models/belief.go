@@ -20,6 +20,8 @@ type Content struct {
 }
 
 type EpistemicContext struct {
+	// optional field to associate a given epistemic context with a particular beleif or set of beleifs
+	AssociatedBeleifs           []string
 	PredictiveProcessingContext *PredictiveProcessingContext `json:"context,omitempty"`
 }
 
