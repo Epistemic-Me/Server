@@ -16,6 +16,7 @@ type DialecticService struct {
 	kvStore      *db.KeyValueStore
 	bsvc         *BeliefService
 	aih          *ai.AIHelper
+	// deen: todo refactor to use epistemology interface
 	epistemology *DialecticalEpistemology
 }
 
