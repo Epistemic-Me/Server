@@ -58,14 +58,6 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 			// Create new belief system
 			beliefSystem = models.BeliefSystem{
 				Beliefs: []*models.Belief{&belief},
-				EpistemicContexts: []*models.EpistemicContext{
-					{
-						PredictiveProcessingContext: &models.PredictiveProcessingContext{
-							ObservationContexts: []*models.ObservationContext{},
-							BeliefContexts:      []*models.BeliefContext{},
-						},
-					},
-				},
 			}
 		} else {
 			return nil, fmt.Errorf("failed to retrieve belief system: %w", err)
@@ -109,7 +101,7 @@ func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*model
 
 	// var empty_beliefs []models.Belief
 	// beliefSystem, err := bsvc.getBeliefSystemFromBeliefs(empty_beliefs)
-	beliefSystem, err := bsvc.getBeliefSystemFromBeliefs([]*models.Belief{existingBelief})
+	beliefSystem, err := bsvc.GetBeliefSystemFromBeliefs([]*models.Belief{existingBelief})
 
 	if err != nil {
 		logf(LogLevelError, "Error in getBeliefSystemFromBeliefs: %v", err)
@@ -142,19 +134,11 @@ func (bsvc *BeliefService) ListBeliefs(input *models.ListBeliefsInput) (*models.
 	}, nil
 }
 
-func (bsvc *BeliefService) getBeliefSystemFromBeliefs(beliefs []*models.Belief) (*models.BeliefSystem, error) {
+func (bsvc *BeliefService) GetBeliefSystemFromBeliefs(beliefs []*models.Belief) (*models.BeliefSystem, error) {
 	logf(LogLevelDebug, "getBeliefSystemFromBeliefs called with %d beliefs", len(beliefs))
 
 	return &models.BeliefSystem{
 		Beliefs: beliefs,
-		EpistemicContexts: []*models.EpistemicContext{
-			{
-				PredictiveProcessingContext: &models.PredictiveProcessingContext{
-					ObservationContexts: []*models.ObservationContext{},
-					BeliefContexts:      []*models.BeliefContext{},
-				},
-			},
-		},
 	}, nil
 }
 
@@ -244,14 +228,6 @@ func (bsvc *BeliefService) retrieveBeliefSystem(selfModelID string) (models.Beli
 			// Return empty belief system if none exists
 			return models.BeliefSystem{
 				Beliefs: []*models.Belief{},
-				EpistemicContexts: []*models.EpistemicContext{
-					{
-						PredictiveProcessingContext: &models.PredictiveProcessingContext{
-							ObservationContexts: []*models.ObservationContext{},
-							BeliefContexts:      []*models.BeliefContext{},
-						},
-					},
-				},
 			}, nil
 		}
 		return models.BeliefSystem{}, err

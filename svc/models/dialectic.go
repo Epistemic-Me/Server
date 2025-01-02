@@ -194,17 +194,14 @@ func statesToProto(states []State) []*pbmodels.State {
 
 // Update DialecticalInteraction struct
 type DialecticalInteraction struct {
-	ID                   string                       `json:"id"`
-	Status               DialecticalInteractionStatus `json:"status"`
-	Type                 InteractionType              `json:"type"`
-	Question             Question                     `json:"question"`
-	UserAnswer           UserAnswer                   `json:"user_answer"`
-	Action               *Action                      `json:"action,omitempty"`
-	Observation          *Observation                 `json:"observation,omitempty"`
-	Discrepancy          *Discrepancy                 `json:"discrepancy,omitempty"`
-	PredictedObservation *Observation                 `json:"predicted_observation,omitempty"`
-	UpdatedAtMillisUTC   int64                        `json:"updated_at_millis_utc"`
-	Interaction          interface{}                  `json:"interaction,omitempty"`
+	ID                 string                       `json:"id"`
+	Status             DialecticalInteractionStatus `json:"status"`
+	Type               InteractionType              `json:"type"`
+	Question           Question                     `json:"question"`
+	UserAnswer         UserAnswer                   `json:"user_answer"`
+	Prediction         *Prediction                  `json:"prediction_context"`
+	UpdatedAtMillisUTC int64                        `json:"updated_at_millis_utc"`
+	Interaction        interface{}                  `json:"interaction,omitempty"`
 }
 
 type QuestionAnswerInteraction struct {
@@ -248,9 +245,7 @@ func (di DialecticalInteraction) ToProto() *pbmodels.DialecticalInteraction {
 	}
 
 	proto.PredictionContext = &pbmodels.PredictionContext{
-		PredictedObservation: di.PredictedObservation.ToProto(),
-		Action:               di.Action.ToProto(),
-		Observation:          di.Observation.ToProto(),
+		// deen: @todo
 	}
 
 	if di.Interaction != nil {

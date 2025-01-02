@@ -9,7 +9,7 @@ type PredictiveProcessingContext struct {
 	BeliefContexts      []*BeliefContext      `json:"belief_contexts"`
 }
 
-func (ppc PredictiveProcessingContext) toProto() *pbmodels.EpistemicContext_PredictiveProcessingContext {
+func (ppc PredictiveProcessingContext) ToProto() *pbmodels.EpistemicContext_PredictiveProcessingContext {
 	return &pbmodels.EpistemicContext_PredictiveProcessingContext{
 		PredictiveProcessingContext: &pbmodels.PredictiveProcessingContext{
 			ObservationContexts: observationContextsToProto(ppc.ObservationContexts),
@@ -28,7 +28,7 @@ const (
 	Confusion
 )
 
-type PredictionContext struct {
+type Prediction struct {
 	Action               *Action      `json:"action,omitempty"`
 	Observation          *Observation `json:"observation,omitempty"`
 	Discrepancy          *Discrepancy `json:"discrepancy,omitempty"`

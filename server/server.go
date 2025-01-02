@@ -464,7 +464,8 @@ func NewServer(kvStore *db.KeyValueStore) *Server {
 
 	aih := ai.NewAIHelper(os.Getenv("OPENAI_API_KEY"))
 	bsvc := svc.NewBeliefService(kvStore, aih)
-	dsvc := svc.NewDialecticService(kvStore, bsvc, aih)
+	de := svc.NewDialecticEpistemology(bsvc, aih)
+	dsvc := svc.NewDialecticService(kvStore, bsvc, aih, de)
 
 	return &Server{
 		bsvc:         bsvc,

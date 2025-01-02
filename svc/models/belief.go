@@ -19,21 +19,6 @@ type Content struct {
 	RawStr string `json:"raw_str"`
 }
 
-type EpistemicContext struct {
-	// optional field to associate a given epistemic context with a particular beleif or set of beleifs
-	AssociatedBeleifs           []string
-	PredictiveProcessingContext *PredictiveProcessingContext `json:"context,omitempty"`
-}
-
-func (ec EpistemicContext) ToProto() *pbmodels.EpistemicContext {
-	if ec.PredictiveProcessingContext != nil {
-		return &pbmodels.EpistemicContext{
-			Context: ec.PredictiveProcessingContext.toProto(),
-		}
-	}
-	return nil
-}
-
 // Base Belief structure (simplified)
 type Belief struct {
 	ID          string     `json:"id"`
