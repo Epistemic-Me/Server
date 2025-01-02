@@ -36,6 +36,14 @@ type DialecticalEpistemology struct {
 	enablePredictiveProcessing bool
 }
 
+func NewDialecticEpistemology(beliefService *BeliefService, ai *ai.AIHelper) *DialecticalEpistemology {
+	return &DialecticalEpistemology{
+		bsvc:                       beliefService,
+		ai:                         ai,
+		enablePredictiveProcessing: true,
+	}
+}
+
 func (de *DialecticalEpistemology) Process(bs *models.BeliefSystem, event *models.DialecticEvent, dryRun bool, selfModelID string) (*models.BeliefSystem, error) {
 	var updatedBeliefs []models.Belief
 
@@ -125,7 +133,7 @@ func (de *DialecticalEpistemology) Process(bs *models.BeliefSystem, event *model
 	return beliefSystem, nil
 }
 
-func (de *DialecticalEpistemology) Respond(selfId string, bs *models.BeliefSystem, event *models.DialecticEvent) (*models.DialecticRequest, error) {
+func (de *DialecticalEpistemology) Respond(bs *models.BeliefSystem, event *models.DialecticEvent) (*models.DialecticRequest, error) {
 
 	var customQuestion *string
 	pendingInteraction, err := getPendingInteraction(event.PreviousInteractions)
@@ -137,7 +145,7 @@ func (de *DialecticalEpistemology) Respond(selfId string, bs *models.BeliefSyste
 		customQuestion = &pendingInteraction.Question.Question
 	}
 
-	nextInteraction, err := de.generatePendingDialecticalInteraction(selfId, event.PreviousInteractions, bs, customQuestion)
+	nextInteraction, err := de.generatePendingDialecticalInteraction(event.PreviousInteractions, bs, customQuestion)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +201,7 @@ func getDialecticalInteractionAsEvent(interaction models.DialecticalInteraction)
 	}, nil
 }
 
-func (de *DialecticalEpistemology) generatePendingDialecticalInteraction(selfModelID string, previousInteractions []models.DialecticalInteraction, userBeliefSystem *models.BeliefSystem, customQuestion *string) (*models.DialecticalInteraction, error) {
+func (de *DialecticalEpistemology) generatePendingDialecticalInteraction(previousInteractions []models.DialecticalInteraction, userBeliefSystem *models.BeliefSystem, customQuestion *string) (*models.DialecticalInteraction, error) {
 	var events []ai.InteractionEvent
 	for _, interaction := range previousInteractions {
 		if interaction.Status == models.StatusAnswered {

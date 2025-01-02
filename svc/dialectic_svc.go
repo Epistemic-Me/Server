@@ -13,19 +13,18 @@ import (
 )
 
 type DialecticService struct {
-	kvStore      *db.KeyValueStore
-	bsvc         *BeliefService
-	aih          *ai.AIHelper
+	kvStore *db.KeyValueStore
+	aih     *ai.AIHelper
 	// deen: todo refactor to use epistemology interface
 	epistemology *DialecticalEpistemology
 }
 
 // NewDialecticService initializes and returns a new DialecticService.
-func NewDialecticService(kvStore *db.KeyValueStore, bsvc *BeliefService, aih *ai.AIHelper) *DialecticService {
+func NewDialecticService(kvStore *db.KeyValueStore, aih *ai.AIHelper, epistemology *DialecticalEpistemology) *DialecticService {
 	return &DialecticService{
-		kvStore: kvStore,
-		bsvc:    bsvc,
-		aih:     aih,
+		kvStore:      kvStore,
+		aih:          aih,
+		epistemology: epistemology,
 	}
 }
 
@@ -66,7 +65,7 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 	}
 
 	// Generate the first interaction
-	response, err := dsvc.epistemology.Respond(input.SelfModelID, &models.BeliefSystem{}, &models.DialecticEvent{
+	response, err := dsvc.epistemology.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
 		PreviousInteractions: dialectic.UserInteractions,
 	})
 	if err != nil {
@@ -158,7 +157,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 	if input.AnswerBlob != "" {
 
 		// Generate the first interaction
-		response, err := dsvc.epistemology.Respond(input.SelfModelID, &models.BeliefSystem{}, &models.DialecticEvent{
+		response, err := dsvc.epistemology.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
 			PreviousInteractions: dialectic.UserInteractions,
 		})
 		if err != nil {
