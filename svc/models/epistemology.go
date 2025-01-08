@@ -17,7 +17,7 @@ func (ec EpistemicContext) ToProto() *pbmodels.EpistemicContext {
 	return nil
 }
 
-type DialecticRequest struct {
+type DialecticResponse struct {
 	SelfModelID    string
 	NewInteraction *DialecticalInteraction
 }

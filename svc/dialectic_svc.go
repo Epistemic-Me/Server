@@ -156,6 +156,10 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 	// Handle answer blob (from user)
 	if input.AnswerBlob != "" {
 
+		dsvc.epistemology.Process(&models.DialecticEvent{
+			PreviousInteractions: dialectic.UserInteractions,
+		}, input.DryRun, input.SelfModelID)
+
 		// Generate the first interaction
 		response, err := dsvc.epistemology.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
 			PreviousInteractions: dialectic.UserInteractions,
