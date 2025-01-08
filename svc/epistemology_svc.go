@@ -44,7 +44,7 @@ func NewDialecticEpistemology(beliefService *BeliefService, ai *ai.AIHelper) *Di
 	}
 }
 
-func (de *DialecticalEpistemology) Process(bs *models.BeliefSystem, event *models.DialecticEvent, dryRun bool, selfModelID string) (*models.BeliefSystem, error) {
+func (de *DialecticalEpistemology) Process(event *models.DialecticEvent, dryRun bool, selfModelID string) (*models.BeliefSystem, error) {
 	var updatedBeliefs []models.Belief
 
 	answeredInteraction, err := getAnsweredInteraction(event.PreviousInteractions)
@@ -53,6 +53,11 @@ func (de *DialecticalEpistemology) Process(bs *models.BeliefSystem, event *model
 	}
 
 	interactionEvent, err := getDialecticalInteractionAsEvent(*answeredInteraction)
+	if err != nil {
+		return nil, err
+	}
+
+	bs, err := de.bsvc.GetBeliefSystem(selfModelID)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +138,7 @@ func (de *DialecticalEpistemology) Process(bs *models.BeliefSystem, event *model
 	return beliefSystem, nil
 }
 
-func (de *DialecticalEpistemology) Respond(bs *models.BeliefSystem, event *models.DialecticEvent) (*models.DialecticRequest, error) {
+func (de *DialecticalEpistemology) Respond(bs *models.BeliefSystem, event *models.DialecticEvent) (*models.DialecticResponse, error) {
 
 	var customQuestion *string
 	pendingInteraction, err := getPendingInteraction(event.PreviousInteractions)
@@ -150,12 +155,12 @@ func (de *DialecticalEpistemology) Respond(bs *models.BeliefSystem, event *model
 		return nil, err
 	}
 
-	return &models.DialecticRequest{
+	return &models.DialecticResponse{
 		NewInteraction: nextInteraction,
 	}, nil
 }
 
-func (de *DialecticalEpistemology) PredictFutureEvent(bs *models.BeliefSystem, request *models.DialecticRequest) (event *models.DialecticEvent, error error) {
+func (de *DialecticalEpistemology) Predict(bs *models.BeliefSystem, request *models.DialecticResponse) (event *models.DialecticEvent, error error) {
 	return nil, nil
 }
 
