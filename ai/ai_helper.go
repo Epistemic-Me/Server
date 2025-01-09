@@ -165,6 +165,115 @@ func (aih *AIHelper) GetInteractionEventAsBelief(event InteractionEvent) (string
 	return beliefResponse.Belief, nil
 }
 
+func (aih *AIHelper) ExtractBeleifsFromResource(resource models.Resource) ([]string, error) {
+
+	response, err := aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Model: string(GPT_LATEST),
+		Messages: []openai.ChatCompletionMessage{
+			{Role: "system", Content: fmt.Sprintf(`Given these definitions %s. 
+				Extract a series of beleifs from this document. 
+				Return ONLY a JSON object with a "beliefs" field containing the array of belief statement.
+				Example: {"beliefs": ["Quality sleep is essential for energy", "HRV is a biomarker for good health"]}`, DIALECTICAL_STRATEGY)},
+			{Role: "user", Content: fmt.Sprintf("Extract a belief from this document: %s", resource.Content)},
+		},
+	})
+	if err != nil {
+		log.Printf("Error from AI: %v", err)
+		return nil, err
+	}
+
+	// Log the AI response
+	log.Printf("AI response: %s", response.Choices[0].Message.Content)
+
+	// Parse the JSON response
+	var beliefResponse struct {
+		Beliefs []string `json:"beliefs"`
+	}
+	if err := json.Unmarshal([]byte(response.Choices[0].Message.Content), &beliefResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse belief response: %w", err)
+	}
+
+	return beliefResponse.Beliefs, nil
+}
+
+func (aih *AIHelper) DetermineBeliefValidity(oldBeliefs []*models.Belief, newBeliefs []*models.Belief) ([]string, []string, error) {
+	// STEP 1: Prepare the system instruction.
+	// We now request two arrays of IDs—kept vs. deleted—in a clearly specified JSON structure.
+	systemInstruction := `
+You are given two lists:
+1. Old beliefs (each with an ID and content).
+2. New beliefs.
+
+Task: Determine which old beliefs are invalidated by the new beliefs and which remain valid.
+
+Return a JSON object with two arrays of belief IDs:
+{
+  "kept_belief_ids": ["...","..."],
+  "deleted_belief_ids": ["...","..."]
+}
+
+Important:
+ - "kept_belief_ids" should be the IDs of old beliefs that remain valid.
+ - "deleted_belief_ids" should be the IDs of old beliefs that are no longer valid.
+ - Do NOT include the new beliefs in the returned IDs.
+`
+
+	// STEP 2: Marshal both old and new beliefs for the AI.
+	oldBeliefsJSON, err := json.Marshal(oldBeliefs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal oldBeliefs: %w", err)
+	}
+
+	newBeliefsJSON, err := json.Marshal(newBeliefs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal newBeliefs: %w", err)
+	}
+
+	// STEP 3: Prompt: Provide old and new beliefs, request two ID lists.
+	prompt := fmt.Sprintf(`
+Old Beliefs (JSON):
+%s
+
+New Beliefs (JSON):
+%s
+
+Please return a JSON object like this:
+{
+  "kept_belief_ids": ["...","..."],
+  "deleted_belief_ids": ["...","..."]
+}
+`, string(oldBeliefsJSON), string(newBeliefsJSON))
+
+	// STEP 4: Call OpenAI
+	response, err := aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Model: string(GPT_LATEST),
+		Messages: []openai.ChatCompletionMessage{
+			{Role: "system", Content: systemInstruction},
+			{Role: "user", Content: prompt},
+		},
+	})
+	if err != nil {
+		log.Printf("Error from AI: %v", err)
+		return nil, nil, err
+	}
+
+	// STEP 5: Extract the raw text returned by ChatGPT.
+	aiContent := response.Choices[0].Message.Content
+	log.Printf("AI response: %s", aiContent)
+
+	// STEP 6: Unmarshal the JSON that ChatGPT returns.
+	var parsedResponse struct {
+		KeptBeliefIDs    []string `json:"kept_belief_ids"`
+		DeletedBeliefIDs []string `json:"deleted_belief_ids"`
+	}
+	if err := json.Unmarshal([]byte(aiContent), &parsedResponse); err != nil {
+		return nil, nil, fmt.Errorf("failed to parse JSON from AI: %w", err)
+	}
+
+	// Return the two lists: kept and deleted.
+	return parsedResponse.KeptBeliefIDs, parsedResponse.DeletedBeliefIDs, nil
+}
+
 func (aih *AIHelper) UpdateBeliefWithInteractionEvent(event InteractionEvent, existingBeliefStr string) (bool, string, error) {
 	eventJson, err := json.Marshal(event)
 	if err != nil {

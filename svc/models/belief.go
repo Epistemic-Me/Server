@@ -26,6 +26,7 @@ type Belief struct {
 	Version     int32      `json:"version"`
 	Type        BeliefType `json:"type"`
 	Content     []Content  `json:"content"`
+	Active      bool       `json:"active"`
 }
 
 // BeliefSystem with BeliefContexts
