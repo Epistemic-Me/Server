@@ -43,6 +43,7 @@ func (bsvc *BeliefService) CreateBelief(input *models.CreateBeliefInput) (*model
 		Content:     []models.Content{{RawStr: input.BeliefContent}},
 		Type:        models.Statement,
 		Version:     1,
+		Active:      true,
 	}
 
 	// Store the belief first
@@ -109,6 +110,39 @@ func (bsvc *BeliefService) UpdateBelief(input *models.UpdateBeliefInput) (*model
 	}
 
 	return &models.UpdateBeliefOutput{
+		Belief:       *existingBelief,
+		BeliefSystem: *beliefSystem,
+	}, nil
+}
+
+func (bsvc *BeliefService) DeleteBelief(input *models.DeleteBeliefInput) (*models.DeleteBeliefOutput, error) {
+	existingBelief, err := bsvc.retrieveBeliefValue(input.SelfModelID, input.ID)
+	if err != nil {
+		logf(LogLevelError, "Error in Retrieve: %v", err)
+		return nil, err
+	}
+
+	existingBelief.Active = false
+	existingBelief.Version++
+	// todo: @deen update temporal information
+	if !input.DryRun {
+		err = bsvc.storeBeliefValue(input.SelfModelID, existingBelief)
+		if err != nil {
+			log.Printf("Error in Store: %v", err)
+			return nil, err
+		}
+	}
+
+	beliefSystem := &models.BeliefSystem{}
+	if input.ComputeBeliefSystem {
+		beliefSystem, err = bsvc.GetBeliefSystemFromBeliefs([]*models.Belief{existingBelief})
+		if err != nil {
+			logf(LogLevelError, "Error in getBeliefSystemFromBeliefs: %v", err)
+			return nil, err
+		}
+	}
+
+	return &models.DeleteBeliefOutput{
 		Belief:       *existingBelief,
 		BeliefSystem: *beliefSystem,
 	}, nil
@@ -195,7 +229,7 @@ func (bsvc *BeliefService) retrieveBeliefValue(selfModelID, beliefID string) (*m
 	return &belief, nil
 }
 
-func (bsvc *BeliefService) getAllBeliefs(selfModelID string) ([]*models.Belief, error) {
+func (bsvc *BeliefService) getAllBeliefs(selfModelID string, isActive bool) ([]*models.Belief, error) {
 	beliefs := []*models.Belief{}
 
 	// Use ListByType to get all Belief objects for the user
@@ -207,7 +241,9 @@ func (bsvc *BeliefService) getAllBeliefs(selfModelID string) ([]*models.Belief, 
 	// Convert the list of interface{} to []*models.Belief
 	for _, obj := range beliefObjects {
 		if belief, ok := obj.(*models.Belief); ok {
-			beliefs = append(beliefs, belief)
+			if belief.Active || !isActive {
+				beliefs = append(beliefs, belief)
+			}
 		}
 	}
 

@@ -30,3 +30,7 @@ type DialecticEvent struct {
 	SelfModelID          string
 	PreviousInteractions []DialecticalInteraction
 }
+
+type PerspectiveTakingEpistemicEvent struct {
+	Resource Resource
+}

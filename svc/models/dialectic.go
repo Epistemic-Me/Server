@@ -19,6 +19,13 @@ func (q Question) ToProto() *pbmodels.Question {
 	}
 }
 
+// Generic answer to indicate responses, not by the user
+// rather anothe self model
+type AnswerResponse struct {
+	Answer             string `json:"user_answer"`
+	CreatedAtMillisUTC int64  `json:"created_at_millis_utc"`
+}
+
 // UserAnswer represents a user's answer to a question.
 type UserAnswer struct {
 	UserAnswer         string `json:"user_answer"`

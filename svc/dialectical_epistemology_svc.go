@@ -10,24 +10,6 @@ import (
 	// Make sure to import your models package
 )
 
-// Epistemology defines an interface for handling and evaluating beliefs through structured epistemological processes.
-// Higher level processes like dialectics can orchestrate epistemologies to produce new and/or updated beliefs.
-type EpistemologyService interface {
-
-	// ProcessInformation accepts new data from an external environment and updates a belief system.
-	// The event parameter can be of any type.
-	Process(bs *models.BeliefSystem, event interface{}, dryRun bool) (*models.BeliefSystem, error)
-
-	// Initiate Request, from a given event creates a hook to request more information
-	RequestInformationFromEvent(bs *models.BeliefSystem, event interface{}) (request interface{}, error error)
-}
-
-type PredictiveEpistemologyService interface {
-
-	// Given a sample request for information, predict what the user will respond with
-	PredictFutureEvent(bs *models.BeliefSystem, request *interface{}) (event interface{}, error error)
-}
-
 // PredictiveProcessing defines methods to handle and validate belief systems and beliefs
 // based on the principles of predictive processing epistemology.
 type DialecticalEpistemology struct {
@@ -158,10 +140,6 @@ func (de *DialecticalEpistemology) Respond(bs *models.BeliefSystem, event *model
 	return &models.DialecticResponse{
 		NewInteraction: nextInteraction,
 	}, nil
-}
-
-func (de *DialecticalEpistemology) Predict(bs *models.BeliefSystem, request *models.DialecticResponse) (event *models.DialecticEvent, error error) {
-	return nil, nil
 }
 
 func getPendingInteraction(UserInteractions []models.DialecticalInteraction) (*models.DialecticalInteraction, error) {

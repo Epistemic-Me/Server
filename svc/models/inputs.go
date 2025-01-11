@@ -41,6 +41,14 @@ type UpdateBeliefInput struct {
 	DryRun               bool       `json:"dry_run"`
 }
 
+// UpdateBeliefInput represents an input to update an existing belief
+type DeleteBeliefInput struct {
+	SelfModelID         string `json:"self_model_id"`
+	ID                  string `json:"belief_id"`
+	DryRun              bool   `json:"dry_run"`
+	ComputeBeliefSystem bool   `json:"compute_belief_system"`
+}
+
 // CreateDialecticInput represents an input to create a new dialectic.
 type CreateDialecticInput struct {
 	SelfModelID   string        `json:"self_model_id"`
