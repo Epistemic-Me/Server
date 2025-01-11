@@ -165,7 +165,7 @@ func (aih *AIHelper) GetInteractionEventAsBelief(event InteractionEvent) (string
 	return beliefResponse.Belief, nil
 }
 
-func (aih *AIHelper) ExtractBeleifsFromResource(resource models.Resource) ([]string, error) {
+func (aih *AIHelper) ExtractBeliefsFromResource(resource models.Resource) ([]string, error) {
 
 	response, err := aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
 		Model: string(GPT_LATEST),

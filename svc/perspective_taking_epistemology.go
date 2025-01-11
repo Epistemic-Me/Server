@@ -26,7 +26,7 @@ func (de *PerspectiveTakingEpistemology) Process(event *models.PerspectiveTaking
 		return nil, err
 	}
 
-	newBeliefsStrings, err := de.ai.ExtractBeleifsFromResource(event.Resource)
+	newBeliefsStrings, err := de.ai.ExtractBeliefsFromResource(event.Resource)
 	if err != nil {
 		return nil, err
 	}

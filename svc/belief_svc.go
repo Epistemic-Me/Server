@@ -135,8 +135,6 @@ func (bsvc *BeliefService) DeleteBelief(input *models.DeleteBeliefInput) (*model
 
 	beliefSystem := &models.BeliefSystem{}
 	if input.ComputeBeliefSystem {
-		// var empty_beliefs []models.Belief
-		// beliefSystem, err := bsvc.getBeliefSystemFromBeliefs(empty_beliefs)
 		beliefSystem, err = bsvc.GetBeliefSystemFromBeliefs([]*models.Belief{existingBelief})
 		if err != nil {
 			logf(LogLevelError, "Error in getBeliefSystemFromBeliefs: %v", err)
