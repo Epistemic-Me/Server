@@ -70,6 +70,7 @@ func init() {
 	// Register models.Dialectic
 	RegisterType(models.Dialectic{})
 	RegisterType(models.SelfModel{})
+	RegisterType(models.User{})
 	RegisterType(models.Philosophy{})
 	// Register TestStruct
 	RegisterType(TestStruct{})

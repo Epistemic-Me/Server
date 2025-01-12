@@ -18,8 +18,9 @@ func (ec EpistemicContext) ToProto() *pbmodels.EpistemicContext {
 }
 
 type DialecticResponse struct {
-	SelfModelID    string
-	NewInteraction *DialecticalInteraction
+	SelfModelID          string
+	PreviousInteractions []DialecticalInteraction
+	NewInteraction       *DialecticalInteraction
 }
 
 // EpistemicEvent represents some event that may provide new information
