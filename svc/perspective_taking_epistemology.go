@@ -3,6 +3,7 @@ package svc
 import (
 	ai "epistemic-me-core/ai"
 	"epistemic-me-core/svc/models"
+	"errors"
 )
 
 type PerspectiveTakingEpistemology struct {
@@ -66,7 +67,49 @@ func (de *PerspectiveTakingEpistemology) Process(event *models.PerspectiveTaking
 		}
 	}
 
-	// todo: @deen add epistemic contexts for new beleifs to the beleif system and persist
-
 	return bs, nil
+}
+
+func (pte *PerspectiveTakingEpistemology) Respond(bs *models.BeliefSystem, request models.EpistemicRequest) (perspective *string, error error) {
+
+	content := request.Content
+
+	question, ok := content["question"].(string)
+	if !ok {
+		return nil, errors.New("Error: no question provided")
+	}
+
+	answer, ok := content["answer"].(string)
+	if !ok {
+		return nil, errors.New("Error: no answer provided")
+	}
+
+	listBeliefsResponse, err := pte.bsvc.ListBeliefs(&models.ListBeliefsInput{
+		SelfModelID: request.SelfModelID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	beliefs := listBeliefsResponse.BeliefSystem.Beliefs
+	if err != nil {
+		return nil, err
+	}
+
+	beliefStrings := make([]string, 0)
+	for _, belief := range beliefs {
+		beliefStrings = append(beliefStrings, belief.Content[0].RawStr)
+	}
+
+	beliefSystem, err := pte.ai.GenerateBeliefSystem(beliefStrings)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := pte.ai.ProvidePerspectiveOnQuestionAndAnswer(question, answer, beliefSystem)
+	if err != nil {
+		return nil, err
+	}
+
+	return &response, err
 }

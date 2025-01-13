@@ -13,18 +13,21 @@ import (
 )
 
 type DialecticService struct {
-	kvStore *db.KeyValueStore
-	aih     *ai.AIHelper
-	// deen: todo refactor to use epistemology interface
-	epistemology *DialecticalEpistemology
+	kvStore                 *db.KeyValueStore
+	aih                     *ai.AIHelper
+	perspectiveTakingEpiSvc *PerspectiveTakingEpistemology
+	dialecticEpiSvc         *DialecticalEpistemology
 }
 
 // NewDialecticService initializes and returns a new DialecticService.
-func NewDialecticService(kvStore *db.KeyValueStore, aih *ai.AIHelper, epistemology *DialecticalEpistemology) *DialecticService {
+func NewDialecticService(kvStore *db.KeyValueStore, aih *ai.AIHelper,
+	perspectiveTakingEpiSvc *PerspectiveTakingEpistemology,
+	dialecticEpistemologySvc *DialecticalEpistemology) *DialecticService {
 	return &DialecticService{
-		kvStore:      kvStore,
-		aih:          aih,
-		epistemology: epistemology,
+		kvStore:                 kvStore,
+		aih:                     aih,
+		perspectiveTakingEpiSvc: perspectiveTakingEpiSvc,
+		dialecticEpiSvc:         dialecticEpistemologySvc,
 	}
 }
 
@@ -65,7 +68,7 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 	}
 
 	// Generate the first interaction
-	response, err := dsvc.epistemology.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
+	response, err := dsvc.dialecticEpiSvc.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
 		PreviousInteractions: dialectic.UserInteractions,
 	})
 	if err != nil {
@@ -156,15 +159,40 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 	// Handle answer blob (from user)
 	if input.AnswerBlob != "" {
 
-		bs, err := dsvc.epistemology.Process(&models.DialecticEvent{
+		bs, err := dsvc.dialecticEpiSvc.Process(&models.DialecticEvent{
 			PreviousInteractions: dialectic.UserInteractions,
 		}, input.DryRun, input.SelfModelID)
 		if err != nil {
 			return nil, err
 		}
 
+		lastInteraction := dialectic.UserInteractions[len(dialectic.UserInteractions)-1]
+
+		// For all perspectives we've attached to the dialectic, provide perpesctives on the latests
+		// dialectic interaction
+		if dialectic.PerspectiveSelves != nil {
+			for _, perspectiveSelf := range dialectic.PerspectiveSelves {
+				perspective, err := dsvc.perspectiveTakingEpiSvc.Respond(bs, models.EpistemicRequest{
+					SelfModelID: perspectiveSelf,
+					Content: map[string]interface{}{
+						"question": lastInteraction.Question.Question,
+						"answer":   lastInteraction.UserAnswer.UserAnswer,
+					},
+				})
+
+				if err != nil {
+					return nil, err
+				}
+
+				lastInteraction.Perspectives = append(lastInteraction.Perspectives, models.Perspective{
+					SelfModelId: perspectiveSelf,
+					Response:    *perspective,
+				})
+			}
+		}
+
 		// Generate the first interaction
-		response, err := dsvc.epistemology.Respond(bs, &models.DialecticEvent{
+		response, err := dsvc.dialecticEpiSvc.Respond(bs, &models.DialecticEvent{
 			PreviousInteractions: dialectic.UserInteractions,
 		})
 		if err != nil {
