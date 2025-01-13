@@ -209,6 +209,12 @@ type DialecticalInteraction struct {
 	Prediction         *Prediction                  `json:"prediction_context"`
 	UpdatedAtMillisUTC int64                        `json:"updated_at_millis_utc"`
 	Interaction        interface{}                  `json:"interaction,omitempty"`
+	Perspectives       []Perspective                `json:"perspectives"`
+}
+
+type Perspective struct {
+	Response    string `json:"response"`
+	SelfModelId string `json:"self_model_id"`
 }
 
 type QuestionAnswerInteraction struct {
@@ -296,12 +302,13 @@ func (ba BeliefAnalysis) ToProto() *pbmodels.BeliefAnalysis {
 
 // Dialectic represents a session to determine and clarify a user's beliefs.
 type Dialectic struct {
-	ID               string                   `json:"id"`
-	SelfModelID      string                   `json:"self_model_id"`
-	Agent            Agent                    `json:"agent"`
-	UserInteractions []DialecticalInteraction `json:"user_interactions"`
-	BeliefSystem     *BeliefSystem            `json:"belief_system"`
-	Analysis         *BeliefAnalysis          `json:"analysis,omitempty"`
+	ID                string                   `json:"id"`
+	SelfModelID       string                   `json:"self_model_id"`
+	Agent             Agent                    `json:"agent"`
+	UserInteractions  []DialecticalInteraction `json:"user_interactions"`
+	BeliefSystem      *BeliefSystem            `json:"belief_system"`
+	Analysis          *BeliefAnalysis          `json:"analysis,omitempty"`
+	PerspectiveSelves []string                 `json:"perspective_selves,omitempty"`
 }
 
 func (d *Dialectic) MarshalBinary() ([]byte, error) {

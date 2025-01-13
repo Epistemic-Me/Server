@@ -274,6 +274,118 @@ Please return a JSON object like this:
 	return parsedResponse.KeptBeliefIDs, parsedResponse.DeletedBeliefIDs, nil
 }
 
+func (aih *AIHelper) DetermineBeliefValidity(oldBeliefs []*models.Belief, newBeliefs []*models.Belief) ([]string, []string, error) {
+	// STEP 1: Prepare the system instruction.
+	// We now request two arrays of IDs—kept vs. deleted—in a clearly specified JSON structure.
+	systemInstruction := `
+You are given two lists:
+1. Old beliefs (each with an ID and content).
+2. New beliefs.
+
+Task: Determine which old beliefs are invalidated by the new beliefs and which remain valid.
+
+Return a JSON object with two arrays of belief IDs:
+{
+  "kept_belief_ids": ["...","..."],
+  "deleted_belief_ids": ["...","..."]
+}
+
+Important:
+ - "kept_belief_ids" should be the IDs of old beliefs that remain valid.
+ - "deleted_belief_ids" should be the IDs of old beliefs that are no longer valid.
+ - Do NOT include the new beliefs in the returned IDs.
+`
+
+	// STEP 2: Marshal both old and new beliefs for the AI.
+	oldBeliefsJSON, err := json.Marshal(oldBeliefs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal oldBeliefs: %w", err)
+	}
+
+	newBeliefsJSON, err := json.Marshal(newBeliefs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal newBeliefs: %w", err)
+	}
+
+	// STEP 3: Prompt: Provide old and new beliefs, request two ID lists.
+	prompt := fmt.Sprintf(`
+Old Beliefs (JSON):
+%s
+
+New Beliefs (JSON):
+%s
+
+Please return a JSON object like this:
+{
+  "kept_belief_ids": ["...","..."],
+  "deleted_belief_ids": ["...","..."]
+}
+`, string(oldBeliefsJSON), string(newBeliefsJSON))
+
+	// STEP 4: Call OpenAI
+	response, err := aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Model: string(GPT_LATEST),
+		Messages: []openai.ChatCompletionMessage{
+			{Role: "system", Content: systemInstruction},
+			{Role: "user", Content: prompt},
+		},
+	})
+	if err != nil {
+		log.Printf("Error from AI: %v", err)
+		return nil, nil, err
+	}
+
+	// STEP 5: Extract the raw text returned by ChatGPT.
+	aiContent := response.Choices[0].Message.Content
+	log.Printf("AI response: %s", aiContent)
+
+	// STEP 6: Unmarshal the JSON that ChatGPT returns.
+	var parsedResponse struct {
+		KeptBeliefIDs    []string `json:"kept_belief_ids"`
+		DeletedBeliefIDs []string `json:"deleted_belief_ids"`
+	}
+	if err := json.Unmarshal([]byte(aiContent), &parsedResponse); err != nil {
+		return nil, nil, fmt.Errorf("failed to parse JSON from AI: %w", err)
+	}
+
+	// Return the two lists: kept and deleted.
+	return parsedResponse.KeptBeliefIDs, parsedResponse.DeletedBeliefIDs, nil
+}
+
+// ProvidePerspectiveOnQuestionAndAnswer calls the OpenAI API to generate
+// a perspective on how a specified belief system would interpret the
+// question and the provided answer.
+func (aih *AIHelper) ProvidePerspectiveOnQuestionAndAnswer(
+	question, answer, beliefSystem string,
+) (string, error) {
+
+	// Create a prompt that asks for a concise perspective from the specified belief system
+	perspectivePrompt := fmt.Sprintf(
+		"From the perspective of the belief system '%s', how would this belief system interpret the question '%s' and the answer '%s'? Provide a concise viewpoint.",
+		beliefSystem, question, answer,
+	)
+
+	// Make a single API call to retrieve the perspective
+	perspectiveResponse, err := aih.client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Model: string(GPT_LATEST),
+		Messages: []openai.ChatCompletionMessage{
+			{
+				Role:    openai.ChatMessageRoleSystem,
+				Content: "Provide a concise perspective on how the specified belief system would interpret the given question and answer.",
+			},
+			{
+				Role:    openai.ChatMessageRoleUser,
+				Content: perspectivePrompt,
+			},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return perspectiveResponse.Choices[0].Message.Content, nil
+}
+
 func (aih *AIHelper) UpdateBeliefWithInteractionEvent(event InteractionEvent, existingBeliefStr string) (bool, string, error) {
 	eventJson, err := json.Marshal(event)
 	if err != nil {
