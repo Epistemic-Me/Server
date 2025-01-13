@@ -67,7 +67,7 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 	// Generate the first interaction
 	response, err := dsvc.epistemology.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
 		PreviousInteractions: dialectic.UserInteractions,
-	})
+	}, "")
 	if err != nil {
 		return nil, err
 	}
@@ -109,6 +109,33 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		return nil, err
 	}
 	log.Printf("Retrieved dialectic with %d interactions", len(dialectic.UserInteractions))
+
+	if input.Answer.UserAnswer != "" {
+		print("Interaction Count:", len(dialectic.UserInteractions))
+
+		bs, err := dsvc.epistemology.Process(&models.DialecticEvent{
+			PreviousInteractions: dialectic.UserInteractions,
+		}, input.DryRun, input.SelfModelID)
+		if err != nil {
+			return nil, err
+		}
+
+		print("Interaction Count:", len(dialectic.UserInteractions))
+
+		// Generate the first interaction
+		response, err := dsvc.epistemology.Respond(bs, &models.DialecticEvent{
+			PreviousInteractions: dialectic.UserInteractions,
+		}, input.Answer.UserAnswer)
+		if err != nil {
+			return nil, err
+		}
+
+		print("Interaction Count:", len(dialectic.UserInteractions))
+
+		newInteraction := response.NewInteraction
+
+		dialectic.UserInteractions = append(dialectic.UserInteractions, *newInteraction)
+	}
 
 	// Handle question blob (from assistant)
 	if input.QuestionBlob != "" {
@@ -166,7 +193,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		// Generate the first interaction
 		response, err := dsvc.epistemology.Respond(bs, &models.DialecticEvent{
 			PreviousInteractions: dialectic.UserInteractions,
-		})
+		}, "")
 		if err != nil {
 			return nil, err
 		}

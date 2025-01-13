@@ -30,6 +30,9 @@ func (de *DialecticalEpistemology) Process(event *models.DialecticEvent, dryRun 
 	var updatedBeliefs []models.Belief
 
 	answeredInteraction, err := getAnsweredInteraction(event.PreviousInteractions)
+	if answeredInteraction == nil {
+		return &models.BeliefSystem{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -120,54 +123,60 @@ func (de *DialecticalEpistemology) Process(event *models.DialecticEvent, dryRun 
 	return beliefSystem, nil
 }
 
-func (de *DialecticalEpistemology) Respond(bs *models.BeliefSystem, event *models.DialecticEvent) (*models.DialecticResponse, error) {
+func (de *DialecticalEpistemology) Respond(bs *models.BeliefSystem, event *models.DialecticEvent, answer string) (*models.DialecticResponse, error) {
+	var response *models.DialecticResponse
+	var err error
 
 	var customQuestion *string
-	pendingInteraction, err := getPendingInteraction(event.PreviousInteractions)
-	if err != nil {
-		return nil, err
+	pendingInteraction, i := getPendingInteraction(event.PreviousInteractions)
+
+	if pendingInteraction != nil && answer != "" {
+		pendingInteraction.UserAnswer.UserAnswer = answer
+		pendingInteraction.Status = models.StatusAnswered
+		// remove and update the interaction at the correct index
+		event.PreviousInteractions = append(event.PreviousInteractions[:i], event.PreviousInteractions[i+1:]...)
+		event.PreviousInteractions = append(event.PreviousInteractions, *pendingInteraction)
 	}
 
-	if pendingInteraction != nil {
-		customQuestion = &pendingInteraction.Question.Question
+	nextInteraction, interactionErr := de.generatePendingDialecticalInteraction(event.PreviousInteractions, bs, customQuestion)
+	if interactionErr != nil {
+		err = interactionErr
+	} else {
+		response = &models.DialecticResponse{
+			SelfModelID:          event.SelfModelID,
+			PreviousInteractions: event.PreviousInteractions,
+			NewInteraction:       nextInteraction,
+		}
 	}
 
-	nextInteraction, err := de.generatePendingDialecticalInteraction(event.PreviousInteractions, bs, customQuestion)
-	if err != nil {
-		return nil, err
-	}
-
-	return &models.DialecticResponse{
-		NewInteraction: nextInteraction,
-	}, nil
+	return response, err
 }
 
-func getPendingInteraction(UserInteractions []models.DialecticalInteraction) (*models.DialecticalInteraction, error) {
-	// Get the latest interaction
+func getPendingInteraction(UserInteractions []models.DialecticalInteraction) (*models.DialecticalInteraction, int) {
 	if len(UserInteractions) == 0 {
 		log.Printf("No interactions found in the dialectic")
-		return nil, fmt.Errorf("no interactions found in the dialectic")
+		return nil, -1
 	}
-	latestInteraction := UserInteractions[len(UserInteractions)-1]
-	// Check if the latest interaction is pending
+	i := len(UserInteractions) - 1
+	latestInteraction := UserInteractions[i]
 	if latestInteraction.Status != models.StatusPendingAnswer {
 		log.Printf("Latest interaction is not pending")
-		return nil, fmt.Errorf("latest interaction is not pending")
+		return nil, -1
 	}
-	return &latestInteraction, nil
+	return &latestInteraction, i
 }
 
 func getAnsweredInteraction(UserInteractions []models.DialecticalInteraction) (*models.DialecticalInteraction, error) {
 	// Get the latest interaction
 	if len(UserInteractions) == 0 {
 		log.Printf("No interactions found in the dialectic")
-		return nil, fmt.Errorf("no interactions found in the dialectic")
+		return nil, nil
 	}
 	latestInteraction := UserInteractions[len(UserInteractions)-1]
 	// Check if the latest interaction is pending
 	if latestInteraction.Status != models.StatusAnswered {
-		log.Printf("Latest interaction is not pending")
-		return nil, fmt.Errorf("latest interaction is not pending")
+		log.Printf("Latest interaction is not answered")
+		return nil, fmt.Errorf("latest interaction is not answered")
 	}
 	return &latestInteraction, nil
 }
