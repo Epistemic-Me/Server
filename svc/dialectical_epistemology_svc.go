@@ -7,6 +7,8 @@ import (
 	"log"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 	// Make sure to import your models package
 )
 
@@ -130,12 +132,14 @@ func (de *DialecticalEpistemology) Respond(bs *models.BeliefSystem, event *model
 	var customQuestion *string
 	pendingInteraction, i := getPendingInteraction(event.PreviousInteractions)
 
-	if pendingInteraction != nil && answer != "" {
-		pendingInteraction.UserAnswer.UserAnswer = answer
-		pendingInteraction.Status = models.StatusAnswered
-		// remove and update the interaction at the correct index
-		event.PreviousInteractions = append(event.PreviousInteractions[:i], event.PreviousInteractions[i+1:]...)
-		event.PreviousInteractions = append(event.PreviousInteractions, *pendingInteraction)
+	if pendingInteraction != nil && pendingInteraction.Interaction != nil {
+		if qa := pendingInteraction.Interaction.QuestionAnswer; qa != nil {
+			qa.Answer.UserAnswer = answer
+			pendingInteraction.Status = models.StatusAnswered
+			// remove and update the interaction at the correct index
+			event.PreviousInteractions = append(event.PreviousInteractions[:i], event.PreviousInteractions[i+1:]...)
+			event.PreviousInteractions = append(event.PreviousInteractions, *pendingInteraction)
+		}
 	}
 
 	nextInteraction, interactionErr := de.generatePendingDialecticalInteraction(event.PreviousInteractions, bs, customQuestion)
@@ -187,9 +191,13 @@ func getDialecticalInteractionAsEvent(interaction models.DialecticalInteraction)
 		log.Printf("Interaction is not answered yet")
 		return nil, fmt.Errorf("interaction is not answered yet")
 	}
+	qa := interaction.Interaction.QuestionAnswer
+	if qa == nil {
+		return nil, fmt.Errorf("interaction is not a QuestionAnswer type")
+	}
 	return &ai.InteractionEvent{
-		Question: interaction.Question.Question,
-		Answer:   interaction.UserAnswer.UserAnswer,
+		Question: qa.Question.Question,
+		Answer:   qa.Answer.UserAnswer,
 	}, nil
 }
 
@@ -225,20 +233,20 @@ func (de *DialecticalEpistemology) generatePendingDialecticalInteraction(previou
 	}
 
 	// Create the interaction with QuestionAnswer initialized
-	interaction := &models.DialecticalInteraction{
+	newInteraction := &models.DialecticalInteraction{
+		ID:     uuid.New().String(),
 		Status: models.StatusPendingAnswer,
 		Type:   models.InteractionTypeQuestionAnswer,
-		Question: models.Question{
-			Question:           question,
-			CreatedAtMillisUTC: time.Now().UnixMilli(),
-		},
-		Interaction: &models.QuestionAnswerInteraction{
-			Question: models.Question{
-				Question:           question,
-				CreatedAtMillisUTC: time.Now().UnixMilli(),
+		Interaction: &models.InteractionData{
+			QuestionAnswer: &models.QuestionAnswerInteraction{
+				Question: models.Question{
+					Question:           question,
+					CreatedAtMillisUTC: time.Now().UnixMilli(),
+				},
 			},
 		},
+		UpdatedAtMillisUTC: time.Now().UnixMilli(),
 	}
 
-	return interaction, nil
+	return newInteraction, nil
 }

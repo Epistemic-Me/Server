@@ -111,8 +111,6 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 	log.Printf("Retrieved dialectic with %d interactions", len(dialectic.UserInteractions))
 
 	if input.Answer.UserAnswer != "" {
-		print("Interaction Count:", len(dialectic.UserInteractions))
-
 		bs, err := dsvc.epistemology.Process(&models.DialecticEvent{
 			PreviousInteractions: dialectic.UserInteractions,
 		}, input.DryRun, input.SelfModelID)
@@ -120,9 +118,44 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 			return nil, err
 		}
 
-		print("Interaction Count:", len(dialectic.UserInteractions))
+		// Extract belief from the answer
+		interactionEvent := ai.InteractionEvent{
+			Question: getQuestion(&dialectic.UserInteractions[len(dialectic.UserInteractions)-1]),
+			Answer:   input.Answer.UserAnswer,
+		}
 
-		// Generate the first interaction
+		extractedBeliefStr, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract belief: %w", err)
+		}
+
+		extractedBelief := &models.Belief{
+			ID:      uuid.New().String(),
+			Content: []models.Content{{RawStr: extractedBeliefStr}},
+			Type:    models.Statement,
+		}
+
+		// Update the last interaction with the answer and extracted belief
+		lastIdx := len(dialectic.UserInteractions) - 1
+		oldQA := getQuestionAnswer(dialectic.UserInteractions[lastIdx].Interaction)
+		qa := &models.QuestionAnswerInteraction{
+			Question: oldQA.Question,
+			Answer: models.UserAnswer{
+				UserAnswer:         input.Answer.UserAnswer,
+				CreatedAtMillisUTC: time.Now().UnixMilli(),
+			},
+			ExtractedBeliefs:   []*models.Belief{extractedBelief},
+			UpdatedAtMillisUTC: time.Now().UnixMilli(),
+		}
+
+		dialectic.UserInteractions[lastIdx].Status = models.StatusAnswered
+		dialectic.UserInteractions[lastIdx].Type = models.InteractionTypeQuestionAnswer
+		dialectic.UserInteractions[lastIdx].Interaction = &models.InteractionData{
+			QuestionAnswer: qa,
+		}
+		dialectic.UserInteractions[lastIdx].UpdatedAtMillisUTC = time.Now().UnixMilli()
+
+		// Generate the next interaction
 		response, err := dsvc.epistemology.Respond(bs, &models.DialecticEvent{
 			PreviousInteractions: dialectic.UserInteractions,
 		}, input.Answer.UserAnswer)
@@ -130,11 +163,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 			return nil, err
 		}
 
-		print("Interaction Count:", len(dialectic.UserInteractions))
-
-		newInteraction := response.NewInteraction
-
-		dialectic.UserInteractions = append(dialectic.UserInteractions, *newInteraction)
+		dialectic.UserInteractions = append(dialectic.UserInteractions, *response.NewInteraction)
 	}
 
 	// Handle question blob (from assistant)
@@ -153,28 +182,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 				continue
 			}
 
-			interaction := models.DialecticalInteraction{
-				ID:     uuid.New().String(),
-				Status: models.StatusPendingAnswer,
-				Type:   models.InteractionTypeQuestionAnswer,
-				Question: models.Question{
-					Question:           q,
-					CreatedAtMillisUTC: time.Now().UnixMilli(),
-				},
-				Interaction: &models.QuestionAnswerInteraction{
-					Question: models.Question{
-						Question:           q,
-						CreatedAtMillisUTC: time.Now().UnixMilli(),
-					},
-				},
-			}
-
-			// Add predicted observation
-			predictedObs, err := dsvc.generatePredictedObservation(&interaction)
-			if err != nil {
-				return nil, fmt.Errorf("failed to generate predicted observation: %w", err)
-			}
-			interaction.Prediction = predictedObs
+			interaction := createNewQuestionInteraction(q)
 
 			dialectic.UserInteractions = append(dialectic.UserInteractions, interaction)
 		}
@@ -218,9 +226,35 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 func getPendingQuestions(interactions []models.DialecticalInteraction, indices []int) []string {
 	questions := make([]string, len(indices))
 	for i, idx := range indices {
-		questions[i] = interactions[idx].Question.Question
+		if qa := getQuestionAnswer(interactions[idx].Interaction); qa != nil {
+			questions[i] = qa.Question.Question
+		}
 	}
 	return questions
+}
+
+// Helper functions to access interaction data
+func getQuestionAnswer(interaction *models.InteractionData) *models.QuestionAnswerInteraction {
+	if interaction != nil {
+		return interaction.QuestionAnswer
+	}
+	return nil
+}
+
+// Helper to get the question from an interaction
+func getQuestion(interaction *models.DialecticalInteraction) string {
+	if qa := getQuestionAnswer(interaction.Interaction); qa != nil {
+		return qa.Question.Question
+	}
+	return ""
+}
+
+// Helper to get the answer from an interaction
+func getAnswer(interaction *models.DialecticalInteraction) string {
+	if qa := getQuestionAnswer(interaction.Interaction); qa != nil {
+		return qa.Answer.UserAnswer
+	}
+	return ""
 }
 
 func determineDialecticStrategy(dialecticType models.DialecticType) ai.DialecticStrategy {
@@ -262,18 +296,19 @@ func (dsvc *DialecticService) PreprocessDialectic(answerBlob *string, dialectic 
 			idx := pendingIndices[questionIdx]
 
 			// Validate the existing question is not empty
-			if dialectic.UserInteractions[idx].Question.Question == "" {
+			if qa := getQuestionAnswer(dialectic.UserInteractions[idx].Interaction); qa != nil && qa.Question.Question == "" {
 				log.Printf("Skipping interaction with empty question at index %d", idx)
 				continue
 			}
 
 			// Create the QuestionAnswer interaction
 			qa := &models.QuestionAnswerInteraction{
-				Question: dialectic.UserInteractions[idx].Question,
+				Question: getQuestionAnswer(dialectic.UserInteractions[idx].Interaction).Question,
 				Answer: models.UserAnswer{
 					UserAnswer:         answer,
 					CreatedAtMillisUTC: time.Now().UnixMilli(),
 				},
+				ExtractedBeliefs: []*models.Belief{},
 			}
 
 			// Double-check both question and answer
@@ -305,30 +340,15 @@ func (dsvc *DialecticService) PreprocessDialectic(answerBlob *string, dialectic 
 
 			log.Printf("Extracted belief: %+v", extractedBelief)
 
-			qa.ExtractedBeliefs = append(qa.ExtractedBeliefs, extractedBelief)
-			log.Printf("QuestionAnswer interaction after adding belief: %+v", qa)
-
-			dialectic.UserInteractions[idx].Type = models.InteractionTypeQuestionAnswer
-			dialectic.UserInteractions[idx].Interaction = qa
-			dialectic.UserInteractions[idx].Status = models.StatusAnswered
-
-			// Create action and observation
-			action := &models.Action{
-				ID:                     uuid.New().String(),
-				Type:                   models.ActionTypeAnswerQuestion,
-				DialecticInteractionID: dialectic.UserInteractions[idx].ID,
-				Timestamp:              time.Now().UnixMilli(),
-			}
-
-			observation, err := dsvc.ExecuteAction(action, &dialectic.UserInteractions[idx])
-			if err != nil {
-				return fmt.Errorf("failed to execute action: %w", err)
+			if extractedBelief != nil {
+				qa.ExtractedBeliefs = append(qa.ExtractedBeliefs, extractedBelief)
+				log.Printf("Added extracted belief to QuestionAnswer: %+v", extractedBelief)
 			}
 
 			// Update the interaction
-			dialectic.UserInteractions[idx].Prediction = &models.Prediction{
-				Action:      action,
-				Observation: observation,
+			dialectic.UserInteractions[idx].Type = models.InteractionTypeQuestionAnswer
+			dialectic.UserInteractions[idx].Interaction = &models.InteractionData{
+				QuestionAnswer: qa,
 			}
 
 			log.Printf("Created QuestionAnswer interaction with Question: %q, Answer: %q", qa.Question.Question, qa.Answer.UserAnswer)
@@ -358,7 +378,7 @@ func (dsvc *DialecticService) ExecuteAction(action *models.Action, interaction *
 		resource = &models.Resource{
 			ID:       uuid.New().String(),
 			Type:     models.ResourceTypeChatLog,
-			Content:  interaction.UserAnswer.UserAnswer,
+			Content:  getQuestion(interaction),
 			SourceID: interaction.ID,
 			ActionID: action.ID,
 			Metadata: map[string]string{"interaction_type": "survey"},
@@ -367,7 +387,7 @@ func (dsvc *DialecticService) ExecuteAction(action *models.Action, interaction *
 		resource = &models.Resource{
 			ID:       uuid.New().String(),
 			Type:     models.ResourceTypeScientificPaper,
-			Content:  interaction.Question.Question,
+			Content:  getQuestion(interaction),
 			SourceID: interaction.ID,
 			ActionID: action.ID,
 			Metadata: map[string]string{"interaction_type": "evidence"},
@@ -376,7 +396,7 @@ func (dsvc *DialecticService) ExecuteAction(action *models.Action, interaction *
 		resource = &models.Resource{
 			ID:       uuid.New().String(),
 			Type:     models.ResourceTypeMeasurementData,
-			Content:  interaction.Question.Question,
+			Content:  getQuestion(interaction),
 			SourceID: interaction.ID,
 			ActionID: action.ID,
 			Metadata: map[string]string{"interaction_type": "outcome"},
@@ -420,7 +440,7 @@ func (dsvc *DialecticService) generatePredictedObservation(interaction *models.D
 		return nil, fmt.Errorf("interaction cannot be nil")
 	}
 
-	predictedAnswer, err := dsvc.aih.PredictAnswer(interaction.Question.Question)
+	predictedAnswer, err := dsvc.aih.PredictAnswer(getQuestion(interaction))
 	if err != nil {
 		return nil, fmt.Errorf("failed to predict answer: %w", err)
 	}
@@ -445,13 +465,6 @@ func (dsvc *DialecticService) handleQuestionAnswerInteraction(interaction *model
 		return nil, fmt.Errorf("selfModelID cannot be empty")
 	}
 
-	predictedObs, err := dsvc.generatePredictedObservation(interaction)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate predicted observation: %w", err)
-	}
-
-	interaction.Prediction = predictedObs
-
 	action := &models.Action{
 		ID:                     uuid.New().String(),
 		Type:                   models.ActionTypeAnswerQuestion,
@@ -470,4 +483,22 @@ func (dsvc *DialecticService) handleQuestionAnswerInteraction(interaction *model
 func (dsvc *DialecticService) MatchAnswerToQuestion(question, potentialAnswer string) (bool, error) {
 	// Use AI helper to determine if the answer matches the question
 	return dsvc.aih.IsAnswerToQuestion(question, potentialAnswer)
+}
+
+// Update where we create new question interactions
+func createNewQuestionInteraction(question string) models.DialecticalInteraction {
+	return models.DialecticalInteraction{
+		ID:     uuid.New().String(),
+		Status: models.StatusPendingAnswer,
+		Type:   models.InteractionTypeQuestionAnswer,
+		Interaction: &models.InteractionData{
+			QuestionAnswer: &models.QuestionAnswerInteraction{
+				Question: models.Question{
+					Question:           question,
+					CreatedAtMillisUTC: time.Now().UnixMilli(),
+				},
+			},
+		},
+		UpdatedAtMillisUTC: time.Now().UnixMilli(),
+	}
 }
