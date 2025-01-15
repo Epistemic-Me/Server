@@ -3,7 +3,6 @@ package models
 import (
 	"encoding/json"
 	pbmodels "epistemic-me-core/pb/models"
-	"log"
 )
 
 // Question represents a request for information from a user.
@@ -191,59 +190,49 @@ func (s State) ToProto() *pbmodels.State {
 	}
 }
 
-func statesToProto(states []State) []*pbmodels.State {
-	result := make([]*pbmodels.State, len(states))
-	for i, s := range states {
-		result[i] = s.ToProto()
-	}
-	return result
+// InteractionData represents the data for a dialectical interaction.
+type InteractionData struct {
+	QuestionAnswer     *QuestionAnswerInteraction     `json:"questionAnswer,omitempty"`
+	HypothesisEvidence *HypothesisEvidenceInteraction `json:"hypothesisEvidence,omitempty"`
+	ActionOutcome      *ActionOutcomeInteraction      `json:"actionOutcome,omitempty"`
 }
 
-// Update DialecticalInteraction struct
+// DialecticalInteraction represents a single interaction in the dialectic process
 type DialecticalInteraction struct {
 	ID                 string                       `json:"id"`
 	Status             DialecticalInteractionStatus `json:"status"`
 	Type               InteractionType              `json:"type"`
-	Question           Question                     `json:"question"`
-	UserAnswer         UserAnswer                   `json:"user_answer"`
-	Prediction         *Prediction                  `json:"prediction_context"`
-	UpdatedAtMillisUTC int64                        `json:"updated_at_millis_utc"`
-	Interaction        interface{}                  `json:"interaction,omitempty"`
+	Interaction        *InteractionData             `json:"interaction,omitempty"`
+	UpdatedAtMillisUTC int64                        `json:"updatedAtMillisUtc"`
 }
 
+// QuestionAnswerInteraction represents a Q&A interaction for belief extraction
 type QuestionAnswerInteraction struct {
-	Question         Question   `json:"question"`
-	Answer           UserAnswer `json:"answer"`
-	ExtractedBeliefs []*Belief  `json:"extracted_beliefs,omitempty"`
+	Question           Question       `json:"question"`
+	Answer             UserAnswer     `json:"answer"`
+	ExtractedBeliefs   []*Belief      `json:"extractedBeliefs,omitempty"`
+	UpdatedAtMillisUTC int64          `json:"updatedAtMillisUtc"`
+	Perspectives       []*Perspective `json:"perspectives,omitempty"`
 }
 
-func (qa *QuestionAnswerInteraction) ToProto() *pbmodels.QuestionAnswerInteraction {
-	if qa == nil {
-		return nil
-	}
+// HypothesisEvidenceInteraction represents an interaction for testing beliefs
+type HypothesisEvidenceInteraction struct {
+	Hypothesis         string    `json:"hypothesis"`
+	Evidence           string    `json:"evidence"`
+	IsCounterfactual   bool      `json:"isCounterfactual"`
+	UpdatedBeliefs     []*Belief `json:"updatedBeliefs,omitempty"`
+	UpdatedAtMillisUTC int64     `json:"updatedAtMillisUtc"`
+}
 
-	// Convert extracted beliefs to proto
-	extractedBeliefs := make([]*pbmodels.Belief, len(qa.ExtractedBeliefs))
-	for i, belief := range qa.ExtractedBeliefs {
-		extractedBeliefs[i] = belief.ToProto()
-	}
-
-	return &pbmodels.QuestionAnswerInteraction{
-		Question:         qa.Question.ToProto(),
-		Answer:           qa.Answer.ToProto(),
-		ExtractedBeliefs: extractedBeliefs,
-	}
+// ActionOutcomeInteraction represents an interaction for testing causal beliefs
+type ActionOutcomeInteraction struct {
+	Action             string    `json:"action"`
+	Outcome            string    `json:"outcome"`
+	UpdatedBeliefs     []*Belief `json:"updatedBeliefs,omitempty"`
+	UpdatedAtMillisUTC int64     `json:"updatedAtMillisUtc"`
 }
 
 func (di DialecticalInteraction) ToProto() *pbmodels.DialecticalInteraction {
-	log.Printf("Converting DialecticalInteraction to proto. Interaction type: %T", di.Interaction)
-	if qa, ok := di.Interaction.(*QuestionAnswerInteraction); ok {
-		log.Printf("QuestionAnswer interaction has %d beliefs before proto conversion", len(qa.ExtractedBeliefs))
-		for i, belief := range qa.ExtractedBeliefs {
-			log.Printf("Belief %d: %+v", i, belief)
-		}
-	}
-
 	proto := &pbmodels.DialecticalInteraction{
 		Status:             pbmodels.STATUS(di.Status),
 		Type:               pbmodels.InteractionType(di.Type),
@@ -251,24 +240,71 @@ func (di DialecticalInteraction) ToProto() *pbmodels.DialecticalInteraction {
 		UpdatedAtMillisUtc: di.UpdatedAtMillisUTC,
 	}
 
-	proto.PredictionContext = &pbmodels.PredictionContext{
-		// deen: @todo
-	}
-
 	if di.Interaction != nil {
-		switch v := di.Interaction.(type) {
-		case *QuestionAnswerInteraction:
-			protoQA := v.ToProto()
-			log.Printf("QuestionAnswer interaction has %d beliefs after proto conversion", len(protoQA.ExtractedBeliefs))
-			proto.Interaction = &pbmodels.DialecticalInteraction_QuestionAnswer{
-				QuestionAnswer: protoQA,
-			}
-		default:
-			log.Printf("Unknown interaction type: %T", v)
+		proto.Interaction = &pbmodels.InteractionData{
+			Type: &pbmodels.InteractionData_QuestionAnswer{
+				QuestionAnswer: di.Interaction.QuestionAnswer.ToProto(),
+			},
 		}
 	}
 
 	return proto
+}
+
+// Add ToProto methods for each interaction type
+func (qa *QuestionAnswerInteraction) ToProto() *pbmodels.QuestionAnswerInteraction {
+	if qa == nil {
+		return nil
+	}
+	return &pbmodels.QuestionAnswerInteraction{
+		Question:           qa.Question.ToProto(),
+		Answer:             qa.Answer.ToProto(),
+		ExtractedBeliefs:   beliefSliceToProto(qa.ExtractedBeliefs),
+		UpdatedAtMillisUtc: qa.UpdatedAtMillisUTC,
+		Perspectives:       perspectiveSliceToProto(qa.Perspectives),
+	}
+}
+
+func (he *HypothesisEvidenceInteraction) ToProto() *pbmodels.HypothesisEvidenceInteraction {
+	if he == nil {
+		return nil
+	}
+	return &pbmodels.HypothesisEvidenceInteraction{
+		Hypothesis:         he.Hypothesis,
+		Evidence:           he.Evidence,
+		IsCounterfactual:   he.IsCounterfactual,
+		UpdatedBeliefs:     beliefSliceToProto(he.UpdatedBeliefs),
+		UpdatedAtMillisUtc: he.UpdatedAtMillisUTC,
+	}
+}
+
+func (ao *ActionOutcomeInteraction) ToProto() *pbmodels.ActionOutcomeInteraction {
+	if ao == nil {
+		return nil
+	}
+	return &pbmodels.ActionOutcomeInteraction{
+		Action:             ao.Action,
+		Outcome:            ao.Outcome,
+		UpdatedBeliefs:     beliefSliceToProto(ao.UpdatedBeliefs),
+		UpdatedAtMillisUtc: ao.UpdatedAtMillisUTC,
+	}
+}
+
+// Helper functions for converting slices
+func beliefSliceToProto(beliefs []*Belief) []*pbmodels.Belief {
+	result := make([]*pbmodels.Belief, len(beliefs))
+	for i, b := range beliefs {
+		result[i] = b.ToProto()
+	}
+	return result
+}
+
+func perspectiveSliceToProto(perspectives []*Perspective) []*pbmodels.Perspective {
+	result := make([]*pbmodels.Perspective, len(perspectives))
+	for i, p := range perspectives {
+		result[i] = p.ToProto()
+	}
+	return result
 }
 
 // BeliefAnalysis represents the analysis of a belief system.
@@ -336,42 +372,25 @@ func (d *Dialectic) ToProto() *pbmodels.Dialectic {
 	return protoDialectic
 }
 
-// Add custom JSON marshaling/unmarshaling for DialecticalInteraction
-type InteractionJSON struct {
-	Type string          `json:"type"`
-	Data json.RawMessage `json:"data"`
-}
-
+// Update the MarshalJSON method to use "interaction" consistently
 func (di *DialecticalInteraction) MarshalJSON() ([]byte, error) {
 	type Alias DialecticalInteraction
 	aux := struct {
 		*Alias
-		Interaction *InteractionJSON `json:"interaction,omitempty"`
+		Interaction *InteractionData `json:"interaction,omitempty"`
 	}{
-		Alias: (*Alias)(di),
+		Alias:       (*Alias)(di),
+		Interaction: di.Interaction,
 	}
-
-	if di.Interaction != nil {
-		if qa, ok := di.Interaction.(*QuestionAnswerInteraction); ok {
-			data, err := json.Marshal(qa)
-			if err != nil {
-				return nil, err
-			}
-			aux.Interaction = &InteractionJSON{
-				Type: "QuestionAnswer",
-				Data: data,
-			}
-		}
-	}
-
 	return json.Marshal(aux)
 }
 
+// Update the UnmarshalJSON method to match
 func (di *DialecticalInteraction) UnmarshalJSON(data []byte) error {
 	type Alias DialecticalInteraction
 	aux := struct {
 		*Alias
-		Interaction *InteractionJSON `json:"interaction,omitempty"`
+		Interaction json.RawMessage `json:"interaction,omitempty"`
 	}{
 		Alias: (*Alias)(di),
 	}
@@ -381,13 +400,12 @@ func (di *DialecticalInteraction) UnmarshalJSON(data []byte) error {
 	}
 
 	if aux.Interaction != nil {
-		switch aux.Interaction.Type {
-		case "QuestionAnswer":
-			var qa QuestionAnswerInteraction
-			if err := json.Unmarshal(aux.Interaction.Data, &qa); err != nil {
-				return err
-			}
-			di.Interaction = &qa
+		var qa QuestionAnswerInteraction
+		if err := json.Unmarshal(aux.Interaction, &qa); err != nil {
+			return err
+		}
+		di.Interaction = &InteractionData{
+			QuestionAnswer: &qa,
 		}
 	}
 
@@ -457,4 +475,17 @@ func ContentFromProto(protoContent []*pbmodels.Content) []Content {
 		}
 	}
 	return content
+}
+
+// Perspective represents a viewpoint or interpretation
+type Perspective struct {
+	Response    string `json:"response"`
+	SelfModelID string `json:"self_model_id"`
+}
+
+func (p *Perspective) ToProto() *pbmodels.Perspective {
+	return &pbmodels.Perspective{
+		Response:    p.Response,
+		SelfModelId: p.SelfModelID,
+	}
 }
