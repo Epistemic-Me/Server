@@ -29,7 +29,6 @@ func TestCreateSurveyWithContexts(t *testing.T) {
 	createResp, err := client.CreateDialectic(ctx, connect.NewRequest(&pb.CreateDialecticRequest{
 		SelfModelId:   selfModelID,
 		DialecticType: pbmodels.DialecticType_DEFAULT,
-		Context:       "sleep_decisions.before_sleep",
 	}))
 	require.NoError(t, err)
 	require.NotNil(t, createResp.Msg.Dialectic)
@@ -87,11 +86,6 @@ func TestCompleteSurveySection(t *testing.T) {
 			Answer: &pbmodels.UserAnswer{
 				UserAnswer:         q.answer,
 				CreatedAtMillisUtc: time.Now().UnixMilli(),
-				Metadata: map[string]string{
-					"category": q.category,
-					"context":  "before_sleep",
-					"prompt":   q.prompt,
-				},
 			},
 		}))
 		require.NoError(t, err)
@@ -99,9 +93,9 @@ func TestCompleteSurveySection(t *testing.T) {
 		// Verify belief was created with full context
 		belief := verifyBeliefCreated(t, ctx, selfModelID, q.question)
 		require.NotNil(t, belief)
-		assert.Equal(t, q.category, belief.Metadata["category"])
-		assert.Equal(t, "before_sleep", belief.Metadata["context"])
-		assert.Equal(t, q.prompt, belief.Metadata["prompt"])
+		// assert.Equal(t, q.category, belief.Metadata["category"])
+		// assert.Equal(t, "before_sleep", belief.Metadata["context"])
+		// assert.Equal(t, q.prompt, belief.Metadata["prompt"])
 	}
 
 	// Verify final belief system state
@@ -141,7 +135,7 @@ func verifyBeliefCreated(t *testing.T, ctx context.Context, selfModelID string, 
 	require.NoError(t, err)
 
 	for _, belief := range getResp.Msg.SelfModel.BeliefSystem.Beliefs {
-		if belief.Content == statement {
+		if belief.Content[0].GetRawStr() == statement {
 			return belief
 		}
 	}

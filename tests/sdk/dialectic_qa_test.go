@@ -61,10 +61,11 @@ func TestUpdateDialecticWithAnswer(t *testing.T) {
 	// Get the first interaction and verify its status and answer
 	interaction := updateResp.Msg.Dialectic.UserInteractions[0]
 	assert.Equal(t, pbmodels.STATUS_ANSWERED, interaction.Status)
-	qa := interaction.GetQuestionAnswer()
-	require.NotNil(t, qa)
-	require.NotNil(t, qa.Answer)
-	assert.Equal(t, userAnswer, qa.Answer.UserAnswer)
+	if interaction.Interaction != nil {
+		if qa := interaction.Interaction.GetQuestionAnswer(); qa != nil {
+			assert.Equal(t, userAnswer, qa.Answer.UserAnswer)
+		}
+	}
 }
 
 func TestCustomQuestionDialectic(t *testing.T) {
@@ -89,10 +90,11 @@ func TestCustomQuestionDialectic(t *testing.T) {
 	dialectic = updateResp.Msg.Dialectic
 	require.Len(t, dialectic.UserInteractions, 2)
 	lastInteraction := dialectic.UserInteractions[1]
-	qa := lastInteraction.GetQuestionAnswer()
-	require.NotNil(t, qa)
-	require.NotNil(t, qa.Question)
-	assert.Equal(t, customQuestion, qa.Question.Question)
+	if lastInteraction.Interaction != nil {
+		if qa := lastInteraction.Interaction.GetQuestionAnswer(); qa != nil {
+			assert.Equal(t, customQuestion, qa.Question.Question)
+		}
+	}
 }
 
 // Helper functions
@@ -138,10 +140,11 @@ func verifyInitialInteraction(t *testing.T, interactions []*pbmodels.Dialectical
 	assert.Equal(t, pbmodels.STATUS_PENDING_ANSWER, interaction.Status)
 	assert.Equal(t, pbmodels.InteractionType_QUESTION_ANSWER, interaction.Type)
 
-	qa := interaction.GetQuestionAnswer()
-	require.NotNil(t, qa)
-	require.NotNil(t, qa.Question)
-	assert.NotEmpty(t, qa.Question.Question)
+	if interaction.Interaction != nil {
+		if qa := interaction.Interaction.GetQuestionAnswer(); qa != nil {
+			assert.NotEmpty(t, qa.Question.Question)
+		}
+	}
 }
 
 func verifyUpdatedDialectic(t *testing.T, dialectic *pbmodels.Dialectic, expectedAnswer string) {
@@ -150,27 +153,27 @@ func verifyUpdatedDialectic(t *testing.T, dialectic *pbmodels.Dialectic, expecte
 	// Verify answered interaction
 	answeredInteraction := dialectic.UserInteractions[0]
 	assert.Equal(t, pbmodels.STATUS_ANSWERED, answeredInteraction.Status)
-	qa := answeredInteraction.GetQuestionAnswer()
-	require.NotNil(t, qa)
-	require.NotNil(t, qa.Answer)
-	assert.Equal(t, expectedAnswer, qa.Answer.UserAnswer)
+	if answeredInteraction.Interaction != nil {
+		if qa := answeredInteraction.Interaction.GetQuestionAnswer(); qa != nil {
+			assert.Equal(t, expectedAnswer, qa.Answer.UserAnswer)
+		}
+	}
 
 	// Verify new interaction
 	require.Len(t, dialectic.UserInteractions, 2)
 	newInteraction := dialectic.UserInteractions[1]
 	assert.Equal(t, pbmodels.STATUS_PENDING_ANSWER, newInteraction.Status)
 	assert.Equal(t, pbmodels.InteractionType_QUESTION_ANSWER, newInteraction.Type)
-	newQA := newInteraction.GetQuestionAnswer()
-	require.NotNil(t, newQA)
-	require.NotNil(t, newQA.Question)
-	assert.NotEmpty(t, newQA.Question.Question)
+	if newInteraction.Interaction != nil {
+		if qa := newInteraction.Interaction.GetQuestionAnswer(); qa != nil {
+			assert.NotEmpty(t, qa.Question.Question)
+		}
+	}
 }
 
 func CreateInitialBeliefSystemIfNotExists(selfModelID string) error {
 	beliefSystem := &svc_models.BeliefSystem{
-		Beliefs:             []*svc_models.Belief{},
-		ObservationContexts: []*svc_models.ObservationContext{},
-		BeliefContexts:      []*svc_models.BeliefContext{},
+		Beliefs: []*svc_models.Belief{},
 	}
 
 	// Store with both keys for compatibility

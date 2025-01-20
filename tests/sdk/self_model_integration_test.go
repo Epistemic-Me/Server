@@ -222,7 +222,6 @@ func TestGetBeliefSystemOfSelfModel(t *testing.T) {
 
 	beliefSystem := getResp.Msg.SelfModel.BeliefSystem
 	assert.Empty(t, beliefSystem.Beliefs, "Newly created self model should have no beliefs")
-	assert.Empty(t, beliefSystem.ObservationContexts, "Newly created self model should have no observation contexts")
 
 	testLogf(t, "GetBeliefSystemOfSelfModel response: %+v", beliefSystem)
 }
