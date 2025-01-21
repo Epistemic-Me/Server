@@ -7,25 +7,27 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type DialecticService struct {
-	kvStore *db.KeyValueStore
-	aih     *ai.AIHelper
-	// deen: todo refactor to use epistemology interface
-	epistemology *DialecticalEpistemology
+	kvStore                 *db.KeyValueStore
+	aih                     *ai.AIHelper
+	perspectiveTakingEpiSvc *PerspectiveTakingEpistemology
+	dialecticEpiSvc         *DialecticalEpistemology
 }
 
 // NewDialecticService initializes and returns a new DialecticService.
-func NewDialecticService(kvStore *db.KeyValueStore, aih *ai.AIHelper, epistemology *DialecticalEpistemology) *DialecticService {
+func NewDialecticService(kvStore *db.KeyValueStore, aih *ai.AIHelper,
+	perspectiveTakingEpiSvc *PerspectiveTakingEpistemology,
+	dialecticEpistemologySvc *DialecticalEpistemology) *DialecticService {
 	return &DialecticService{
-		kvStore:      kvStore,
-		aih:          aih,
-		epistemology: epistemology,
+		kvStore:                 kvStore,
+		aih:                     aih,
+		perspectiveTakingEpiSvc: perspectiveTakingEpiSvc,
+		dialecticEpiSvc:         dialecticEpistemologySvc,
 	}
 }
 
@@ -66,7 +68,7 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 	}
 
 	// Generate the first interaction
-	response, err := dsvc.epistemology.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
+	response, err := dsvc.dialecticEpiSvc.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
 		PreviousInteractions: dialectic.UserInteractions,
 	}, "")
 	if err != nil {
@@ -112,7 +114,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 	log.Printf("Retrieved dialectic with %d interactions", len(dialectic.UserInteractions))
 
 	if input.Answer.UserAnswer != "" {
-		bs, err := dsvc.epistemology.Process(&models.DialecticEvent{
+		bs, err := dsvc.dialecticEpiSvc.Process(&models.DialecticEvent{
 			PreviousInteractions: dialectic.UserInteractions,
 		}, input.DryRun, input.SelfModelID)
 		if err != nil {
@@ -157,7 +159,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		dialectic.UserInteractions[lastIdx].UpdatedAtMillisUTC = time.Now().UnixMilli()
 
 		// Generate the next interaction
-		response, err := dsvc.epistemology.Respond(bs, &models.DialecticEvent{
+		response, err := dsvc.dialecticEpiSvc.Respond(bs, &models.DialecticEvent{
 			PreviousInteractions: dialectic.UserInteractions,
 		}, input.Answer.UserAnswer)
 		if err != nil {
@@ -192,15 +194,40 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 	// Handle answer blob (from user)
 	if input.AnswerBlob != "" {
 
-		bs, err := dsvc.epistemology.Process(&models.DialecticEvent{
+		bs, err := dsvc.dialecticEpiSvc.Process(&models.DialecticEvent{
 			PreviousInteractions: dialectic.UserInteractions,
 		}, input.DryRun, input.SelfModelID)
 		if err != nil {
 			return nil, err
 		}
 
+		lastInteraction := dialectic.UserInteractions[len(dialectic.UserInteractions)-1]
+
+		// For all perspectives we've attached to the dialectic, provide perspectives on the latest
+		// dialectic interaction
+		if dialectic.PerspectiveSelves != nil {
+			for _, perspectiveSelf := range dialectic.PerspectiveSelves {
+				perspective, err := dsvc.perspectiveTakingEpiSvc.Respond(bs, models.EpistemicRequest{
+					SelfModelID: perspectiveSelf,
+					Content: map[string]interface{}{
+						"question": lastInteraction.Interaction.QuestionAnswer.Question,
+						"answer":   lastInteraction.Interaction.QuestionAnswer.Answer,
+					},
+				})
+
+				if err != nil {
+					return nil, err
+				}
+
+				lastInteraction.Perspectives = append(lastInteraction.Perspectives, models.Perspective{
+					Response:    *perspective,
+					SelfModelID: perspectiveSelf,
+				})
+			}
+		}
+
 		// Generate the first interaction
-		response, err := dsvc.epistemology.Respond(bs, &models.DialecticEvent{
+		response, err := dsvc.dialecticEpiSvc.Respond(bs, &models.DialecticEvent{
 			PreviousInteractions: dialectic.UserInteractions,
 		}, "")
 		if err != nil {
@@ -502,66 +529,4 @@ func createNewQuestionInteraction(question string) models.DialecticalInteraction
 		},
 		UpdatedAtMillisUTC: time.Now().UnixMilli(),
 	}
-}
-
-// extractQuestionsFromBlob extracts questions from a blob, ignoring summary sections
-func extractQuestionsFromBlob(blob string) string {
-	// Split on section markers
-	sections := strings.Split(blob, "---")
-
-	// Get the last section which contains the new questions
-	if len(sections) > 0 {
-		return sections[len(sections)-1]
-	}
-	return blob
-}
-
-// PreprocessQuestionAnswers processes question and answer blobs into structured Q&A pairs
-func (dsvc *DialecticService) PreprocessQuestionAnswers(input *models.PreprocessQuestionAnswerInput) (*models.PreprocessQuestionAnswerOutput, error) {
-	var questions []string
-
-	// Process question blobs
-	for i, questionBlob := range input.QuestionBlobs {
-		log.Printf("Processing Question Blob %d:\n%s\n", i+1, questionBlob)
-
-		// Extract only the question section
-		questionSection := extractQuestionsFromBlob(questionBlob)
-		log.Printf("Question Section %d:\n%s\n", i+1, questionSection)
-
-		extractedQuestions, err := dsvc.aih.ExtractQuestionsFromText(questionSection)
-		if err != nil {
-			return nil, fmt.Errorf("failed to extract questions: %w", err)
-		}
-		log.Printf("Extracted Questions %d: %v\n", i+1, extractedQuestions)
-		questions = append(questions, extractedQuestions...)
-	}
-
-	// Initialize QA pairs with empty answers
-	qaPairs := make([]*models.QuestionAnswerPair, len(questions))
-	for i, question := range questions {
-		qaPairs[i] = &models.QuestionAnswerPair{
-			Question: question,
-			Answer:   "No answer provided",
-		}
-	}
-
-	// Process answer blobs
-	allAnswers := strings.Join(input.AnswerBlobs, "\n\n")
-	log.Printf("Combined Answer Blob:\n%s\n", allAnswers)
-	matches, err := dsvc.aih.MatchAnswersToQuestions(allAnswers, questions)
-	if err != nil {
-		return nil, fmt.Errorf("failed to match answers: %w", err)
-	}
-	log.Printf("Matched Answers: %v\n", matches)
-
-	// Update answers for each question
-	for i, match := range matches {
-		if i < len(qaPairs) && match != "" {
-			qaPairs[i].Answer = match
-		}
-	}
-
-	return &models.PreprocessQuestionAnswerOutput{
-		QAPairs: qaPairs,
-	}, nil
 }

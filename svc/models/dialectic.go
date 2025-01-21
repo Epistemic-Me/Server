@@ -204,15 +204,15 @@ type DialecticalInteraction struct {
 	Type               InteractionType              `json:"type"`
 	Interaction        *InteractionData             `json:"interaction,omitempty"`
 	UpdatedAtMillisUTC int64                        `json:"updatedAtMillisUtc"`
+	Perspectives       []Perspective                `json:"perspectives"`
 }
 
 // QuestionAnswerInteraction represents a Q&A interaction for belief extraction
 type QuestionAnswerInteraction struct {
-	Question           Question       `json:"question"`
-	Answer             UserAnswer     `json:"answer"`
-	ExtractedBeliefs   []*Belief      `json:"extractedBeliefs,omitempty"`
-	UpdatedAtMillisUTC int64          `json:"updatedAtMillisUtc"`
-	Perspectives       []*Perspective `json:"perspectives,omitempty"`
+	Question           Question   `json:"question"`
+	Answer             UserAnswer `json:"answer"`
+	ExtractedBeliefs   []*Belief  `json:"extractedBeliefs,omitempty"`
+	UpdatedAtMillisUTC int64      `json:"updatedAtMillisUtc"`
 }
 
 // HypothesisEvidenceInteraction represents an interaction for testing beliefs
@@ -238,16 +238,15 @@ func (di DialecticalInteraction) ToProto() *pbmodels.DialecticalInteraction {
 		Type:               pbmodels.InteractionType(di.Type),
 		Id:                 di.ID,
 		UpdatedAtMillisUtc: di.UpdatedAtMillisUTC,
+		Perspectives:       perspectiveSliceToProto(di.Perspectives),
 	}
 
 	if di.Interaction != nil {
-		interactionData := &pbmodels.InteractionData{}
-		if di.Interaction.QuestionAnswer != nil {
-			interactionData.Type = &pbmodels.InteractionData_QuestionAnswer{
+		proto.Interaction = &pbmodels.InteractionData{
+			Type: &pbmodels.InteractionData_QuestionAnswer{
 				QuestionAnswer: di.Interaction.QuestionAnswer.ToProto(),
-			}
+			},
 		}
-		proto.Interaction = interactionData
 	}
 
 	return proto
@@ -263,7 +262,6 @@ func (qa *QuestionAnswerInteraction) ToProto() *pbmodels.QuestionAnswerInteracti
 		Answer:             qa.Answer.ToProto(),
 		ExtractedBeliefs:   beliefSliceToProto(qa.ExtractedBeliefs),
 		UpdatedAtMillisUtc: qa.UpdatedAtMillisUTC,
-		Perspectives:       perspectiveSliceToProto(qa.Perspectives),
 	}
 }
 
@@ -301,7 +299,7 @@ func beliefSliceToProto(beliefs []*Belief) []*pbmodels.Belief {
 	return result
 }
 
-func perspectiveSliceToProto(perspectives []*Perspective) []*pbmodels.Perspective {
+func perspectiveSliceToProto(perspectives []Perspective) []*pbmodels.Perspective {
 	result := make([]*pbmodels.Perspective, len(perspectives))
 	for i, p := range perspectives {
 		result[i] = p.ToProto()
@@ -334,12 +332,13 @@ func (ba BeliefAnalysis) ToProto() *pbmodels.BeliefAnalysis {
 
 // Dialectic represents a session to determine and clarify a user's beliefs.
 type Dialectic struct {
-	ID               string                   `json:"id"`
-	SelfModelID      string                   `json:"self_model_id"`
-	Agent            Agent                    `json:"agent"`
-	UserInteractions []DialecticalInteraction `json:"user_interactions"`
-	BeliefSystem     *BeliefSystem            `json:"belief_system"`
-	Analysis         *BeliefAnalysis          `json:"analysis,omitempty"`
+	ID                string                   `json:"id"`
+	SelfModelID       string                   `json:"self_model_id"`
+	Agent             Agent                    `json:"agent"`
+	UserInteractions  []DialecticalInteraction `json:"user_interactions"`
+	BeliefSystem      *BeliefSystem            `json:"belief_system"`
+	Analysis          *BeliefAnalysis          `json:"analysis,omitempty"`
+	PerspectiveSelves []string                 `json:"perspective_selves,omitempty"`
 }
 
 func (d *Dialectic) MarshalBinary() ([]byte, error) {
@@ -490,29 +489,4 @@ func (p *Perspective) ToProto() *pbmodels.Perspective {
 		Response:    p.Response,
 		SelfModelId: p.SelfModelID,
 	}
-}
-
-// Add a helper method to get QuestionAnswer from InteractionData
-func (id *InteractionData) GetQuestionAnswer() *QuestionAnswerInteraction {
-	if id == nil {
-		return nil
-	}
-	return id.QuestionAnswer
-}
-
-// PreprocessQuestionAnswerInput represents input for preprocessing question-answer blobs
-type PreprocessQuestionAnswerInput struct {
-	QuestionBlobs []string
-	AnswerBlobs   []string
-}
-
-// PreprocessQuestionAnswerOutput represents output from preprocessing question-answer blobs
-type PreprocessQuestionAnswerOutput struct {
-	QAPairs []*QuestionAnswerPair
-}
-
-// QuestionAnswerPair represents a matched question and answer pair
-type QuestionAnswerPair struct {
-	Question string
-	Answer   string
 }
