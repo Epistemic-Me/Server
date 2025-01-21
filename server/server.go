@@ -457,35 +457,6 @@ func (s *Server) GetDeveloper(ctx context.Context, req *connect.Request[pb.GetDe
 	return connect.NewResponse(protoResponse), nil
 }
 
-func (s *Server) PreprocessQuestionAnswer(ctx context.Context, req *connect.Request[pb.PreprocessQuestionAnswerRequest]) (*connect.Response[pb.PreprocessQuestionAnswerResponse], error) {
-	ctx, err := validateAPIKey(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Use dialectic service method
-	result, err := s.dsvc.PreprocessQuestionAnswers(&svcmodels.PreprocessQuestionAnswerInput{
-		QuestionBlobs: req.Msg.QuestionBlobs,
-		AnswerBlobs:   req.Msg.AnswerBlobs,
-	})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-
-	// Convert internal model to protobuf response
-	protoPairs := make([]*pb.QuestionAnswerPair, len(result.QAPairs))
-	for i, pair := range result.QAPairs {
-		protoPairs[i] = &pb.QuestionAnswerPair{
-			Question: pair.Question,
-			Answer:   pair.Answer,
-		}
-	}
-
-	return connect.NewResponse(&pb.PreprocessQuestionAnswerResponse{
-		QaPairs: protoPairs,
-	}), nil
-}
-
 func NewServer(kvStore *db.KeyValueStore) *Server {
 	if kvStore == nil {
 		log.Fatal("KeyValueStore is nil in NewServer")
@@ -494,7 +465,8 @@ func NewServer(kvStore *db.KeyValueStore) *Server {
 	aih := ai.NewAIHelper(os.Getenv("OPENAI_API_KEY"))
 	bsvc := svc.NewBeliefService(kvStore, aih)
 	de := svc.NewDialecticEpistemology(bsvc, aih)
-	dsvc := svc.NewDialecticService(kvStore, aih, de)
+	pe := svc.NewPerspectiveTakingEpistemology(bsvc, aih)
+	dsvc := svc.NewDialecticService(kvStore, aih, pe, de)
 
 	return &Server{
 		bsvc:         bsvc,

@@ -35,3 +35,8 @@ type DialecticEvent struct {
 type PerspectiveTakingEpistemicEvent struct {
 	Resource Resource
 }
+
+type EpistemicRequest struct {
+	SelfModelID string
+	Content     map[string]interface{}
+}
