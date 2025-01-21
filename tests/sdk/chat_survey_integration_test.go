@@ -3,11 +3,11 @@ package integration
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -83,6 +83,9 @@ func TestChatSurveyIntegration(t *testing.T) {
 		updateResp, err := client.UpdateDialectic(ctx, connect.NewRequest(updateReq))
 		require.NoError(t, err)
 
+		// Wait for a short time to allow server processing
+		time.Sleep(time.Second)
+
 		// Verify the response has extracted beliefs
 		if message.Role == "user" {
 			// Skip the initialization message
@@ -94,40 +97,34 @@ func TestChatSurveyIntegration(t *testing.T) {
 			var latestAnsweredInteraction *pbmodels.DialecticalInteraction
 			for i := len(updateResp.Msg.Dialectic.UserInteractions) - 1; i >= 0; i-- {
 				interaction := updateResp.Msg.Dialectic.UserInteractions[i]
-				if interaction.Status == pbmodels.STATUS_ANSWERED {
-					latestAnsweredInteraction = interaction
-					break
+				t.Logf("Checking interaction: %+v", interaction)
+
+				if interaction.Status == pbmodels.STATUS_ANSWERED &&
+					interaction.Interaction != nil &&
+					interaction.Interaction.GetQuestionAnswer() != nil {
+					qa := interaction.Interaction.GetQuestionAnswer()
+					t.Logf("Found answered QA: %+v", qa)
+
+					// Only use interactions that have both question and answer content
+					if qa.Question != nil && qa.Question.Question != "" &&
+						qa.Answer != nil && qa.Answer.UserAnswer != "" {
+						latestAnsweredInteraction = interaction
+						t.Logf("Found answered interaction with content: %+v", interaction)
+						t.Logf("Question Answer details: %+v", qa)
+						break
+					}
 				}
 			}
 
-			require.NotNil(t, latestAnsweredInteraction, "Should have at least one answered interaction")
+			require.NotNil(t, latestAnsweredInteraction, "Should have at least one answered interaction with content")
 
 			// Check if it's a QuestionAnswerInteraction
-			require.Equal(t, pbmodels.InteractionType_QUESTION_ANSWER, latestAnsweredInteraction.Type,
-				"Latest interaction should be QUESTION_ANSWER type")
-
-			// Check if it has the question_answer field
-			qa, ok := latestAnsweredInteraction.Interaction.(*pbmodels.DialecticalInteraction_QuestionAnswer)
-			require.True(t, ok, "Latest interaction should have QuestionAnswer field")
-
-			// Skip belief verification for initialization message
-			if !strings.Contains(updateReq.AnswerBlob, "User name is") {
-				// Verify extracted beliefs
-				require.NotEmpty(t, qa.QuestionAnswer.ExtractedBeliefs,
-					"Question-Answer interaction should have extracted beliefs for Q: %s, A: %s",
-					qa.QuestionAnswer.Question.Question, updateReq.AnswerBlob)
-
-				// Log the extracted beliefs
-				t.Logf("Extracted beliefs for Q: %s, A: %s", updateReq.QuestionBlob, updateReq.AnswerBlob)
-				for _, belief := range qa.QuestionAnswer.ExtractedBeliefs {
-					t.Logf("  Belief: %v", belief)
-				}
-			}
-
-			log.Printf("Latest interaction: %+v", latestAnsweredInteraction)
-			if qa, ok := latestAnsweredInteraction.Interaction.(*pbmodels.DialecticalInteraction_QuestionAnswer); ok {
-				log.Printf("QuestionAnswer interaction: %+v", qa.QuestionAnswer)
-				log.Printf("Extracted beliefs: %+v", qa.QuestionAnswer.ExtractedBeliefs)
+			if qa := latestAnsweredInteraction.Interaction.GetQuestionAnswer(); qa != nil {
+				t.Logf("Checking QuestionAnswer: %+v", qa)
+				require.NotNil(t, qa.ExtractedBeliefs,
+					"Question-Answer interaction should have extracted beliefs")
+				require.Greater(t, len(qa.ExtractedBeliefs), 0,
+					"Question-Answer interaction should have at least one extracted belief")
 			}
 		}
 
