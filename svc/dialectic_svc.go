@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -529,4 +530,66 @@ func createNewQuestionInteraction(question string) models.DialecticalInteraction
 		},
 		UpdatedAtMillisUTC: time.Now().UnixMilli(),
 	}
+}
+
+// extractQuestionsFromBlob extracts questions from a blob, ignoring summary sections
+func extractQuestionsFromBlob(blob string) string {
+	// Split on section markers
+	sections := strings.Split(blob, "---")
+
+	// Get the last section which contains the new questions
+	if len(sections) > 0 {
+		return sections[len(sections)-1]
+	}
+	return blob
+}
+
+// PreprocessQuestionAnswers processes question and answer blobs into structured Q&A pairs
+func (dsvc *DialecticService) PreprocessQuestionAnswers(input *models.PreprocessQuestionAnswerInput) (*models.PreprocessQuestionAnswerOutput, error) {
+	var questions []string
+
+	// Process question blobs
+	for i, questionBlob := range input.QuestionBlobs {
+		log.Printf("Processing Question Blob %d:\n%s\n", i+1, questionBlob)
+
+		// Extract only the question section
+		questionSection := extractQuestionsFromBlob(questionBlob)
+		log.Printf("Question Section %d:\n%s\n", i+1, questionSection)
+
+		extractedQuestions, err := dsvc.aih.ExtractQuestionsFromText(questionSection)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract questions: %w", err)
+		}
+		log.Printf("Extracted Questions %d: %v\n", i+1, extractedQuestions)
+		questions = append(questions, extractedQuestions...)
+	}
+
+	// Initialize QA pairs with empty answers
+	qaPairs := make([]*models.QuestionAnswerPair, len(questions))
+	for i, question := range questions {
+		qaPairs[i] = &models.QuestionAnswerPair{
+			Question: question,
+			Answer:   "No answer provided",
+		}
+	}
+
+	// Process answer blobs
+	allAnswers := strings.Join(input.AnswerBlobs, "\n\n")
+	log.Printf("Combined Answer Blob:\n%s\n", allAnswers)
+	matches, err := dsvc.aih.MatchAnswersToQuestions(allAnswers, questions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to match answers: %w", err)
+	}
+	log.Printf("Matched Answers: %v\n", matches)
+
+	// Update answers for each question
+	for i, match := range matches {
+		if i < len(qaPairs) && match != "" {
+			qaPairs[i].Answer = match
+		}
+	}
+
+	return &models.PreprocessQuestionAnswerOutput{
+		QAPairs: qaPairs,
+	}, nil
 }

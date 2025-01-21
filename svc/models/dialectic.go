@@ -242,11 +242,13 @@ func (di DialecticalInteraction) ToProto() *pbmodels.DialecticalInteraction {
 	}
 
 	if di.Interaction != nil {
-		proto.Interaction = &pbmodels.InteractionData{
-			Type: &pbmodels.InteractionData_QuestionAnswer{
+		interactionData := &pbmodels.InteractionData{}
+		if di.Interaction.QuestionAnswer != nil {
+			interactionData.Type = &pbmodels.InteractionData_QuestionAnswer{
 				QuestionAnswer: di.Interaction.QuestionAnswer.ToProto(),
-			},
+			}
 		}
+		proto.Interaction = interactionData
 	}
 
 	return proto
@@ -489,4 +491,29 @@ func (p *Perspective) ToProto() *pbmodels.Perspective {
 		Response:    p.Response,
 		SelfModelId: p.SelfModelID,
 	}
+}
+
+// Add a helper method to get QuestionAnswer from InteractionData
+func (id *InteractionData) GetQuestionAnswer() *QuestionAnswerInteraction {
+	if id == nil {
+		return nil
+	}
+	return id.QuestionAnswer
+}
+
+// PreprocessQuestionAnswerInput represents input for preprocessing question-answer blobs
+type PreprocessQuestionAnswerInput struct {
+	QuestionBlobs []string
+	AnswerBlobs   []string
+}
+
+// PreprocessQuestionAnswerOutput represents output from preprocessing question-answer blobs
+type PreprocessQuestionAnswerOutput struct {
+	QAPairs []*QuestionAnswerPair
+}
+
+// QuestionAnswerPair represents a matched question and answer pair
+type QuestionAnswerPair struct {
+	Question string
+	Answer   string
 }

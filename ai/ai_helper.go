@@ -542,53 +542,107 @@ Text: %s`, text)
 }
 
 func (h *AIHelper) MatchAnswersToQuestions(answerBlob string, questions []string) ([]string, error) {
-	prompt := fmt.Sprintf(`Given this text that may contain answers: "%s"
+	prompt := fmt.Sprintf(`Given this text containing answers:
+"%s"
 
 And these questions:
 %s
 
-For each question, extract the relevant answer from the text.
-If no answer is found for a question, return an empty string.
-Return answers in the same order as questions, one per line.`,
+Task: Extract ONE DISTINCT answer for EACH question from the text.
+
+Rules for Semantic Matching:
+1. Each question MUST have its own separate answer
+2. Do not combine answers for different questions
+3. Look for answers across the ENTIRE text
+4. Match answers that address the question's intent
+5. If multiple answers exist, use the most specific one
+6. Each answer should be self-contained
+7. Do not include answers to other questions
+8. If no relevant answer exists, return "No answer provided"
+
+Example Output Format:
+Q1: "How do you make your food choices?"
+A1: "My food choices are based on nutrition, hunger and enjoyment of food. I manage energy, and biomarkers in my blood to make healthy food choices."
+
+Q2: "What do you eat for breakfast?"
+A2: "I start my day with a shake that contains MCT oil powder for energy."
+
+Begin extracting answers, one per question:`,
 		answerBlob, strings.Join(questions, "\n"))
 
-	response, err := h.client.CreateChatCompletion(
-		context.Background(),
-		openai.ChatCompletionRequest{
-			Model: string(GPT_LATEST),
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    "system",
-					Content: prompt,
-				},
-				{
-					Role:    "user",
-					Content: "Please extract the answers.",
-				},
-			},
-		},
-	)
+	response, err := h.CompletePrompt(prompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to complete prompt: %w", err)
+		return nil, fmt.Errorf("failed to match answers: %w", err)
 	}
 
-	if len(response.Choices) == 0 {
-		return nil, fmt.Errorf("no completion choices returned")
+	// Parse Q&A format response
+	var answers []string
+	lines := strings.Split(strings.TrimSpace(response), "\n")
+	for i := 0; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		// Skip question lines (starting with Q)
+		if strings.HasPrefix(line, "Q") {
+			continue
+		}
+		// Process answer lines (starting with A)
+		if strings.HasPrefix(line, "A") {
+			// Extract just the answer part (after the colon)
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				answer := strings.TrimSpace(parts[1])
+				// Remove surrounding quotes if present
+				answer = strings.Trim(answer, `"`)
+				answers = append(answers, answer)
+			}
+		}
 	}
 
-	// Get the message content from the response
-	content := response.Choices[0].Message.Content
-
-	// Split response into lines and clean up
-	answers := strings.Split(strings.TrimSpace(content), "\n")
-	for i := range answers {
-		answers[i] = strings.TrimSpace(answers[i])
-	}
-
-	// Pad with empty strings if needed
+	// Ensure we have an answer for each question
 	for len(answers) < len(questions) {
-		answers = append(answers, "")
+		answers = append(answers, "No answer provided")
 	}
 
 	return answers[:len(questions)], nil
+}
+
+func (h *AIHelper) ExtractAndCleanQuestions(content string) []string {
+	// Extract actual questions (lines ending with question marks)
+	var questions []string
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "?") {
+			// Remove markdown formatting
+			line = regexp.MustCompile("`[^`]*`").ReplaceAllString(line, "")
+			// Remove bold markers
+			line = regexp.MustCompile(`\*\*`).ReplaceAllString(line, "")
+			// Remove bullet points and numbering
+			line = regexp.MustCompile(`^[-*•]|\d+\.\s*`).ReplaceAllString(line, "")
+			// Clean up whitespace
+			line = strings.TrimSpace(line)
+			// Extract the question part if it's embedded in other text
+			if idx := strings.Index(line, "?"); idx >= 0 {
+				question := strings.TrimSpace(line[:idx+1])
+				if question != "" {
+					questions = append(questions, question)
+				}
+			}
+		}
+	}
+
+	return questions
+}
+
+func (h *AIHelper) CleanAnswerText(content string) string {
+	// Remove markdown formatting
+	content = regexp.MustCompile("`[^`]*`").ReplaceAllString(content, "")
+
+	// Add space after numbers followed immediately by letters
+	content = regexp.MustCompile(`(\d+)([a-zA-Z])`).ReplaceAllString(content, "$1 $2")
+
+	// Remove trailing commas and clean up whitespace
+	content = strings.TrimSpace(content)
+	content = strings.TrimSuffix(content, ",")
+
+	return content
 }
