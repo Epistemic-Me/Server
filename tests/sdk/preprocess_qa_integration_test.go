@@ -35,7 +35,7 @@ func logMessageGroup(t *testing.T, group MessageGroup, index int) {
 	t.Log("---")
 }
 
-func TestPreprocessQAIntegration(t *testing.T) {
+func TestPreprocessQuestionAnswerIntegration(t *testing.T) {
 	// Setup server and client
 	resetStore()
 	ctx := contextWithAPIKey(context.Background(), apiKey)
@@ -54,7 +54,7 @@ func TestPreprocessQAIntegration(t *testing.T) {
 	require.Equal(t, "jonathan@teammachine.ai", conv.ParticipantID)
 
 	// Send the entire conversation to the preprocessing endpoint
-	resp, err := client.PreprocessQA(ctx, connect.NewRequest(&pb.PreprocessQARequest{
+	resp, err := client.PreprocessQuestionAnswer(ctx, connect.NewRequest(&pb.PreprocessQuestionAnswerRequest{
 		QuestionBlobs: []string{conv.Messages[1].Content}, // Assistant message with questions
 		AnswerBlobs:   []string{conv.Messages[2].Content}, // User message with answers
 	}))
@@ -67,7 +67,7 @@ func TestPreprocessQAIntegration(t *testing.T) {
 
 	t.Run("processes sleep and diet questions", func(t *testing.T) {
 		// Test sleep questions (Messages 1-2)
-		resp, err := client.PreprocessQA(ctx, connect.NewRequest(&pb.PreprocessQARequest{
+		resp, err := client.PreprocessQuestionAnswer(ctx, connect.NewRequest(&pb.PreprocessQuestionAnswerRequest{
 			QuestionBlobs: []string{conv.Messages[1].Content}, // Sleep questions
 			AnswerBlobs:   []string{conv.Messages[2].Content}, // Sleep answers
 		}))
@@ -82,7 +82,7 @@ func TestPreprocessQAIntegration(t *testing.T) {
 		require.NotEmpty(t, pairs)
 
 		// Test diet questions (Messages 3-4)
-		resp2, err := client.PreprocessQA(ctx, connect.NewRequest(&pb.PreprocessQARequest{
+		resp2, err := client.PreprocessQuestionAnswer(ctx, connect.NewRequest(&pb.PreprocessQuestionAnswerRequest{
 			QuestionBlobs: []string{conv.Messages[3].Content}, // Diet questions
 			AnswerBlobs:   []string{conv.Messages[4].Content}, // Diet answers
 		}))

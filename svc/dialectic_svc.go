@@ -517,7 +517,7 @@ func extractQuestionsFromBlob(blob string) string {
 }
 
 // PreprocessQuestionAnswers processes question and answer blobs into structured Q&A pairs
-func (dsvc *DialecticService) PreprocessQuestionAnswers(input *models.PreprocessQAInput) (*models.PreprocessQAOutput, error) {
+func (dsvc *DialecticService) PreprocessQuestionAnswers(input *models.PreprocessQuestionAnswerInput) (*models.PreprocessQuestionAnswerOutput, error) {
 	var questions []string
 
 	// Process question blobs
@@ -561,7 +561,7 @@ func (dsvc *DialecticService) PreprocessQuestionAnswers(input *models.Preprocess
 		}
 	}
 
-	return &models.PreprocessQAOutput{
+	return &models.PreprocessQuestionAnswerOutput{
 		QAPairs: qaPairs,
 	}, nil
 }

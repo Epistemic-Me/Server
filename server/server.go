@@ -457,14 +457,14 @@ func (s *Server) GetDeveloper(ctx context.Context, req *connect.Request[pb.GetDe
 	return connect.NewResponse(protoResponse), nil
 }
 
-func (s *Server) PreprocessQA(ctx context.Context, req *connect.Request[pb.PreprocessQARequest]) (*connect.Response[pb.PreprocessQAResponse], error) {
+func (s *Server) PreprocessQuestionAnswer(ctx context.Context, req *connect.Request[pb.PreprocessQuestionAnswerRequest]) (*connect.Response[pb.PreprocessQuestionAnswerResponse], error) {
 	ctx, err := validateAPIKey(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	// Use dialectic service method
-	result, err := s.dsvc.PreprocessQuestionAnswers(&svcmodels.PreprocessQAInput{
+	result, err := s.dsvc.PreprocessQuestionAnswers(&svcmodels.PreprocessQuestionAnswerInput{
 		QuestionBlobs: req.Msg.QuestionBlobs,
 		AnswerBlobs:   req.Msg.AnswerBlobs,
 	})
@@ -481,7 +481,7 @@ func (s *Server) PreprocessQA(ctx context.Context, req *connect.Request[pb.Prepr
 		}
 	}
 
-	return connect.NewResponse(&pb.PreprocessQAResponse{
+	return connect.NewResponse(&pb.PreprocessQuestionAnswerResponse{
 		QaPairs: protoPairs,
 	}), nil
 }

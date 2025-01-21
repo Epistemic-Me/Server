@@ -500,14 +500,14 @@ func (id *InteractionData) GetQuestionAnswer() *QuestionAnswerInteraction {
 	return id.QuestionAnswer
 }
 
-// PreprocessQAInput represents input for preprocessing question-answer blobs
-type PreprocessQAInput struct {
+// PreprocessQuestionAnswerInput represents input for preprocessing question-answer blobs
+type PreprocessQuestionAnswerInput struct {
 	QuestionBlobs []string
 	AnswerBlobs   []string
 }
 
-// PreprocessQAOutput represents output from preprocessing question-answer blobs
-type PreprocessQAOutput struct {
+// PreprocessQuestionAnswerOutput represents output from preprocessing question-answer blobs
+type PreprocessQuestionAnswerOutput struct {
 	QAPairs []*QuestionAnswerPair
 }
 
