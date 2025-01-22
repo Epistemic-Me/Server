@@ -18,7 +18,7 @@ func NewPreloadSvc(sms *SelfModelService, epiSvc *PerspectiveTakingEpistemology)
 }
 
 type Philosophy struct {
-	Self_id  string `json:"self_id"`
+	SelfId   string `json:"self_id"`
 	Strategy string `json:"strategy"`
 }
 
@@ -36,7 +36,7 @@ func (ps *PreloadService) RunPreload(ctx context.Context) error {
 			Type:    models.ResourceTypePhilosophy,
 			Content: philosophy.Strategy,
 			Metadata: map[string]string{
-				"selfModelId": philosophy.Self_id,
+				"selfModelId": philosophy.SelfId,
 			},
 		})
 	}
