@@ -22,6 +22,7 @@ const (
 	ResourceTypeScientificPaper
 	ResourceTypeSurveyResponse
 	ResourceTypeMeasurementData
+	ResourceTypePhilosophy
 )
 
 type Resource struct {

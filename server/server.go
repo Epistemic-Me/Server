@@ -467,12 +467,19 @@ func NewServer(kvStore *db.KeyValueStore) *Server {
 	de := svc.NewDialecticEpistemology(bsvc, aih)
 	pe := svc.NewPerspectiveTakingEpistemology(bsvc, aih)
 	dsvc := svc.NewDialecticService(kvStore, aih, pe, de)
+	sms := svc.NewSelfModelService(kvStore, dsvc, bsvc)
+
+	preLoadSvc := svc.NewPreloadSvc(sms, pe)
+	err := preLoadSvc.RunPreload(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
 
 	return &Server{
 		bsvc:         bsvc,
 		dsvc:         dsvc,
 		kvStore:      kvStore,
-		selfModelSvc: svc.NewSelfModelService(kvStore, dsvc, bsvc),
+		selfModelSvc: sms,
 		developerSvc: svc.NewDeveloperService(kvStore, aih),
 		userSvc:      svc.NewUserService(kvStore, aih),
 	}
