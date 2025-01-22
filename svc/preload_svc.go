@@ -30,6 +30,7 @@ func (ps *PreloadService) RunPreload(ctx context.Context) error {
 
 	resources := make([]models.Resource, 0)
 
+	// create a resource for each philosophy
 	for _, philosophy := range philosophies {
 		resources = append(resources, models.Resource{
 			Type:    models.ResourceTypePhilosophy,
