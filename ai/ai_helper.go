@@ -646,3 +646,52 @@ func (h *AIHelper) CleanAnswerText(content string) string {
 
 	return content
 }
+
+func (h *AIHelper) GenerateQuestionForLearningObjective(objective *models.LearningObjective) (string, error) {
+	prompt := fmt.Sprintf(`Given a learning objective to understand beliefs about: %s
+Topics to explore: %s
+Generate a single, focused question that will help gather beliefs about one of these topics.
+The question should be direct and encourage detailed responses about personal beliefs and experiences.
+Return only the question, with no additional text.`,
+		objective.Description,
+		strings.Join(objective.Topics, ", "))
+
+	return h.CompletePrompt(prompt)
+}
+
+func (h *AIHelper) CheckLearningObjectiveCompletion(objective *models.LearningObjective, interactions []models.DialecticalInteraction) (bool, error) {
+	// Convert interactions to a format suitable for analysis
+	var interactionSummary strings.Builder
+	for _, interaction := range interactions {
+		if qa := interaction.Interaction.GetQuestionAnswer(); qa != nil {
+			fmt.Fprintf(&interactionSummary, "Q: %s\nA: %s\n\n",
+				qa.Question.Question,
+				qa.Answer.UserAnswer)
+		}
+	}
+
+	prompt := fmt.Sprintf(`Given this learning objective:
+Description: %s
+Topics to explore: %s
+
+And these collected interactions:
+%s
+
+Have we gathered sufficient beliefs about all the topics to consider the learning objective complete?
+Consider:
+1. Have we covered all topics?
+2. Do we have substantive beliefs about each topic?
+3. Are the beliefs specific and actionable?
+
+Return ONLY "true" if complete or "false" if more information is needed.`,
+		objective.Description,
+		strings.Join(objective.Topics, ", "),
+		interactionSummary.String())
+
+	response, err := h.CompletePrompt(prompt)
+	if err != nil {
+		return false, err
+	}
+
+	return strings.TrimSpace(strings.ToLower(response)) == "true", nil
+}

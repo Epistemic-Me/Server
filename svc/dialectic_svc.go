@@ -60,25 +60,38 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 
 	dialectic := &models.Dialectic{
 		ID:          newDialecticId,
-		SelfModelID: input.SelfModelID, // Changed from UserID
+		SelfModelID: input.SelfModelID,
 		Agent: models.Agent{
 			AgentType:     models.AgentTypeGPTLatest,
 			DialecticType: input.DialecticType,
 		},
-		UserInteractions: []models.DialecticalInteraction{},
+		UserInteractions:  []models.DialecticalInteraction{},
+		LearningObjective: input.LearningObjective,
 	}
 
-	// Generate the first interaction
-	response, err := dsvc.dialecticEpiSvc.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
-		PreviousInteractions: dialectic.UserInteractions,
-	}, "")
-	if err != nil {
-		return nil, err
+	// If there's a learning objective, generate initial question based on it
+	if input.LearningObjective != nil {
+		// Generate the first question based on learning objective
+		question, err := dsvc.aih.GenerateQuestionForLearningObjective(input.LearningObjective)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate initial question: %w", err)
+		}
+
+		// Create initial interaction with the generated question
+		interaction := createNewQuestionInteraction(question)
+		dialectic.UserInteractions = append(dialectic.UserInteractions, interaction)
+	} else {
+		// Generate the first interaction using existing logic for non-learning objective dialectics
+		response, err := dsvc.dialecticEpiSvc.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
+			PreviousInteractions: dialectic.UserInteractions,
+		}, "")
+		if err != nil {
+			return nil, err
+		}
+		dialectic.UserInteractions = append(dialectic.UserInteractions, *response.NewInteraction)
 	}
 
-	dialectic.UserInteractions = append(dialectic.UserInteractions, *response.NewInteraction)
-
-	err = dsvc.storeDialecticValue(input.SelfModelID, dialectic)
+	err := dsvc.storeDialecticValue(input.SelfModelID, dialectic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store new dialectic: %w", err)
 	}
@@ -139,6 +152,13 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 			Type:    models.Statement,
 		}
 
+		// Add the extracted belief to the BeliefSystem
+		bs.Beliefs = append(bs.Beliefs, extractedBelief)
+		err = dsvc.kvStore.Store(input.SelfModelID, "BeliefSystem", *bs, len(bs.Beliefs))
+		if err != nil {
+			return nil, fmt.Errorf("failed to store updated belief system: %w", err)
+		}
+
 		// Update the last interaction with the answer and extracted belief
 		lastIdx := len(dialectic.UserInteractions) - 1
 		oldQA := getQuestionAnswer(dialectic.UserInteractions[lastIdx].Interaction)
@@ -159,15 +179,37 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		}
 		dialectic.UserInteractions[lastIdx].UpdatedAtMillisUTC = time.Now().UnixMilli()
 
-		// Generate the next interaction
-		response, err := dsvc.dialecticEpiSvc.Respond(bs, &models.DialecticEvent{
-			PreviousInteractions: dialectic.UserInteractions,
-		}, input.Answer.UserAnswer)
-		if err != nil {
-			return nil, err
-		}
+		// If we have a learning objective, check if it's complete and generate next question
+		if dialectic.LearningObjective != nil {
+			// Check if learning objective is complete
+			isComplete, err := dsvc.aih.CheckLearningObjectiveCompletion(dialectic.LearningObjective, dialectic.UserInteractions)
+			if err != nil {
+				return nil, fmt.Errorf("failed to check learning objective completion: %w", err)
+			}
 
-		dialectic.UserInteractions = append(dialectic.UserInteractions, *response.NewInteraction)
+			dialectic.LearningObjective.IsComplete = isComplete
+
+			// If not complete, generate next question based on learning objective
+			if !isComplete {
+				nextQuestion, err := dsvc.aih.GenerateQuestionForLearningObjective(dialectic.LearningObjective)
+				if err != nil {
+					return nil, fmt.Errorf("failed to generate next question: %w", err)
+				}
+
+				interaction := createNewQuestionInteraction(nextQuestion)
+				dialectic.UserInteractions = append(dialectic.UserInteractions, interaction)
+			}
+		} else {
+			// Generate the next interaction using existing logic for non-learning objective dialectics
+			response, err := dsvc.dialecticEpiSvc.Respond(bs, &models.DialecticEvent{
+				PreviousInteractions: dialectic.UserInteractions,
+			}, input.Answer.UserAnswer)
+			if err != nil {
+				return nil, err
+			}
+
+			dialectic.UserInteractions = append(dialectic.UserInteractions, *response.NewInteraction)
+		}
 	}
 
 	// Handle question blob (from assistant)
@@ -209,7 +251,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		if dialectic.PerspectiveSelves != nil {
 			for _, perspectiveSelf := range dialectic.PerspectiveSelves {
 				perspective, err := dsvc.perspectiveTakingEpiSvc.Respond(bs, models.EpistemicRequest{
-					SelfModelID: perspectiveSelf,
+					SelfModelID: perspectiveSelf.SelfModelID,
 					Content: map[string]interface{}{
 						"question": lastInteraction.Interaction.QuestionAnswer.Question,
 						"answer":   lastInteraction.Interaction.QuestionAnswer.Answer,
@@ -222,7 +264,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 				lastInteraction.Perspectives = append(lastInteraction.Perspectives, models.Perspective{
 					Response:    *perspective,
-					SelfModelID: perspectiveSelf,
+					SelfModelID: perspectiveSelf.SelfModelID,
 				})
 			}
 		}
