@@ -51,8 +51,10 @@ type DeleteBeliefInput struct {
 
 // CreateDialecticInput represents an input to create a new dialectic.
 type CreateDialecticInput struct {
-	SelfModelID   string        `json:"self_model_id"`
-	DialecticType DialecticType `json:"dialectic_type"`
+	SelfModelID       string             `json:"self_model_id"`
+	DialecticType     DialecticType      `json:"dialectic_type"`
+	PerspectiveSelves []Perspective      `json:"perspective_selves,omitempty"`
+	LearningObjective *LearningObjective `json:"learning_objective,omitempty"`
 }
 
 // ListDialecticsInput represents an input to list dialectics.

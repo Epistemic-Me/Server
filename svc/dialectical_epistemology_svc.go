@@ -81,24 +81,26 @@ func (de *DialecticalEpistemology) Process(event *models.DialecticEvent, dryRun 
 	// if we've updated no existing beleifs, create a new one
 	// todo: @deen this may need to become more sophisticated in the future
 	if len(updatedBeliefs) == 0 {
-		interpretedBeliefStr, err := de.ai.GetInteractionEventAsBelief(*interactionEvent)
+		interpretedBeliefStrings, err := de.ai.GetInteractionEventAsBelief(*interactionEvent)
 		if err != nil {
 			return nil, err
 		}
 
-		// store the interpeted belief as a user belief so it will be included in the belief system
-		createBeliefOutput, err := de.bsvc.CreateBelief(&models.CreateBeliefInput{
-			SelfModelID:   selfModelID,
-			BeliefContent: interpretedBeliefStr,
-			DryRun:        dryRun,
-		})
+		// Create a new belief for each extracted belief string
+		for _, beliefStr := range interpretedBeliefStrings {
+			createBeliefOutput, err := de.bsvc.CreateBelief(&models.CreateBeliefInput{
+				SelfModelID:   selfModelID,
+				BeliefContent: beliefStr,
+				DryRun:        dryRun,
+			})
 
-		if err != nil {
-			log.Printf("Error in CreateBelief: %v", err)
-			return nil, err
+			if err != nil {
+				log.Printf("Error in CreateBelief: %v", err)
+				return nil, err
+			}
+
+			updatedBeliefs = append(updatedBeliefs, createBeliefOutput.Belief)
 		}
-
-		updatedBeliefs = append(updatedBeliefs, createBeliefOutput.Belief)
 	}
 
 	beliefPointers := make([]*models.Belief, len(updatedBeliefs))
