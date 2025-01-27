@@ -334,10 +334,10 @@ func (ba BeliefAnalysis) ToProto() *pbmodels.BeliefAnalysis {
 
 // LearningObjective represents what we want to learn about the user
 type LearningObjective struct {
-	Description      string     `json:"description"`
-	Topics           []string   `json:"topics"`
-	TargetBeliefType BeliefType `json:"target_belief_type"`
-	IsComplete       bool       `json:"is_complete"`
+	Description          string     // Natural language description of what to learn
+	Topics               []string   // Key topics to explore (e.g., "sleep", "diet", "exercise")
+	TargetBeliefType     BeliefType // Type of beliefs to collect
+	CompletionPercentage float32    // Percentage of completion (0-100)
 }
 
 func (lo *LearningObjective) ToProto() *pbmodels.LearningObjective {
@@ -345,10 +345,10 @@ func (lo *LearningObjective) ToProto() *pbmodels.LearningObjective {
 		return nil
 	}
 	return &pbmodels.LearningObjective{
-		Description:      lo.Description,
-		Topics:           lo.Topics,
-		TargetBeliefType: pbmodels.BeliefType(lo.TargetBeliefType),
-		IsComplete:       lo.IsComplete,
+		Description:          lo.Description,
+		Topics:               lo.Topics,
+		TargetBeliefType:     pbmodels.BeliefType(lo.TargetBeliefType),
+		CompletionPercentage: lo.CompletionPercentage,
 	}
 }
 
@@ -357,10 +357,10 @@ func LearningObjectiveFromProto(lo *pbmodels.LearningObjective) *LearningObjecti
 		return nil
 	}
 	return &LearningObjective{
-		Description:      lo.Description,
-		Topics:           lo.Topics,
-		TargetBeliefType: BeliefType(lo.TargetBeliefType),
-		IsComplete:       lo.IsComplete,
+		Description:          lo.Description,
+		Topics:               lo.Topics,
+		TargetBeliefType:     BeliefType(lo.TargetBeliefType),
+		CompletionPercentage: lo.CompletionPercentage,
 	}
 }
 

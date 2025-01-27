@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,8 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	ai "epistemic-me-core/ai"
 	pb "epistemic-me-core/pb"
 	pbmodels "epistemic-me-core/pb/models"
+	svcmodels "epistemic-me-core/svc/models"
 )
 
 // Custom logger that filters out noise
@@ -59,10 +62,10 @@ func TestCreateDialecticWithLearningObjective(t *testing.T) {
 		SelfModelId:   selfModelID,
 		DialecticType: pbmodels.DialecticType_DEFAULT,
 		LearningObjective: &pbmodels.LearningObjective{
-			Description:      "to learn my user's beliefs about sleep, diet and exercise including daily habits and the influences on their health beliefs",
-			Topics:           []string{"sleep", "diet", "exercise", "health habits"},
-			TargetBeliefType: pbmodels.BeliefType_STATEMENT,
-			IsComplete:       false,
+			Description:          "to learn my user's beliefs about sleep, diet and exercise including daily habits and the influences on their health beliefs",
+			Topics:               []string{"sleep", "diet", "exercise", "health habits"},
+			TargetBeliefType:     pbmodels.BeliefType_STATEMENT,
+			CompletionPercentage: 0,
 		},
 	}))
 	require.NoError(t, err)
@@ -79,9 +82,13 @@ func TestCreateDialecticWithLearningObjective(t *testing.T) {
 }
 
 func TestDialecticLearningCycle(t *testing.T) {
-	// Suppress all server and test framework logs
-	suppressServerLogs()
-	logger := newTestLogger()
+	// Check for OpenAI API key
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		t.Skip("Skipping test: OPENAI_API_KEY not set")
+	}
+
+	// Create a test logger that writes to both t.Log and stdout
+	logger := log.New(io.MultiWriter(os.Stdout, testWriter{t}), "", 0)
 
 	// Set up test environment
 	ctx := contextWithAPIKey(context.Background(), apiKey)
@@ -91,12 +98,19 @@ func TestDialecticLearningCycle(t *testing.T) {
 	dialectic := createTestDialecticWithLearningObjective(t, ctx, selfModelID)
 	createResp := &connect.Response[pb.CreateDialecticResponse]{Msg: &pb.CreateDialecticResponse{Dialectic: dialectic}}
 
-	logger.Printf("\n=== Starting Learning Dialectic ===\n")
+	logger.Printf("\n=== Starting Learning Dialectic ===")
 	logger.Printf("Learning Objective: %s\n\n", createResp.Msg.Dialectic.LearningObjective.Description)
 
-	// Simulate conversation cycle
+	// Track previous completion percentage
+	var prevCompletion float32 = 0
+
+	// Test a few rounds of interaction
 	for i := 0; i < 5; i++ {
 		// Get latest question
+		if len(createResp.Msg.Dialectic.UserInteractions) == 0 {
+			logger.Printf("No more questions - learning objective complete\n")
+			break
+		}
 		question := createResp.Msg.Dialectic.UserInteractions[len(createResp.Msg.Dialectic.UserInteractions)-1].Interaction.GetQuestionAnswer().Question.Question
 		logger.Printf("Q%d: %s\n", i+1, question)
 
@@ -115,13 +129,35 @@ func TestDialecticLearningCycle(t *testing.T) {
 		}))
 		require.NoError(t, err)
 
-		// Log extracted belief and completion status
-		lastInteraction := updateResp.Msg.Dialectic.UserInteractions[len(updateResp.Msg.Dialectic.UserInteractions)-2]
-		if len(lastInteraction.Interaction.GetQuestionAnswer().ExtractedBeliefs) > 0 {
-			belief := lastInteraction.Interaction.GetQuestionAnswer().ExtractedBeliefs[0].Content[0].RawStr
-			logger.Printf("Extracted Belief: %s\n", belief)
+		// Log extracted beliefs and completion status
+		if len(updateResp.Msg.Dialectic.UserInteractions) > 0 {
+			var lastAnsweredInteraction *pbmodels.DialecticalInteraction
+			// Find the last answered interaction
+			for i := len(updateResp.Msg.Dialectic.UserInteractions) - 1; i >= 0; i-- {
+				if updateResp.Msg.Dialectic.UserInteractions[i].Status == pbmodels.STATUS_ANSWERED {
+					lastAnsweredInteraction = updateResp.Msg.Dialectic.UserInteractions[i]
+					break
+				}
+			}
+
+			if lastAnsweredInteraction != nil && len(lastAnsweredInteraction.Interaction.GetQuestionAnswer().ExtractedBeliefs) > 0 {
+				logger.Printf("Extracted Beliefs:")
+				for i, belief := range lastAnsweredInteraction.Interaction.GetQuestionAnswer().ExtractedBeliefs {
+					logger.Printf("  %d. %s", i+1, belief.Content[0].RawStr)
+				}
+			} else {
+				logger.Printf("No beliefs extracted from this interaction.")
+			}
 		}
-		logger.Printf("Learning Complete: %v\n\n", updateResp.Msg.Dialectic.LearningObjective.IsComplete)
+		logger.Printf("Learning Complete: %v\n\n", updateResp.Msg.Dialectic.LearningObjective.CompletionPercentage)
+
+		// Log completion analysis details
+		if updateResp.Msg.Dialectic.LearningObjective.CompletionPercentage < prevCompletion {
+			logger.Printf("\n!!! Warning: Completion percentage decreased from %.1f%% to %.1f%% !!!\n",
+				prevCompletion,
+				updateResp.Msg.Dialectic.LearningObjective.CompletionPercentage)
+		}
+		prevCompletion = updateResp.Msg.Dialectic.LearningObjective.CompletionPercentage
 
 		createResp = &connect.Response[pb.CreateDialecticResponse]{Msg: &pb.CreateDialecticResponse{Dialectic: updateResp.Msg.Dialectic}}
 	}
@@ -136,6 +172,16 @@ func TestDialecticLearningCycle(t *testing.T) {
 	beliefSystem := selfModel.Msg.SelfModel.BeliefSystem
 	require.NotNil(t, beliefSystem)
 	require.NotEmpty(t, beliefSystem.Beliefs, "Should NOT be empty, but was %v", beliefSystem.Beliefs)
+}
+
+// Helper type to write to testing.T
+type testWriter struct {
+	t *testing.T
+}
+
+func (tw testWriter) Write(p []byte) (n int, err error) {
+	tw.t.Log(string(p))
+	return len(p), nil
 }
 
 // Helper functions
@@ -161,10 +207,10 @@ func createTestDialecticWithLearningObjective(t *testing.T, ctx context.Context,
 		SelfModelId:   selfModelID,
 		DialecticType: pbmodels.DialecticType_DEFAULT,
 		LearningObjective: &pbmodels.LearningObjective{
-			Description:      "to learn my user's beliefs about sleep, diet and exercise including daily habits and the influences on their health beliefs",
-			Topics:           []string{"sleep", "diet", "exercise", "health habits"},
-			TargetBeliefType: pbmodels.BeliefType_STATEMENT,
-			IsComplete:       false,
+			Description:          "to learn my user's beliefs about sleep, diet and exercise including daily habits and the influences on their health beliefs",
+			Topics:               []string{"sleep", "diet", "exercise", "health habits"},
+			TargetBeliefType:     pbmodels.BeliefType_STATEMENT,
+			CompletionPercentage: 0,
 		},
 	}))
 	require.NoError(t, err)
@@ -172,6 +218,44 @@ func createTestDialecticWithLearningObjective(t *testing.T, ctx context.Context,
 }
 
 func generateTestAnswer(question string) string {
+	// Get the self model's beliefs to generate a contextual answer
+	ctx := contextWithAPIKey(context.Background(), apiKey)
+	selfModel, err := client.GetSelfModel(ctx, connect.NewRequest(&pb.GetSelfModelRequest{
+		SelfModelId: "test-health-philosophy-user",
+	}))
+	if err != nil {
+		// Fallback to default answers if we can't get the belief system
+		return generateDefaultAnswer(question)
+	}
+
+	// Convert proto belief system to service model
+	beliefSystem := &svcmodels.BeliefSystem{
+		Beliefs: make([]*svcmodels.Belief, len(selfModel.Msg.SelfModel.BeliefSystem.Beliefs)),
+	}
+	for i, belief := range selfModel.Msg.SelfModel.BeliefSystem.Beliefs {
+		beliefSystem.Beliefs[i] = &svcmodels.Belief{
+			Content: []svcmodels.Content{{RawStr: belief.Content[0].RawStr}},
+		}
+	}
+
+	// Create AI helper with the test API key
+	helper := ai.NewAIHelper(os.Getenv("OPENAI_API_KEY"))
+
+	// Use AI helper to generate an answer based on the belief system
+	answer, err := helper.GenerateAnswerFromBeliefSystem(
+		question,
+		beliefSystem,
+		selfModel.Msg.SelfModel.Philosophies,
+	)
+	if err != nil {
+		// Fallback to default answers if AI generation fails
+		return generateDefaultAnswer(question)
+	}
+
+	return answer
+}
+
+func generateDefaultAnswer(question string) string {
 	question = strings.ToLower(question)
 	switch {
 	case strings.Contains(question, "sleep"):
@@ -183,8 +267,4 @@ func generateTestAnswer(question string) string {
 	default:
 		return "I believe in maintaining healthy habits for overall wellbeing."
 	}
-}
-
-func contains(s, substr string) bool {
-	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }

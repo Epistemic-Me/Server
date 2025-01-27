@@ -72,7 +72,7 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 	// If there's a learning objective, generate initial question based on it
 	if input.LearningObjective != nil {
 		// Generate the first question based on learning objective
-		question, err := dsvc.aih.GenerateQuestionForLearningObjective(input.LearningObjective)
+		question, err := dsvc.aih.GenerateQuestionForLearningObjective(input.LearningObjective, dialectic.UserInteractions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate initial question: %w", err)
 		}
@@ -135,31 +135,35 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 			return nil, err
 		}
 
-		// Extract belief from the answer
+		// Extract beliefs from the answer
 		interactionEvent := ai.InteractionEvent{
 			Question: getQuestion(&dialectic.UserInteractions[len(dialectic.UserInteractions)-1]),
 			Answer:   input.Answer.UserAnswer,
 		}
 
-		extractedBeliefStr, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
+		extractedBeliefStrings, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract belief: %w", err)
+			return nil, fmt.Errorf("failed to extract beliefs: %w", err)
 		}
 
-		extractedBelief := &models.Belief{
-			ID:      uuid.New().String(),
-			Content: []models.Content{{RawStr: extractedBeliefStr}},
-			Type:    models.Statement,
+		extractedBeliefs := make([]*models.Belief, 0, len(extractedBeliefStrings))
+		for _, beliefStr := range extractedBeliefStrings {
+			extractedBelief := &models.Belief{
+				ID:      uuid.New().String(),
+				Content: []models.Content{{RawStr: beliefStr}},
+				Type:    models.Statement,
+			}
+			extractedBeliefs = append(extractedBeliefs, extractedBelief)
 		}
 
-		// Add the extracted belief to the BeliefSystem
-		bs.Beliefs = append(bs.Beliefs, extractedBelief)
+		// Add the extracted beliefs to the BeliefSystem
+		bs.Beliefs = append(bs.Beliefs, extractedBeliefs...)
 		err = dsvc.kvStore.Store(input.SelfModelID, "BeliefSystem", *bs, len(bs.Beliefs))
 		if err != nil {
 			return nil, fmt.Errorf("failed to store updated belief system: %w", err)
 		}
 
-		// Update the last interaction with the answer and extracted belief
+		// Update the last interaction with the answer and extracted beliefs
 		lastIdx := len(dialectic.UserInteractions) - 1
 		oldQA := getQuestionAnswer(dialectic.UserInteractions[lastIdx].Interaction)
 		qa := &models.QuestionAnswerInteraction{
@@ -168,7 +172,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 				UserAnswer:         input.Answer.UserAnswer,
 				CreatedAtMillisUTC: time.Now().UnixMilli(),
 			},
-			ExtractedBeliefs:   []*models.Belief{extractedBelief},
+			ExtractedBeliefs:   extractedBeliefs,
 			UpdatedAtMillisUTC: time.Now().UnixMilli(),
 		}
 
@@ -179,19 +183,40 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		}
 		dialectic.UserInteractions[lastIdx].UpdatedAtMillisUTC = time.Now().UnixMilli()
 
-		// If we have a learning objective, check if it's complete and generate next question
+		// If we have a learning objective, check completion and generate next question
 		if dialectic.LearningObjective != nil {
-			// Check if learning objective is complete
-			isComplete, err := dsvc.aih.CheckLearningObjectiveCompletion(dialectic.LearningObjective, dialectic.UserInteractions)
+			// Get the current belief system
+			bs, err := dsvc.dialecticEpiSvc.Process(&models.DialecticEvent{
+				PreviousInteractions: dialectic.UserInteractions,
+			}, false, dialectic.SelfModelID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get belief system: %w", err)
+			}
+
+			// Get the self model using existing KeyValueStore.Retrieve
+			selfModelValue, err := dsvc.kvStore.Retrieve(dialectic.SelfModelID, "SelfModel")
+			if err != nil {
+				return nil, fmt.Errorf("failed to get self model: %w", err)
+			}
+
+			// Convert to SelfModel type
+			selfModel, ok := selfModelValue.(*models.SelfModel)
+			if !ok {
+				return nil, fmt.Errorf("invalid self model type")
+			}
+
+			// Update the belief system with current beliefs
+			selfModel.BeliefSystem = bs
+
+			completionPercentage, err := dsvc.aih.CheckLearningObjectiveCompletion(dialectic.LearningObjective, selfModel)
 			if err != nil {
 				return nil, fmt.Errorf("failed to check learning objective completion: %w", err)
 			}
+			dialectic.LearningObjective.CompletionPercentage = completionPercentage
 
-			dialectic.LearningObjective.IsComplete = isComplete
-
-			// If not complete, generate next question based on learning objective
-			if !isComplete {
-				nextQuestion, err := dsvc.aih.GenerateQuestionForLearningObjective(dialectic.LearningObjective)
+			// If not complete (less than 95%), generate next question based on learning objective
+			if completionPercentage < 95 {
+				nextQuestion, err := dsvc.aih.GenerateQuestionForLearningObjective(dialectic.LearningObjective, dialectic.UserInteractions)
 				if err != nil {
 					return nil, fmt.Errorf("failed to generate next question: %w", err)
 				}
@@ -398,22 +423,25 @@ func (dsvc *DialecticService) PreprocessDialectic(answerBlob *string, dialectic 
 				Answer:   answer,
 			}
 
-			extractedBeliefStr, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
+			extractedBeliefStrings, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
 			if err != nil {
-				return fmt.Errorf("failed to extract belief: %w", err)
+				return fmt.Errorf("failed to extract beliefs: %w", err)
 			}
 
-			extractedBelief := &models.Belief{
-				ID:      uuid.New().String(),
-				Content: []models.Content{{RawStr: extractedBeliefStr}},
-				Type:    models.Statement,
+			extractedBeliefs := make([]*models.Belief, 0, len(extractedBeliefStrings))
+			for _, beliefStr := range extractedBeliefStrings {
+				belief := &models.Belief{
+					ID:      uuid.New().String(),
+					Content: []models.Content{{RawStr: beliefStr}},
+					Type:    models.Statement,
+				}
+				extractedBeliefs = append(extractedBeliefs, belief)
+				log.Printf("Extracted belief: %+v", belief)
 			}
 
-			log.Printf("Extracted belief: %+v", extractedBelief)
-
-			if extractedBelief != nil {
-				qa.ExtractedBeliefs = append(qa.ExtractedBeliefs, extractedBelief)
-				log.Printf("Added extracted belief to QuestionAnswer: %+v", extractedBelief)
+			if len(extractedBeliefs) > 0 {
+				qa.ExtractedBeliefs = append(qa.ExtractedBeliefs, extractedBeliefs...)
+				log.Printf("Added %d extracted beliefs to QuestionAnswer", len(extractedBeliefs))
 			}
 
 			// Update the interaction
@@ -423,7 +451,6 @@ func (dsvc *DialecticService) PreprocessDialectic(answerBlob *string, dialectic 
 			}
 
 			log.Printf("Created QuestionAnswer interaction with Question: %q, Answer: %q", qa.Question.Question, qa.Answer.UserAnswer)
-			log.Printf("Extracted belief: %+v", extractedBelief)
 			log.Printf("QuestionAnswer interaction after adding belief: %+v", qa)
 		}
 	}
