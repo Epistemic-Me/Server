@@ -17,11 +17,12 @@ type CreateBeliefInput struct {
 
 // BeliefEvidence represents evidence for a belief
 type BeliefEvidence struct {
-	Type      EvidenceType `json:"type"`
-	Content   string       `json:"content,omitempty"`
-	IsCounter bool         `json:"is_counter,omitempty"`
-	Action    string       `json:"action,omitempty"`
-	Outcome   string       `json:"outcome,omitempty"`
+	Type              EvidenceType `json:"type"`
+	Content           string       `json:"content,omitempty"`
+	IsCounter         bool         `json:"is_counter,omitempty"`
+	Action            string       `json:"action,omitempty"`
+	Outcome           string       `json:"outcome,omitempty"`
+	PerspectiveSelves []string     `json:"perspective_selves"`
 }
 
 type EvidenceType int
@@ -51,10 +52,10 @@ type DeleteBeliefInput struct {
 
 // CreateDialecticInput represents an input to create a new dialectic.
 type CreateDialecticInput struct {
-	SelfModelID       string             `json:"self_model_id"`
-	DialecticType     DialecticType      `json:"dialectic_type"`
-	PerspectiveSelves []Perspective      `json:"perspective_selves,omitempty"`
-	LearningObjective *LearningObjective `json:"learning_objective,omitempty"`
+	SelfModelID         string             `json:"self_model_id"`
+	DialecticType       DialecticType      `json:"dialectic_type"`
+	PerspectiveModelIDs []string           `json:"perspective_model_ids,omitempty"`
+	LearningObjective   *LearningObjective `json:"learning_objective,omitempty"`
 }
 
 // ListDialecticsInput represents an input to list dialectics.

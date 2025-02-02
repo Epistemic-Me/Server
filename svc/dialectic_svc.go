@@ -91,6 +91,12 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 		dialectic.UserInteractions = append(dialectic.UserInteractions, *response.NewInteraction)
 	}
 
+	// Add perspective selves if specified
+	if len(input.PerspectiveModelIDs) > 0 {
+		dialectic.PerspectiveModelIDs = input.PerspectiveModelIDs
+		log.Printf("Adding perspective selves: %v", dialectic.PerspectiveModelIDs)
+	}
+
 	err := dsvc.storeDialecticValue(input.SelfModelID, dialectic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store new dialectic: %w", err)
@@ -273,10 +279,10 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 		// For all perspectives we've attached to the dialectic, provide perspectives on the latest
 		// dialectic interaction
-		if dialectic.PerspectiveSelves != nil {
-			for _, perspectiveSelf := range dialectic.PerspectiveSelves {
+		if dialectic.PerspectiveModelIDs != nil {
+			for _, perspectiveModelID := range dialectic.PerspectiveModelIDs {
 				perspective, err := dsvc.perspectiveTakingEpiSvc.Respond(bs, models.EpistemicRequest{
-					SelfModelID: perspectiveSelf.SelfModelID,
+					SelfModelID: perspectiveModelID,
 					Content: map[string]interface{}{
 						"question": lastInteraction.Interaction.QuestionAnswer.Question,
 						"answer":   lastInteraction.Interaction.QuestionAnswer.Answer,
@@ -289,7 +295,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 				lastInteraction.Perspectives = append(lastInteraction.Perspectives, models.Perspective{
 					Response:    *perspective,
-					SelfModelID: perspectiveSelf.SelfModelID,
+					SelfModelID: perspectiveModelID,
 				})
 			}
 		}

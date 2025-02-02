@@ -366,13 +366,13 @@ func LearningObjectiveFromProto(lo *pbmodels.LearningObjective) *LearningObjecti
 
 // Dialectic represents a session to determine and clarify a user's beliefs.
 type Dialectic struct {
-	ID                string                   `json:"id"`
-	SelfModelID       string                   `json:"self_model_id"`
-	Agent             Agent                    `json:"agent"`
-	UserInteractions  []DialecticalInteraction `json:"user_interactions"`
-	Analysis          *BeliefAnalysis          `json:"analysis,omitempty"`
-	PerspectiveSelves []Perspective            `json:"perspective_selves,omitempty"`
-	LearningObjective *LearningObjective       `json:"learning_objective,omitempty"`
+	ID                  string                   `json:"id"`
+	SelfModelID         string                   `json:"self_model_id"`
+	Agent               Agent                    `json:"agent"`
+	UserInteractions    []DialecticalInteraction `json:"user_interactions"`
+	Analysis            *BeliefAnalysis          `json:"analysis,omitempty"`
+	PerspectiveModelIDs []string                 `json:"perspective_model_ids,omitempty"`
+	LearningObjective   *LearningObjective       `json:"learning_objective,omitempty"`
 }
 
 func (d *Dialectic) MarshalBinary() ([]byte, error) {
@@ -399,12 +399,9 @@ func (d *Dialectic) ToProto() *pbmodels.Dialectic {
 		proto.LearningObjective = d.LearningObjective.ToProto()
 	}
 
-	// Convert PerspectiveSelves
-	if len(d.PerspectiveSelves) > 0 {
-		proto.PerspectiveSelves = make([]*pbmodels.Perspective, len(d.PerspectiveSelves))
-		for i, p := range d.PerspectiveSelves {
-			proto.PerspectiveSelves[i] = p.ToProto()
-		}
+	// Convert PerspectiveModelIDs
+	if len(d.PerspectiveModelIDs) > 0 {
+		proto.PerspectiveModelIds = d.PerspectiveModelIDs
 	}
 
 	for i, interaction := range d.UserInteractions {
