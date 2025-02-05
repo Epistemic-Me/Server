@@ -222,11 +222,11 @@ func (bsvc *BeliefService) retrieveBeliefValue(selfModelID, beliefID string) (*m
 	if err != nil {
 		return nil, err
 	}
-	belief, ok := value.(models.Belief)
+	belief, ok := value.(*models.Belief)
 	if !ok {
 		return nil, fmt.Errorf("retrieved value is not a Belief")
 	}
-	return &belief, nil
+	return belief, nil
 }
 
 func (bsvc *BeliefService) getAllBeliefs(selfModelID string, isActive bool) ([]*models.Belief, error) {

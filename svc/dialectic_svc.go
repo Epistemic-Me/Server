@@ -60,25 +60,44 @@ func (dsvc *DialecticService) CreateDialectic(input *models.CreateDialecticInput
 
 	dialectic := &models.Dialectic{
 		ID:          newDialecticId,
-		SelfModelID: input.SelfModelID, // Changed from UserID
+		SelfModelID: input.SelfModelID,
 		Agent: models.Agent{
 			AgentType:     models.AgentTypeGPTLatest,
 			DialecticType: input.DialecticType,
 		},
-		UserInteractions: []models.DialecticalInteraction{},
+		UserInteractions:  []models.DialecticalInteraction{},
+		LearningObjective: input.LearningObjective,
 	}
 
-	// Generate the first interaction
-	response, err := dsvc.dialecticEpiSvc.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
-		PreviousInteractions: dialectic.UserInteractions,
-	}, "")
-	if err != nil {
-		return nil, err
+	// If there's a learning objective, generate initial question based on it
+	if input.LearningObjective != nil {
+		// Generate the first question based on learning objective
+		question, err := dsvc.aih.GenerateQuestionForLearningObjective(input.LearningObjective, dialectic.UserInteractions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate initial question: %w", err)
+		}
+
+		// Create initial interaction with the generated question
+		interaction := createNewQuestionInteraction(question)
+		dialectic.UserInteractions = append(dialectic.UserInteractions, interaction)
+	} else {
+		// Generate the first interaction using existing logic for non-learning objective dialectics
+		response, err := dsvc.dialecticEpiSvc.Respond(&models.BeliefSystem{}, &models.DialecticEvent{
+			PreviousInteractions: dialectic.UserInteractions,
+		}, "")
+		if err != nil {
+			return nil, err
+		}
+		dialectic.UserInteractions = append(dialectic.UserInteractions, *response.NewInteraction)
 	}
 
-	dialectic.UserInteractions = append(dialectic.UserInteractions, *response.NewInteraction)
+	// Add perspective selves if specified
+	if len(input.PerspectiveModelIDs) > 0 {
+		dialectic.PerspectiveModelIDs = input.PerspectiveModelIDs
+		log.Printf("Adding perspective selves: %v", dialectic.PerspectiveModelIDs)
+	}
 
-	err = dsvc.storeDialecticValue(input.SelfModelID, dialectic)
+	err := dsvc.storeDialecticValue(input.SelfModelID, dialectic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store new dialectic: %w", err)
 	}
@@ -122,24 +141,35 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 			return nil, err
 		}
 
-		// Extract belief from the answer
+		// Extract beliefs from the answer
 		interactionEvent := ai.InteractionEvent{
 			Question: getQuestion(&dialectic.UserInteractions[len(dialectic.UserInteractions)-1]),
 			Answer:   input.Answer.UserAnswer,
 		}
 
-		extractedBeliefStr, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
+		extractedBeliefStrings, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract belief: %w", err)
+			return nil, fmt.Errorf("failed to extract beliefs: %w", err)
 		}
 
-		extractedBelief := &models.Belief{
-			ID:      uuid.New().String(),
-			Content: []models.Content{{RawStr: extractedBeliefStr}},
-			Type:    models.Statement,
+		extractedBeliefs := make([]*models.Belief, 0, len(extractedBeliefStrings))
+		for _, beliefStr := range extractedBeliefStrings {
+			extractedBelief := &models.Belief{
+				ID:      uuid.New().String(),
+				Content: []models.Content{{RawStr: beliefStr}},
+				Type:    models.Statement,
+			}
+			extractedBeliefs = append(extractedBeliefs, extractedBelief)
 		}
 
-		// Update the last interaction with the answer and extracted belief
+		// Add the extracted beliefs to the BeliefSystem
+		bs.Beliefs = append(bs.Beliefs, extractedBeliefs...)
+		err = dsvc.kvStore.Store(input.SelfModelID, "BeliefSystem", *bs, len(bs.Beliefs))
+		if err != nil {
+			return nil, fmt.Errorf("failed to store updated belief system: %w", err)
+		}
+
+		// Update the last interaction with the answer and extracted beliefs
 		lastIdx := len(dialectic.UserInteractions) - 1
 		oldQA := getQuestionAnswer(dialectic.UserInteractions[lastIdx].Interaction)
 		qa := &models.QuestionAnswerInteraction{
@@ -148,7 +178,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 				UserAnswer:         input.Answer.UserAnswer,
 				CreatedAtMillisUTC: time.Now().UnixMilli(),
 			},
-			ExtractedBeliefs:   []*models.Belief{extractedBelief},
+			ExtractedBeliefs:   extractedBeliefs,
 			UpdatedAtMillisUTC: time.Now().UnixMilli(),
 		}
 
@@ -159,15 +189,58 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		}
 		dialectic.UserInteractions[lastIdx].UpdatedAtMillisUTC = time.Now().UnixMilli()
 
-		// Generate the next interaction
-		response, err := dsvc.dialecticEpiSvc.Respond(bs, &models.DialecticEvent{
-			PreviousInteractions: dialectic.UserInteractions,
-		}, input.Answer.UserAnswer)
-		if err != nil {
-			return nil, err
-		}
+		// If we have a learning objective, check completion and generate next question
+		if dialectic.LearningObjective != nil {
+			// Get the current belief system
+			bs, err := dsvc.dialecticEpiSvc.Process(&models.DialecticEvent{
+				PreviousInteractions: dialectic.UserInteractions,
+			}, false, dialectic.SelfModelID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get belief system: %w", err)
+			}
 
-		dialectic.UserInteractions = append(dialectic.UserInteractions, *response.NewInteraction)
+			// Get the self model using existing KeyValueStore.Retrieve
+			selfModelValue, err := dsvc.kvStore.Retrieve(dialectic.SelfModelID, "SelfModel")
+			if err != nil {
+				return nil, fmt.Errorf("failed to get self model: %w", err)
+			}
+
+			// Convert to SelfModel type
+			selfModel, ok := selfModelValue.(*models.SelfModel)
+			if !ok {
+				return nil, fmt.Errorf("invalid self model type")
+			}
+
+			// Update the belief system with current beliefs
+			selfModel.BeliefSystem = bs
+
+			completionPercentage, err := dsvc.aih.CheckLearningObjectiveCompletion(dialectic.LearningObjective, selfModel)
+			if err != nil {
+				return nil, fmt.Errorf("failed to check learning objective completion: %w", err)
+			}
+			dialectic.LearningObjective.CompletionPercentage = completionPercentage
+
+			// If not complete (less than 95%), generate next question based on learning objective
+			if completionPercentage < 95 {
+				nextQuestion, err := dsvc.aih.GenerateQuestionForLearningObjective(dialectic.LearningObjective, dialectic.UserInteractions)
+				if err != nil {
+					return nil, fmt.Errorf("failed to generate next question: %w", err)
+				}
+
+				interaction := createNewQuestionInteraction(nextQuestion)
+				dialectic.UserInteractions = append(dialectic.UserInteractions, interaction)
+			}
+		} else {
+			// Generate the next interaction using existing logic for non-learning objective dialectics
+			response, err := dsvc.dialecticEpiSvc.Respond(bs, &models.DialecticEvent{
+				PreviousInteractions: dialectic.UserInteractions,
+			}, input.Answer.UserAnswer)
+			if err != nil {
+				return nil, err
+			}
+
+			dialectic.UserInteractions = append(dialectic.UserInteractions, *response.NewInteraction)
+		}
 	}
 
 	// Handle question blob (from assistant)
@@ -206,10 +279,10 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 		// For all perspectives we've attached to the dialectic, provide perspectives on the latest
 		// dialectic interaction
-		if dialectic.PerspectiveSelves != nil {
-			for _, perspectiveSelf := range dialectic.PerspectiveSelves {
+		if dialectic.PerspectiveModelIDs != nil {
+			for _, perspectiveModelID := range dialectic.PerspectiveModelIDs {
 				perspective, err := dsvc.perspectiveTakingEpiSvc.Respond(bs, models.EpistemicRequest{
-					SelfModelID: perspectiveSelf,
+					SelfModelID: perspectiveModelID,
 					Content: map[string]interface{}{
 						"question": lastInteraction.Interaction.QuestionAnswer.Question,
 						"answer":   lastInteraction.Interaction.QuestionAnswer.Answer,
@@ -222,7 +295,7 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 
 				lastInteraction.Perspectives = append(lastInteraction.Perspectives, models.Perspective{
 					Response:    *perspective,
-					SelfModelID: perspectiveSelf,
+					SelfModelID: perspectiveModelID,
 				})
 			}
 		}
@@ -356,22 +429,25 @@ func (dsvc *DialecticService) PreprocessDialectic(answerBlob *string, dialectic 
 				Answer:   answer,
 			}
 
-			extractedBeliefStr, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
+			extractedBeliefStrings, err := dsvc.aih.GetInteractionEventAsBelief(interactionEvent)
 			if err != nil {
-				return fmt.Errorf("failed to extract belief: %w", err)
+				return fmt.Errorf("failed to extract beliefs: %w", err)
 			}
 
-			extractedBelief := &models.Belief{
-				ID:      uuid.New().String(),
-				Content: []models.Content{{RawStr: extractedBeliefStr}},
-				Type:    models.Statement,
+			extractedBeliefs := make([]*models.Belief, 0, len(extractedBeliefStrings))
+			for _, beliefStr := range extractedBeliefStrings {
+				belief := &models.Belief{
+					ID:      uuid.New().String(),
+					Content: []models.Content{{RawStr: beliefStr}},
+					Type:    models.Statement,
+				}
+				extractedBeliefs = append(extractedBeliefs, belief)
+				log.Printf("Extracted belief: %+v", belief)
 			}
 
-			log.Printf("Extracted belief: %+v", extractedBelief)
-
-			if extractedBelief != nil {
-				qa.ExtractedBeliefs = append(qa.ExtractedBeliefs, extractedBelief)
-				log.Printf("Added extracted belief to QuestionAnswer: %+v", extractedBelief)
+			if len(extractedBeliefs) > 0 {
+				qa.ExtractedBeliefs = append(qa.ExtractedBeliefs, extractedBeliefs...)
+				log.Printf("Added %d extracted beliefs to QuestionAnswer", len(extractedBeliefs))
 			}
 
 			// Update the interaction
@@ -381,7 +457,6 @@ func (dsvc *DialecticService) PreprocessDialectic(answerBlob *string, dialectic 
 			}
 
 			log.Printf("Created QuestionAnswer interaction with Question: %q, Answer: %q", qa.Question.Question, qa.Answer.UserAnswer)
-			log.Printf("Extracted belief: %+v", extractedBelief)
 			log.Printf("QuestionAnswer interaction after adding belief: %+v", qa)
 		}
 	}

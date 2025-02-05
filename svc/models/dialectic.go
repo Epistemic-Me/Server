@@ -332,15 +332,47 @@ func (ba BeliefAnalysis) ToProto() *pbmodels.BeliefAnalysis {
 	}
 }
 
+// LearningObjective represents what we want to learn about the user
+type LearningObjective struct {
+	Description          string     // Natural language description of what to learn
+	Topics               []string   // Key topics to explore (e.g., "sleep", "diet", "exercise")
+	TargetBeliefType     BeliefType // Type of beliefs to collect
+	CompletionPercentage float32    // Percentage of completion (0-100)
+}
+
+func (lo *LearningObjective) ToProto() *pbmodels.LearningObjective {
+	if lo == nil {
+		return nil
+	}
+	return &pbmodels.LearningObjective{
+		Description:          lo.Description,
+		Topics:               lo.Topics,
+		TargetBeliefType:     pbmodels.BeliefType(lo.TargetBeliefType),
+		CompletionPercentage: lo.CompletionPercentage,
+	}
+}
+
+func LearningObjectiveFromProto(lo *pbmodels.LearningObjective) *LearningObjective {
+	if lo == nil {
+		return nil
+	}
+	return &LearningObjective{
+		Description:          lo.Description,
+		Topics:               lo.Topics,
+		TargetBeliefType:     BeliefType(lo.TargetBeliefType),
+		CompletionPercentage: lo.CompletionPercentage,
+	}
+}
+
 // Dialectic represents a session to determine and clarify a user's beliefs.
 type Dialectic struct {
-	ID                string                   `json:"id"`
-	SelfModelID       string                   `json:"self_model_id"`
-	Agent             Agent                    `json:"agent"`
-	UserInteractions  []DialecticalInteraction `json:"user_interactions"`
-	BeliefSystem      *BeliefSystem            `json:"belief_system"`
-	Analysis          *BeliefAnalysis          `json:"analysis,omitempty"`
-	PerspectiveSelves []string                 `json:"perspective_selves,omitempty"`
+	ID                  string                   `json:"id"`
+	SelfModelID         string                   `json:"self_model_id"`
+	Agent               Agent                    `json:"agent"`
+	UserInteractions    []DialecticalInteraction `json:"user_interactions"`
+	Analysis            *BeliefAnalysis          `json:"analysis,omitempty"`
+	PerspectiveModelIDs []string                 `json:"perspective_model_ids,omitempty"`
+	LearningObjective   *LearningObjective       `json:"learning_objective,omitempty"`
 }
 
 func (d *Dialectic) MarshalBinary() ([]byte, error) {
@@ -352,27 +384,31 @@ func (d *Dialectic) UnmarshalBinary(data []byte) error {
 }
 
 func (d *Dialectic) ToProto() *pbmodels.Dialectic {
-	protoInteractions := make([]*pbmodels.DialecticalInteraction, len(d.UserInteractions))
-	for i, interaction := range d.UserInteractions {
-		protoInteractions[i] = interaction.ToProto()
-	}
-
-	protoDialectic := &pbmodels.Dialectic{
+	proto := &pbmodels.Dialectic{
 		Id:               d.ID,
 		SelfModelId:      d.SelfModelID,
 		Agent:            d.Agent.ToProto(),
-		UserInteractions: protoInteractions,
+		UserInteractions: make([]*pbmodels.DialecticalInteraction, len(d.UserInteractions)),
 	}
 
-	if d.BeliefSystem != nil {
-		protoDialectic.BeliefSystem = d.BeliefSystem.ToProto()
-	}
-
+	// Handle optional fields
 	if d.Analysis != nil {
-		protoDialectic.Analysis = d.Analysis.ToProto()
+		proto.Analysis = d.Analysis.ToProto()
+	}
+	if d.LearningObjective != nil {
+		proto.LearningObjective = d.LearningObjective.ToProto()
 	}
 
-	return protoDialectic
+	// Convert PerspectiveModelIDs
+	if len(d.PerspectiveModelIDs) > 0 {
+		proto.PerspectiveModelIds = d.PerspectiveModelIDs
+	}
+
+	for i, interaction := range d.UserInteractions {
+		proto.UserInteractions[i] = interaction.ToProto()
+	}
+
+	return proto
 }
 
 // Update the MarshalJSON method to use "interaction" consistently

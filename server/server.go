@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -161,8 +162,9 @@ func (s *Server) CreateDialectic(ctx context.Context, req *connect.Request[pb.Cr
 	log.Printf("CreateDialectic called with request: %+v", req.Msg)
 
 	input := &svcmodels.CreateDialecticInput{
-		SelfModelID:   req.Msg.SelfModelId,
-		DialecticType: svcmodels.DialecticType(req.Msg.DialecticType),
+		SelfModelID:       req.Msg.SelfModelId,
+		DialecticType:     svcmodels.DialecticType(req.Msg.DialecticType),
+		LearningObjective: svcmodels.LearningObjectiveFromProto(req.Msg.LearningObjective),
 	}
 	log.Printf("CreateDialectic input: %+v", input)
 
@@ -515,6 +517,11 @@ func NewServer(kvStore *db.KeyValueStore) *Server {
 }
 
 func RunServer(kvStore *db.KeyValueStore, port string) (*http.Server, *sync.WaitGroup, string) {
+	// Suppress server logs for tests
+	if os.Getenv("GOLOG_LOG_LEVEL") == "error" {
+		log.SetOutput(ioutil.Discard)
+	}
+
 	svcServer := NewServer(kvStore)
 
 	mux := http.NewServeMux()
@@ -538,7 +545,7 @@ func RunServer(kvStore *db.KeyValueStore, port string) (*http.Server, *sync.Wait
 		},
 		ExposedHeaders:   []string{"Content-Length", "Content-Type"},
 		AllowCredentials: true,
-		Debug:            true,
+		Debug:            false,
 	})
 
 	var listener net.Listener
@@ -567,7 +574,9 @@ func RunServer(kvStore *db.KeyValueStore, port string) (*http.Server, *sync.Wait
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		log.Printf("Server is running on port %s for Connect", port)
+		if os.Getenv("GOLOG_LOG_LEVEL") != "error" {
+			log.Printf("Server is running on port %s for Connect", port)
+		}
 		if err := srv.Serve(listener); err != http.ErrServerClosed {
 			log.Fatalf("ListenAndServe(): %v", err)
 		}
