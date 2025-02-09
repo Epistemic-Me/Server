@@ -54,11 +54,23 @@ func (bs BeliefSystem) ToProto() *pbmodels.BeliefSystem {
 }
 
 func (b Belief) ToProto() *pbmodels.Belief {
+	var protoType pbmodels.BeliefType
+	switch b.Type {
+	case Statement:
+		protoType = pbmodels.BeliefType_STATEMENT
+	case Falsifiable:
+		protoType = pbmodels.BeliefType_FALSIFIABLE
+	case Causal:
+		protoType = pbmodels.BeliefType_CAUSAL
+	default:
+		protoType = pbmodels.BeliefType_BELIEF_TYPE_INVALID
+	}
+
 	return &pbmodels.Belief{
 		Id:          b.ID,
 		SelfModelId: b.SelfModelID,
 		Version:     b.Version,
-		Type:        pbmodels.BeliefType(b.Type),
+		Type:        protoType,
 		Content:     contentToProto(b.Content),
 	}
 }

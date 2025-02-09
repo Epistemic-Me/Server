@@ -44,26 +44,29 @@ func (de *PerspectiveTakingEpistemology) Process(event *models.PerspectiveTaking
 		newBeliefs = append(newBeliefs, &beliefOutput.Belief)
 	}
 
-	_, beliefIdsToRemove, err := de.ai.DetermineBeliefValidity(bs.Beliefs, newBeliefs)
-	if err != nil {
-		return nil, err
-	}
-
-	for index, beliefIDToRemove := range beliefIdsToRemove {
-		lastItem := index == len(beliefIDToRemove)-1
-
-		deletionOutput, err := de.bsvc.DeleteBelief(&models.DeleteBeliefInput{
-			ID:                  beliefIDToRemove,
-			SelfModelID:         selfModelID,
-			DryRun:              false,
-			ComputeBeliefSystem: lastItem,
-		})
+	// Only check belief validity if there are existing beliefs
+	if len(bs.Beliefs) > 0 {
+		_, beliefIdsToRemove, err := de.ai.DetermineBeliefValidity(bs.Beliefs, newBeliefs)
 		if err != nil {
 			return nil, err
 		}
 
-		if lastItem {
-			bs = &deletionOutput.BeliefSystem
+		for index, beliefIDToRemove := range beliefIdsToRemove {
+			lastItem := index == len(beliefIDToRemove)-1
+
+			deletionOutput, err := de.bsvc.DeleteBelief(&models.DeleteBeliefInput{
+				ID:                  beliefIDToRemove,
+				SelfModelID:         selfModelID,
+				DryRun:              false,
+				ComputeBeliefSystem: lastItem,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			if lastItem {
+				bs = &deletionOutput.BeliefSystem
+			}
 		}
 	}
 

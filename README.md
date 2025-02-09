@@ -1,43 +1,132 @@
-### Backend Setup
+# Epistemic Me Server
 
-## Summary
+The Epistemic Me server is a Go-based backend service that provides belief and dialectic management capabilities through a gRPC interface.
 
-The current backend setup is a golang grpc server. 
+## Prerequisites
 
-Proto models are stored in the proto/ folder, and the protoc command is used to generate golang stubs for use by the grpc server. 
+- Go 1.21 or later
+- Protocol Buffers compiler (`protoc`)
+- OpenAI API key for AI-powered features
+- Docker for containerization
 
-## Developing Locally
+### Installing Dependencies
 
-Setup your environment for local protobuf generation
+1. Install the Protocol Buffers compiler and Go plugins:
 
-```
+```bash
+brew install protobuf
 brew install protoc-gen-go
 brew install protoc-gen-go-grpc
+brew install protoc-gen-connect-go
 ```
 
-Initialize the git submodules (proto)
+2. Initialize the git submodules (proto):
 
-```git submodule init && git submodule update```
+```bash
+git submodule init && git submodule update
+```
 
-Navigate to the root directory, and run `sh generate_protos.sh` to generate the golang files in the epistemic-me-core/ directory from the
-proto files. 
+## Building and Running
 
-## Docker Instructions
+### Local Development
 
-Initialize the git submodules (proto)
+1. Set your OpenAI API key in `.env` file at the project root:
 
-```git submodule init && git submodule update```
+```bash
+OPENAI_API_KEY=your_api_key_here
+```
 
-Download [Docker](https://www.docker.com/products/docker-desktop/)
+2. Run the server using the `run.sh` script:
 
-Build the docker image
+```bash
+./run.sh [flags]
+```
 
-`docker build --build-arg OPENAI_API_KEY={OPEN_API_KEY} -t epistemic-me-core .`
+The server will start on port 8080 by default.
 
-Run the server and expose on port 8080 to mirror goland default port 8080
+### Run Script (run.sh)
 
-`docker run -p 8080:8080 epistemic-me-core`
+The `run.sh` script is the main entry point for building, running, and testing the server. Before executing any command, it automatically runs a pre-build step using `build.sh` which:
+- Generates protobuf files
+- Fixes import paths
+- Builds the Docker image
 
-Run Integration Tests Against The Server
+#### Available Flags
 
-go test -v integration_test.go
+- No flags: Just builds and runs the server
+- `--daemon`: Runs in daemon mode with live reload on code changes
+- `--test`: Runs both integration and SDK tests
+- `--integration-test`: Runs only integration tests
+- `--sdk-test`: Runs only SDK tests
+
+#### Examples
+
+```bash
+# Just run the server
+./run.sh
+
+# Run in daemon mode with live reload
+./run.sh --daemon
+
+# Run all tests (integration and SDK)
+./run.sh --test
+
+# Run only integration tests
+./run.sh --integration-test
+
+# Run only SDK tests
+./run.sh --sdk-test
+```
+
+#### Test Execution Flow
+
+When running tests:
+1. The script first builds the project using `build.sh`
+2. Starts the server in a Docker container
+3. Waits for the server to be ready
+4. Executes the specified test suite(s)
+5. Reports test results
+6. Exits with appropriate status code
+
+### Docker Deployment
+
+1. Build the Docker image:
+
+```bash
+docker build --build-arg OPENAI_API_KEY={OPEN_API_KEY} -t epistemic-me-core .
+```
+
+2. Run the container:
+
+```bash
+docker run -p 8080:8080 epistemic-me-core
+```
+
+## Project Structure
+
+- `proto/`: Protocol Buffer definitions
+- `pb/`: Generated Go code from Protocol Buffers
+- `svc/`: Core service implementations
+- `server/`: gRPC server implementation
+- `tests/`: Integration and unit tests
+  - `integration/`: Integration tests
+  - `sdk/`: SDK tests
+- `ai/`: AI helper implementations
+- `db/`: Database and storage implementations
+
+## Development Workflow
+
+1. Make changes to the Protocol Buffer definitions in `proto/`
+2. Run `./build.sh` to regenerate the Go code
+3. Implement your changes in the relevant service package
+4. Add tests for your changes
+5. Run tests to verify everything works
+6. Submit your PR
+
+## API Documentation
+
+The API is defined using Protocol Buffers. You can find the service definitions in the `proto/` directory.
+
+For detailed API documentation, please refer to the proto files:
+- `proto/models/*.proto`: Data models
+- `proto/service.proto`: Service definitions
