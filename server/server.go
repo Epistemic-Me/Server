@@ -85,16 +85,9 @@ func (s *Server) CreateBelief(
 	log.Printf("CreateBelief called with request: %+v", req.Msg)
 
 	// Convert protobuf belief type to internal type
-	var beliefType svcmodels.BeliefType
-	switch req.Msg.BeliefType {
-	case models.BeliefType_STATEMENT:
-		beliefType = svcmodels.Statement
-	case models.BeliefType_FALSIFIABLE:
-		beliefType = svcmodels.Falsifiable
-	case models.BeliefType_CAUSAL:
-		beliefType = svcmodels.Causal
-	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid belief type: %v", req.Msg.BeliefType))
+	beliefType, err := svcmodels.BeliefTypeFromProto(req.Msg.BeliefType)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	input := &svcmodels.CreateBeliefInput{

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"strings"
 
 	pbmodels "epistemic-me-core/pb/models"
@@ -121,4 +122,18 @@ func (b *Belief) GetContentAsString() string {
 		contentStrings = append(contentStrings, content.RawStr)
 	}
 	return strings.Join(contentStrings, " ")
+}
+
+// BeliefTypeFromProto converts a protobuf BeliefType to an internal BeliefType
+func BeliefTypeFromProto(protoType pbmodels.BeliefType) (BeliefType, error) {
+	switch protoType {
+	case pbmodels.BeliefType_STATEMENT:
+		return Statement, nil
+	case pbmodels.BeliefType_FALSIFIABLE:
+		return Falsifiable, nil
+	case pbmodels.BeliefType_CAUSAL:
+		return Causal, nil
+	default:
+		return 0, fmt.Errorf("invalid belief type: %v", protoType)
+	}
 }
