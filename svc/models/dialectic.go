@@ -537,17 +537,6 @@ func (id *InteractionData) GetQuestionAnswer() *QuestionAnswerInteraction {
 	return id.QuestionAnswer
 }
 
-// PreprocessQuestionAnswerInput represents input for preprocessing question-answer blobs
-type PreprocessQuestionAnswerInput struct {
-	QuestionBlobs []string
-	AnswerBlobs   []string
-}
-
-// PreprocessQuestionAnswerOutput represents output from preprocessing question-answer blobs
-type PreprocessQuestionAnswerOutput struct {
-	QAPairs []*QuestionAnswerPair
-}
-
 // QuestionAnswerPair represents a matched question and answer pair
 type QuestionAnswerPair struct {
 	Question string
