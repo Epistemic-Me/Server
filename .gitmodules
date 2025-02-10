@@ -1,3 +1,6 @@
 [submodule "proto"]
 	path = proto
 	url = git@github.com:Epistemic-Me/Proto.git
+[submodule "Philosophies"]
+	path = Philosophies
+	url = git@github.com:Epistemic-Me/Philosophies.git
