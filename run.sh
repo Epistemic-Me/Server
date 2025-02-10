@@ -4,32 +4,6 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Function to check if Docker daemon is running
-check_docker() {
-    if ! docker info > /dev/null 2>&1; then
-        echo "Docker daemon is not running"
-        return 1
-    fi
-    return 0
-}
-
-# Function to start Docker on macOS
-start_docker_macos() {
-    echo "Attempting to start Docker daemon..."
-    if [ -x "/Applications/Docker.app/Contents/MacOS/Docker" ]; then
-        open -a Docker
-        echo "Waiting for Docker daemon to start..."
-        while ! docker info > /dev/null 2>&1; do
-            echo "."
-            sleep 1
-        done
-        echo "Docker daemon started successfully!"
-    else
-        echo "Error: Docker.app not found. Please install Docker Desktop for Mac."
-        exit 1
-    fi
-}
-
 # Function to build the Docker image
 build_image() {
     echo "Building Docker image..."
@@ -137,20 +111,6 @@ watch_and_rebuild() {
         fi
     done
 }
-
-# Check if we're on macOS
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # Check if Docker is running
-    if ! check_docker; then
-        start_docker_macos
-    fi
-else
-    # For non-macOS systems, just check if Docker is available
-    if ! check_docker; then
-        echo "Error: Docker daemon is not running. Please start Docker manually."
-        exit 1
-    fi
-fi
 
 # Check if entr is installed when in daemon mode
 check_entr() {
