@@ -9,6 +9,10 @@ import (
 	fixture_models "epistemic-me-core/db/fixtures"
 )
 
+const (
+	TestUserID = "test-user-id" // Added constant for consistency
+)
+
 // This script is used to import the belief system from the fixture
 // into the persistent KeyValueStore.
 // Its used to inspect the persistent KeyValueStore data in the local development environment.
@@ -24,9 +28,10 @@ func main() {
 		log.Fatalf("Error creating KeyValueStore: %v", err)
 	}
 
-	import_err := fixture_models.ImportFixtures(kvStore)
+	// Import fixtures
+	import_err := fixture_models.ImportFixtures(kvStore, TestUserID) // Using constant
 	if import_err != nil {
-		log.Fatalf("Failed to import fixtures: %v", err)
+		log.Fatalf("Failed to import fixtures: %v", import_err)
 	}
 
 	fmt.Println("Fixture belief system has been successfully imported into the persistent KeyValueStore!")

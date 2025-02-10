@@ -46,6 +46,18 @@ func withAPIKey(apiKey string) connect.UnaryInterceptorFunc {
 }
 
 func TestMain(m *testing.M) {
+	// Get the project root directory (three levels up from the sdk test directory)
+	projectRoot, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		log.Fatalf("Failed to get project root directory: %v", err)
+	}
+
+	// Change working directory to Server directory for proper philosophies path resolution
+	err = os.Chdir(filepath.Join(projectRoot, "Server"))
+	if err != nil {
+		log.Fatalf("Failed to change working directory: %v", err)
+	}
+
 	// Setup
 	tempDir, err := os.MkdirTemp("", "test_kv_store")
 	if err != nil {
@@ -54,18 +66,20 @@ func TestMain(m *testing.M) {
 	defer os.RemoveAll(tempDir)
 
 	kvStorePath := filepath.Join(tempDir, "test_kv_store.json")
+	log.Printf("Creating KeyValueStore at: %s", kvStorePath)
+
 	kvStore, err = db.NewKeyValueStore(kvStorePath)
 	if err != nil {
 		log.Fatalf("Failed to create KeyValueStore: %v", err)
 	}
 
 	// Start the server using RunServer from server.go with dynamic port
-	srv, wg, port = server.RunServer(kvStore, "") // RunServer returns 3 values
+	srv, wg, port = server.RunServer(kvStore, "")
 
 	// First create a temporary client without API key
 	tempClient := pbconnect.NewEpistemicMeServiceClient(
 		http.DefaultClient,
-		fmt.Sprintf("http://localhost:%s", port), // Use the port here too
+		fmt.Sprintf("http://localhost:%s", port),
 	)
 
 	// Create a developer and get the API key
@@ -76,6 +90,9 @@ func TestMain(m *testing.M) {
 	})
 
 	resp, err := tempClient.CreateDeveloper(ctx, createReq)
+	if err != nil {
+		log.Fatalf("Failed to create developer: %v", err)
+	}
 
 	// Get the API key from the response
 	apiKey = resp.Msg.Developer.ApiKeys[0]

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"google.golang.org/grpc/metadata" // Changed from internal/metadata
+	"google.golang.org/grpc/metadata"
 
 	ai "epistemic-me-core/ai"
 	db "epistemic-me-core/db"
@@ -83,9 +84,16 @@ func (s *Server) CreateBelief(
 
 	log.Printf("CreateBelief called with request: %+v", req.Msg)
 
+	// Convert protobuf belief type to internal type
+	beliefType, err := svcmodels.BeliefTypeFromProto(req.Msg.BeliefType)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
 	input := &svcmodels.CreateBeliefInput{
 		SelfModelID:   req.Msg.SelfModelId,
 		BeliefContent: req.Msg.BeliefContent,
+		BeliefType:    beliefType,
 	}
 
 	// Handle evidence if provided
@@ -493,17 +501,37 @@ func NewServer(kvStore *db.KeyValueStore) *Server {
 		log.Fatal("KeyValueStore is nil in NewServer")
 	}
 
-	aih := ai.NewAIHelper(os.Getenv("OPENAI_API_KEY"))
+	// Get OpenAI API key from environment
+	openAIKey := os.Getenv("OPENAI_API_KEY")
+	if openAIKey == "" {
+		log.Fatal("OPENAI_API_KEY environment variable is not set")
+	}
+
+	aih := ai.NewAIHelper(openAIKey)
 	bsvc := svc.NewBeliefService(kvStore, aih)
 	de := svc.NewDialecticEpistemology(bsvc, aih)
 	pe := svc.NewPerspectiveTakingEpistemology(bsvc, aih)
 	dsvc := svc.NewDialecticService(kvStore, aih, pe, de)
 	sms := svc.NewSelfModelService(kvStore, dsvc, bsvc)
 
-	preLoadSvc := svc.NewPreloadSvc(sms, pe)
-	err := preLoadSvc.RunPreload(context.Background())
+	// Get the workspace root directory
+	workspaceRoot, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		log.Printf("Failed to get workspace root: %v", err)
+		return nil
+	}
+
+	// Use absolute path for philosophies directory
+	philosophiesPath := filepath.Join(workspaceRoot, "Philosophies", "philosophies")
+	if _, err := os.Stat(philosophiesPath); os.IsNotExist(err) {
+		log.Printf("Philosophies directory not found at %s: %v", philosophiesPath, err)
+		return nil
+	}
+
+	preLoadSvc := svc.NewPreloadSvc(sms, pe, philosophiesPath)
+	err = preLoadSvc.RunPreload(context.Background())
+	if err != nil {
+		log.Printf("Failed to preload philosophies: %v", err)
 	}
 
 	return &Server{
