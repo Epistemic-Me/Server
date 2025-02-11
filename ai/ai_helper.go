@@ -190,11 +190,17 @@ func (aih *AIHelper) ExtractBeliefsFromResource(resource models.Resource) ([]str
 	// Log the AI response
 	log.Printf("AI response: %s", response.Choices[0].Message.Content)
 
+	// Extract JSON from the response
+	jsonStr := extractJSON(response.Choices[0].Message.Content)
+	if jsonStr == "" {
+		return nil, fmt.Errorf("failed to extract JSON from response")
+	}
+
 	// Parse the JSON response
 	var beliefResponse struct {
 		Beliefs []string `json:"beliefs"`
 	}
-	if err := json.Unmarshal([]byte(response.Choices[0].Message.Content), &beliefResponse); err != nil {
+	if err := json.Unmarshal([]byte(jsonStr), &beliefResponse); err != nil {
 		return nil, fmt.Errorf("failed to parse belief response: %w", err)
 	}
 
@@ -211,7 +217,7 @@ You are given two lists:
 
 Task: Determine which old beliefs are invalidated by the new beliefs and which remain valid.
 
-Return a JSON object with two arrays of belief IDs:
+Return ONLY a JSON object with two arrays of belief IDs:
 {
   "kept_belief_ids": ["...","..."],
   "deleted_belief_ids": ["...","..."]
@@ -221,6 +227,7 @@ Important:
  - "kept_belief_ids" should be the IDs of old beliefs that remain valid.
  - "deleted_belief_ids" should be the IDs of old beliefs that are no longer valid.
  - Do NOT include the new beliefs in the returned IDs.
+ - Do NOT include any markdown formatting or backticks in your response.
 `
 
 	// STEP 2: Marshal both old and new beliefs for the AI.
@@ -242,11 +249,7 @@ Old Beliefs (JSON):
 New Beliefs (JSON):
 %s
 
-Please return a JSON object like this:
-{
-  "kept_belief_ids": ["...","..."],
-  "deleted_belief_ids": ["...","..."]
-}
+Please return ONLY a JSON object with kept_belief_ids and deleted_belief_ids arrays.
 `, string(oldBeliefsJSON), string(newBeliefsJSON))
 
 	// STEP 4: Call OpenAI
@@ -264,14 +267,21 @@ Please return a JSON object like this:
 
 	// STEP 5: Extract the raw text returned by ChatGPT.
 	aiContent := response.Choices[0].Message.Content
+	log.Printf("Old Beliefs: %s", oldBeliefsJSON)
 	log.Printf("AI response: %s", aiContent)
+
+	// Extract JSON from the response if needed
+	jsonStr := extractJSON(aiContent)
+	if jsonStr == "" {
+		return nil, nil, fmt.Errorf("no valid JSON found in response")
+	}
 
 	// STEP 6: Unmarshal the JSON that ChatGPT returns.
 	var parsedResponse struct {
 		KeptBeliefIDs    []string `json:"kept_belief_ids"`
 		DeletedBeliefIDs []string `json:"deleted_belief_ids"`
 	}
-	if err := json.Unmarshal([]byte(aiContent), &parsedResponse); err != nil {
+	if err := json.Unmarshal([]byte(jsonStr), &parsedResponse); err != nil {
 		return nil, nil, fmt.Errorf("failed to parse JSON from AI: %w", err)
 	}
 

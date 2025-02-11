@@ -59,7 +59,8 @@ type CreateSelfModelOutput struct {
 
 // GetSelfModelInput represents the input for retrieving a self-model
 type GetSelfModelInput struct {
-	SelfModelID string `json:"self_model_id"`
+	SelfModelID        string `json:"self_model_id"`
+	BypassDeveloperKey bool   `json:"bypass_developer_key"`
 }
 
 // GetSelfModelOutput represents the output after retrieving a self-model

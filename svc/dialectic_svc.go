@@ -189,6 +189,31 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		}
 		dialectic.UserInteractions[lastIdx].UpdatedAtMillisUTC = time.Now().UnixMilli()
 
+		lastInteraction := dialectic.UserInteractions[len(dialectic.UserInteractions)-1]
+
+		// For all perspectives we've attached to the dialectic, provide perspectives on the latest
+		// dialectic interaction
+		if dialectic.PerspectiveModelIDs != nil {
+			for _, perspectiveModelID := range dialectic.PerspectiveModelIDs {
+				perspective, err := dsvc.perspectiveTakingEpiSvc.Respond(bs, models.EpistemicRequest{
+					SelfModelID: perspectiveModelID,
+					Content: map[string]interface{}{
+						"question": lastInteraction.Interaction.QuestionAnswer.Question,
+						"answer":   lastInteraction.Interaction.QuestionAnswer.Answer,
+					},
+				})
+
+				if err != nil {
+					return nil, err
+				}
+
+				lastInteraction.Perspectives = append(lastInteraction.Perspectives, models.Perspective{
+					Response:    *perspective,
+					SelfModelID: perspectiveModelID,
+				})
+			}
+		}
+
 		// If we have a learning objective, check completion and generate next question
 		if dialectic.LearningObjective != nil {
 			// Get the current belief system
@@ -273,31 +298,6 @@ func (dsvc *DialecticService) UpdateDialectic(input *models.UpdateDialecticInput
 		}, input.DryRun, input.SelfModelID)
 		if err != nil {
 			return nil, err
-		}
-
-		lastInteraction := dialectic.UserInteractions[len(dialectic.UserInteractions)-1]
-
-		// For all perspectives we've attached to the dialectic, provide perspectives on the latest
-		// dialectic interaction
-		if dialectic.PerspectiveModelIDs != nil {
-			for _, perspectiveModelID := range dialectic.PerspectiveModelIDs {
-				perspective, err := dsvc.perspectiveTakingEpiSvc.Respond(bs, models.EpistemicRequest{
-					SelfModelID: perspectiveModelID,
-					Content: map[string]interface{}{
-						"question": lastInteraction.Interaction.QuestionAnswer.Question,
-						"answer":   lastInteraction.Interaction.QuestionAnswer.Answer,
-					},
-				})
-
-				if err != nil {
-					return nil, err
-				}
-
-				lastInteraction.Perspectives = append(lastInteraction.Perspectives, models.Perspective{
-					Response:    *perspective,
-					SelfModelID: perspectiveModelID,
-				})
-			}
 		}
 
 		// Generate the first interaction

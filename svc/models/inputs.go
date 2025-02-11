@@ -2,8 +2,9 @@ package models
 
 // ListBeliefsInput represents an input to list beliefs.
 type ListBeliefsInput struct {
-	SelfModelID string   `json:"self_model_id"`
-	BeliefIDs   []string `json:"belief_ids,omitempty"`
+	SelfModelID     string   `json:"self_model_id"`
+	BeliefIDs       []string `json:"belief_ids,omitempty"`
+	GetBeliefSystem bool     `json:"compute_belief_system"`
 }
 
 // CreateBeliefInput represents an input to create a new belief.
