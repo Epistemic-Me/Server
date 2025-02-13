@@ -332,12 +332,12 @@ func (ba BeliefAnalysis) ToProto() *pbmodels.BeliefAnalysis {
 	}
 }
 
-// LearningObjective represents what we want to learn about the user
+// LearningObjective represents what we want to learn about the user through falsifiable beliefs
 type LearningObjective struct {
-	Description          string     // Natural language description of what to learn
-	Topics               []string   // Key topics to explore (e.g., "sleep", "diet", "exercise")
-	TargetBeliefType     BeliefType // Type of beliefs to collect
-	CompletionPercentage float32    // Percentage of completion (0-100)
+	Description          string   `json:"description"`
+	TargetBeliefIds     []string `json:"target_belief_ids"`
+	ObservationContextIds []string `json:"observation_context_ids"`
+	CompletionPercentage float64  `json:"completion_percentage"`
 }
 
 func (lo *LearningObjective) ToProto() *pbmodels.LearningObjective {
@@ -346,8 +346,8 @@ func (lo *LearningObjective) ToProto() *pbmodels.LearningObjective {
 	}
 	return &pbmodels.LearningObjective{
 		Description:          lo.Description,
-		Topics:               lo.Topics,
-		TargetBeliefType:     pbmodels.BeliefType(lo.TargetBeliefType),
+		TargetBeliefIds:     lo.TargetBeliefIds,
+		ObservationContextIds: lo.ObservationContextIds,
 		CompletionPercentage: lo.CompletionPercentage,
 	}
 }
@@ -358,8 +358,8 @@ func LearningObjectiveFromProto(lo *pbmodels.LearningObjective) *LearningObjecti
 	}
 	return &LearningObjective{
 		Description:          lo.Description,
-		Topics:               lo.Topics,
-		TargetBeliefType:     BeliefType(lo.TargetBeliefType),
+		TargetBeliefIds:     lo.TargetBeliefIds,
+		ObservationContextIds: lo.ObservationContextIds,
 		CompletionPercentage: lo.CompletionPercentage,
 	}
 }
@@ -535,17 +535,6 @@ func (id *InteractionData) GetQuestionAnswer() *QuestionAnswerInteraction {
 		return nil
 	}
 	return id.QuestionAnswer
-}
-
-// PreprocessQuestionAnswerInput represents input for preprocessing question-answer blobs
-type PreprocessQuestionAnswerInput struct {
-	QuestionBlobs []string
-	AnswerBlobs   []string
-}
-
-// PreprocessQuestionAnswerOutput represents output from preprocessing question-answer blobs
-type PreprocessQuestionAnswerOutput struct {
-	QAPairs []*QuestionAnswerPair
 }
 
 // QuestionAnswerPair represents a matched question and answer pair
