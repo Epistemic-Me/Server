@@ -18,18 +18,24 @@ type LearningProgress interface {
 
 	// Update entropy based on new observation
 	UpdateEntropy(contextID string, observation *pb.Resource) error
+
+	// Add context to the calculator
+	AddContext(context *pb.ObservationContext)
 }
 
 // entropyCalculator implements LearningProgress
 type entropyCalculator struct {
 	// Map of context ID to current probability distribution
 	stateDistributions map[string]map[string]float64
+	// Store of observation contexts
+	contexts []*pb.ObservationContext
 }
 
 // NewEntropyCalculator creates a new entropy calculator
 func NewEntropyCalculator() LearningProgress {
 	return &entropyCalculator{
 		stateDistributions: make(map[string]map[string]float64),
+		contexts:           make([]*pb.ObservationContext, 0),
 	}
 }
 
@@ -104,26 +110,90 @@ func (e *entropyCalculator) UpdateEntropy(contextID string, observation *pb.Reso
 			return fmt.Errorf("invalid measurement value: %v", err)
 		}
 
-		// Update probabilities based on how close the measurement is to each state's range
+		// Find the context
+		var context *pb.ObservationContext
+		for _, ctx := range e.contexts {
+			if ctx.Id == contextID {
+				context = ctx
+				break
+			}
+		}
+		if context == nil {
+			return fmt.Errorf("context %s not found", contextID)
+		}
+
+		// Update probabilities based on how close the measurement is to each state's properties
 		total := 0.0
 		newDist := make(map[string]float64)
 
+		// Calculate likelihoods for each state
 		for stateID, oldProb := range dist {
-			// Calculate likelihood based on measurement and state properties
-			// This should be customized based on the context's state properties
-			var stateValue float64
-			if v, ok := observation.Metadata["state_"+stateID]; ok {
-				stateValue, _ = strconv.ParseFloat(v, 64)
-			} else {
-				stateValue = 0 // Default value if not found
+			var state *pb.State
+			for _, s := range context.PossibleStates {
+				if s.Id == stateID {
+					state = s
+					break
+				}
+			}
+			if state == nil {
+				continue
 			}
 
-			likelihood := 1.0 / (1.0 + math.Abs(measurement-stateValue))
+			// Calculate likelihood based on measurement type and state properties
+			var likelihood float64
+			switch observation.Metadata["measurement_type"] {
+			case "grip_strength", "reaction_time":
+				// For physical measurements, use range-based likelihood
+				if minVal, ok := state.Properties["min_value"]; ok {
+					if maxVal, ok := state.Properties["max_value"]; ok {
+						if measurement >= float64(minVal) && measurement <= float64(maxVal) {
+							likelihood = 1.0
+						} else {
+							distanceToRange := math.Min(
+								math.Abs(measurement-float64(minVal)),
+								math.Abs(measurement-float64(maxVal)),
+							)
+							rangeSize := float64(maxVal - minVal)
+							if rangeSize > 0 {
+								likelihood = 1.0 / (1.0 + distanceToRange/rangeSize)
+							} else {
+								likelihood = 1.0 / (1.0 + distanceToRange)
+							}
+						}
+					}
+				}
+			default:
+				// For other measurements, use age range-based likelihood
+				if ageMin, ok := state.Properties["age_min"]; ok {
+					if ageMax, ok := state.Properties["age_max"]; ok {
+						if measurement >= float64(ageMin) && measurement <= float64(ageMax) {
+							likelihood = 1.0
+						} else {
+							distanceToRange := math.Min(
+								math.Abs(measurement-float64(ageMin)),
+								math.Abs(measurement-float64(ageMax)),
+							)
+							ageRange := float64(ageMax - ageMin)
+							if ageRange > 0 {
+								likelihood = 1.0 / (1.0 + distanceToRange/ageRange)
+							} else {
+								likelihood = 1.0 / (1.0 + distanceToRange)
+							}
+						}
+					}
+				}
+			}
+
+			// If no likelihood was calculated, use a small default value
+			if likelihood == 0 {
+				likelihood = 0.1
+			}
+
 			newDist[stateID] = oldProb * likelihood
 			total += newDist[stateID]
 		}
 
-		// Normalize
+		// Normalize probabilities
 		if total > 0 {
 			for stateID := range newDist {
 				newDist[stateID] /= total
@@ -133,4 +203,17 @@ func (e *entropyCalculator) UpdateEntropy(contextID string, observation *pb.Reso
 	}
 
 	return nil
+}
+
+// AddContext adds a context to the calculator
+func (e *entropyCalculator) AddContext(context *pb.ObservationContext) {
+	e.contexts = append(e.contexts, context)
+
+	// Initialize state distribution with uniform probabilities
+	dist := make(map[string]float64)
+	numStates := float64(len(context.PossibleStates))
+	for _, state := range context.PossibleStates {
+		dist[state.Id] = 1.0 / numStates
+	}
+	e.stateDistributions[context.Id] = dist
 }
