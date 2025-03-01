@@ -100,3 +100,8 @@ func (u *User) ToProto() *pbmodels.User {
 		UpdatedAt:   u.UpdatedAt,
 	}
 }
+
+// PreprocessQuestionAnswerOutput represents output from preprocessing question-answer blobs
+type PreprocessQuestionAnswerOutput struct {
+	QAPairs []*QuestionAnswerPair
+}
