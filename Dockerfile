@@ -87,9 +87,9 @@ WORKDIR /app
 # Build the Go app
 RUN go build -o main .
 
-# Expose ports 8080 and 9090 to the outside world
+# Expose ports 8080
 EXPOSE 8080
 
-# Command to run the application in production
+# Command to run the application
 CMD ["./main"]
 
