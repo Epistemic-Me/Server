@@ -1,0 +1,18 @@
+# Development docker-compose file
+
+services:
+  epistemic-me-core:
+    env_file: .env
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-Dockerfile}
+      target: dev
+      tags:
+        - epistemic-me-core-dev
+    develop:
+      watch:
+        - action: rebuild
+          path: ./
+    container_name: epistemic-me-core-local
+    ports:
+      - "8080:8080"
