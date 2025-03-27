@@ -8,6 +8,7 @@ The Epistemic Me server is a Go-based backend service that provides belief and d
 - Protocol Buffers compiler (`protoc`)
 - OpenAI API key for AI-powered features
 - Docker for containerization
+- Docker Compose v2.22.0 or later for local development (required for watch/hotreload mode)
 
 ### Installing Dependencies
 
@@ -30,7 +31,27 @@ git submodule init && git submodule update
 
 ### Local Development
 
-1. Set your OpenAI API key in `.env` file at the project root:
+#### Using Docker Compose
+
+1. Set your OpenAI API key in an `.env` file at the Epistemic Me project root(should be in a directory above the Server folder) with the following:
+
+```bash
+OPENAI_API_KEY=your_api_key_here
+```
+
+2. Start the development server with hot reload:
+
+```bash
+# Using Docker Compose v2.22.0+ with watch mode
+docker compose up --watch
+
+# For older Docker Compose versions, use:
+docker compose up
+```
+
+#### Using Bash Scripts
+
+1. Set your OpenAI API key in an `.env` file at the Epistemic Me project root(should be in a directory above the Server folder) with the following:
 
 ```bash
 OPENAI_API_KEY=your_api_key_here
@@ -78,6 +99,46 @@ The `run.sh` script is the main entry point for building, running, and testing t
 ./run.sh --sdk-test
 ```
 
+### Running Tests
+
+#### Using Docker
+
+1. Run SDK tests:
+
+```bash
+docker build --target sdktest -t sdk-tests . && docker run --env-file <path_to_.env> sdk-tests
+```
+
+2. Run integration tests:
+
+```bash
+docker build --target inttest -t int-tests . && docker run --env-file <path_to_.env> int-tests
+```
+
+3. Run all tests:
+
+```bash
+# Build and run both test stages
+docker build --target sdktest -t sdk-tests . && \
+docker build --target inttest -t int-tests . && \
+docker run --env-file <path_to_.env> sdk-tests && docker run --env-file <path_to_.env> int-tests
+```
+
+#### Using Bash Scripts
+
+The `run.sh` script provides convenient test execution:
+
+```bash
+# Run all tests
+./run.sh --test
+
+# Run only integration tests
+./run.sh --integration-test
+
+# Run only SDK tests
+./run.sh --sdk-test
+```
+
 #### Test Execution Flow
 
 When running tests:
@@ -91,15 +152,14 @@ When running tests:
 ### Docker Deployment
 
 1. Build the Docker image:
-
 ```bash
-docker build --build-arg OPENAI_API_KEY={OPEN_API_KEY} -t epistemic-me-core .
+docker build --target dev -t epistemic-me-core-dev .
 ```
 
 2. Run the container:
 
 ```bash
-docker run -p 8080:8080 epistemic-me-core
+docker run --env-file <path_to_.env> -p 8080:8080 epistemic-me-core-dev
 ```
 
 ## Project Structure
