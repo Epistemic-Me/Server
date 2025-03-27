@@ -153,13 +153,13 @@ When running tests:
 
 1. Build the Docker image:
 ```bash
-docker build --target dev -t epistemic-me-core-dev .
+docker build --target dev -t epistemic-me-core .
 ```
 
 2. Run the container:
 
 ```bash
-docker run --env-file <path_to_.env> -p 8080:8080 epistemic-me-core-dev
+docker run --env-file <path_to_.env> -p 8080:8080 epistemic-me-core
 ```
 
 ## Project Structure
