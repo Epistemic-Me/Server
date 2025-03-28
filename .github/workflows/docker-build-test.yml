@@ -17,9 +17,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         
-      - name: Run SDK tests
+      - name: Build and run SDK tests
         run: |
           docker build --target sdktest -t epistemic-server-sdk-test .
+          docker run --rm epistemic-server-sdk-test
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -31,9 +32,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         
-      - name: Run integration tests
+      - name: Build and run integration tests
         run: |
           docker build --target inttest -t epistemic-server-int-test .
+          docker run --rm epistemic-server-int-test
 
   docker-build:
     needs: [sdk-tests, integration-tests]
