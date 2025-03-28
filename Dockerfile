@@ -40,10 +40,29 @@ RUN find ./proto -name "*.proto" -print0 | xargs -0 protoc \
   --connect-go_out=. --connect-go_opt=module=epistemic-me-core
 
 # Fix import paths in generated Go files
-RUN for file in $(find pb -type f -name '*.go'); do \
-  sed 's|pb "epistemic-me-core/pb/"|pb "epistemic-me-core/pb"|' $file > temp.go; \
-  mv temp.go $file; \
-  done
+RUN echo "Before fixes - Files containing problematic imports:" && \
+    find . -type f -name '*.go' -exec sh -c 'if grep -l "epistemic-me-core/pb/" "$1"; then echo "=== $1 ==="; grep "epistemic-me-core/pb/" "$1"; fi' sh {} \;
+
+# Fix import paths in generated Go files - handle all cases while preserving valid paths
+RUN for file in $(find . -type f -name '*.go'); do \
+    # Fix base pb import
+    sed -i 's|pb "epistemic-me-core/pb/"|pb "epistemic-me-core/pb"|g' $file; \
+    # Fix other imports while preserving models and pbconnect
+    sed -i '/pb\/models/!{/pb\/pbconnect/!{s|"epistemic-me-core/pb/"|"epistemic-me-core/pb"|g}}' $file; \
+    done
+
+# Print remaining problematic imports for debugging
+RUN echo "After fixes - Files and lines still containing problematic imports:" && \
+    find . -type f -name '*.go' -exec sh -c 'if grep "epistemic-me-core/pb/" "$1" | grep -v "pb/models\|pb/pbconnect" > /dev/null; then echo "=== $1 ==="; grep "epistemic-me-core/pb/" "$1" | grep -v "pb/models\|pb/pbconnect"; fi' sh {} \;
+
+# Verify no trailing slashes remain in imports (excluding valid paths)
+RUN find . -type f -name '*.go' -exec sh -c 'if grep "epistemic-me-core/pb/" "$1" | grep -v "pb/models\|pb/pbconnect" > /dev/null; then echo "Found problematic import in $1:"; grep "epistemic-me-core/pb/" "$1" | grep -v "pb/models\|pb/pbconnect"; exit 1; fi' sh {} \;
+
+# Add an explicit check of the go.mod file
+RUN cat go.mod
+
+# Clean go mod cache and remove any cached packages
+RUN go clean -modcache && rm -rf /go/pkg/mod/epistemic-me-core*
 
 # Tidy up the dependencies
 RUN go mod tidy
