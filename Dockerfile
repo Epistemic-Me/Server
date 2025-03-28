@@ -40,8 +40,7 @@ RUN find ./proto -name "*.proto" -print0 | xargs -0 protoc \
   --connect-go_out=. --connect-go_opt=module=epistemic-me-core
 
 # Fix import paths in generated Go files
-RUN echo "Before fixes - Files containing problematic imports:" && \
-    find . -type f -name '*.go' -exec sh -c 'if grep -l "epistemic-me-core/pb/" "$1"; then echo "=== $1 ==="; grep "epistemic-me-core/pb/" "$1"; fi' sh {} \;
+RUN find . -type f -name '*.go' -exec sh -c 'if grep -l "epistemic-me-core/pb/" "$1"; then echo "=== $1 ==="; grep "epistemic-me-core/pb/" "$1"; fi' sh {} \;
 
 # Fix import paths in generated Go files - handle all cases while preserving valid paths
 RUN for file in $(find . -type f -name '*.go'); do \
@@ -52,8 +51,7 @@ RUN for file in $(find . -type f -name '*.go'); do \
     done
 
 # Print remaining problematic imports for debugging
-RUN echo "After fixes - Files and lines still containing problematic imports:" && \
-    find . -type f -name '*.go' -exec sh -c 'if grep "epistemic-me-core/pb/" "$1" | grep -v "pb/models\|pb/pbconnect" > /dev/null; then echo "=== $1 ==="; grep "epistemic-me-core/pb/" "$1" | grep -v "pb/models\|pb/pbconnect"; fi' sh {} \;
+RUN find . -type f -name '*.go' -exec sh -c 'if grep "epistemic-me-core/pb/" "$1" | grep -v "pb/models\|pb/pbconnect" > /dev/null; then echo "=== $1 ==="; grep "epistemic-me-core/pb/" "$1" | grep -v "pb/models\|pb/pbconnect"; fi' sh {} \;
 
 # Verify no trailing slashes remain in imports (excluding valid paths)
 RUN find . -type f -name '*.go' -exec sh -c 'if grep "epistemic-me-core/pb/" "$1" | grep -v "pb/models\|pb/pbconnect" > /dev/null; then echo "Found problematic import in $1:"; grep "epistemic-me-core/pb/" "$1" | grep -v "pb/models\|pb/pbconnect"; exit 1; fi' sh {} \;
