@@ -83,6 +83,24 @@ func NewAIHelper(apiKey string) *AIHelper {
 	}
 }
 
+// Helper function to obfuscate API keys in error messages
+func obfuscateAPIKey(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Convert error to string
+	errStr := err.Error()
+
+	// TODO: Revistegular expression to match API key patterns
+	apiKeyPattern := regexp.MustCompile(`sk-[A-Za-z0-9]{32,64}`)
+
+	// Replace API keys with asterisks
+	obfuscatedStr := apiKeyPattern.ReplaceAllString(errStr, "***********")
+
+	return fmt.Errorf(obfuscatedStr)
+}
+
 func (aih *AIHelper) GenerateQuestion(beliefSystem string, previousEvents []InteractionEvent) (string, error) {
 	systemContext := fmt.Sprintf("Given these definitions %s. Generate a single question to further understand the user's belief system.", DIALECTICAL_STRATEGY)
 	if len(beliefSystem) > 0 {
@@ -104,7 +122,7 @@ func (aih *AIHelper) GenerateQuestion(beliefSystem string, previousEvents []Inte
 		},
 	})
 	if err != nil {
-		return "", err
+		return "", obfuscateAPIKey(err)
 	}
 
 	return response.Choices[0].Message.Content, nil
@@ -150,8 +168,8 @@ func (aih *AIHelper) GetInteractionEventAsBelief(event InteractionEvent) ([]stri
 		},
 	})
 	if err != nil {
-		log.Printf("Error from AI: %v", err)
-		return nil, err
+		log.Printf("Error from AI: %v", obfuscateAPIKey(err))
+		return nil, obfuscateAPIKey(err)
 	}
 
 	// Log the AI response
@@ -181,8 +199,8 @@ func (aih *AIHelper) ExtractBeliefsFromResource(resource models.Resource) ([]str
 		},
 	})
 	if err != nil {
-		log.Printf("Error from AI: %v", err)
-		return nil, err
+		log.Printf("Error from AI: %v", obfuscateAPIKey(err))
+		return nil, obfuscateAPIKey(err)
 	}
 
 	// Log the AI response
@@ -259,8 +277,8 @@ Please return ONLY a JSON object with kept_belief_ids and deleted_belief_ids arr
 		},
 	})
 	if err != nil {
-		log.Printf("Error from AI: %v", err)
-		return nil, nil, err
+		log.Printf("Error from AI: %v", obfuscateAPIKey(err))
+		return nil, nil, obfuscateAPIKey(err)
 	}
 
 	// STEP 5: Extract the raw text returned by ChatGPT.
@@ -315,7 +333,7 @@ func (aih *AIHelper) ProvidePerspectiveOnQuestionAndAnswer(
 		},
 	})
 	if err != nil {
-		return "", err
+		return "", obfuscateAPIKey(err)
 	}
 
 	return perspectiveResponse.Choices[0].Message.Content, nil
@@ -335,7 +353,7 @@ func (aih *AIHelper) UpdateBeliefWithInteractionEvent(event InteractionEvent, ex
 		},
 	})
 	if err != nil {
-		return false, "", err
+		return false, "", obfuscateAPIKey(err)
 	}
 
 	if response.Choices[0].Message.Content == "no" {
@@ -350,7 +368,7 @@ func (aih *AIHelper) UpdateBeliefWithInteractionEvent(event InteractionEvent, ex
 		},
 	})
 	if err != nil {
-		return false, "", err
+		return false, "", obfuscateAPIKey(err)
 	}
 
 	return true, response.Choices[0].Message.Content, nil
@@ -457,7 +475,7 @@ func (h *AIHelper) getCompletionFromAI(systemPrompt string) (string, error) {
 		},
 	})
 	if err != nil {
-		return "", err
+		return "", obfuscateAPIKey(err)
 	}
 
 	return response.Choices[0].Message.Content, nil
@@ -501,7 +519,7 @@ func (h *AIHelper) CompletePrompt(prompt string) (string, error) {
 		},
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to complete prompt: %w", err)
+		return "", obfuscateAPIKey(fmt.Errorf("failed to complete prompt: %w", err))
 	}
 
 	if len(resp.Choices) == 0 {
