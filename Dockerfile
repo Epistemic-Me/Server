@@ -82,7 +82,7 @@ RUN ln -s /app /Server
 FROM basetest AS sdktest
 
 # Command to run SDK tests
-CMD ["go", "test", "-v", "./tests/sdk/..."]
+CMD ["go", "test", "./tests/sdk/..."]
 
 # =============================
 # Integration Test Stage
@@ -90,7 +90,7 @@ CMD ["go", "test", "-v", "./tests/sdk/..."]
 FROM basetest AS inttest
 
 # Command to run unit tests
-CMD ["go", "test", "-v", "./tests/integration/..."]
+CMD ["go", "test", "./tests/integration/..."]
 
 
 # =============================
