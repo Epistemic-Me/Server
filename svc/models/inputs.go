@@ -88,8 +88,14 @@ type CreateDeveloperInput struct {
 type GetDeveloperInput struct {
 	ID string
 }
+
 type CreateUserInput struct {
 	DeveloperID string `json:"developer_id"`
 	Name        string `json:"name"`  // Can be empty
 	Email       string `json:"email"` // Can be empty
+}
+
+type PreprocessQuestionAnswerInput struct {
+	QuestionBlobs []string
+	AnswerBlobs   []string
 }

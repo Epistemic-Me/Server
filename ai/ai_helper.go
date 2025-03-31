@@ -3,13 +3,14 @@ package ai_helper
 import (
 	"context"
 	"encoding/json"
-	"epistemic-me-core/svc/models"
 	"fmt"
 	"log"
 	"regexp"
+	"strconv"
 	"strings"
 
-	openai "github.com/sashabaranov/go-openai"
+	"github.com/sashabaranov/go-openai"
+	"epistemic-me-core/svc/models"
 )
 
 const DIALECTICAL_STRATEGY = `What is a Question?
@@ -661,26 +662,26 @@ func (h *AIHelper) CleanAnswerText(content string) string {
 }
 
 func (h *AIHelper) GenerateQuestionForLearningObjective(objective *models.LearningObjective, interactions []models.DialecticalInteraction) (string, error) {
-	// For the initial question (no interactions yet), start with a general question about all topics
 	if len(interactions) == 0 {
-		prompt := fmt.Sprintf(`Given a learning objective to understand beliefs about: %s
-Generate an initial question that covers multiple topics (%s).
+		// For the first question, use a general prompt based on the description
+		prompt := fmt.Sprintf(`Given a learning objective to understand: %s
+
+Generate an initial question to gather beliefs about this topic.
 The question should encourage detailed responses about personal beliefs and experiences.
 Return only the question, with no additional text.`,
-			objective.Description,
-			strings.Join(objective.Topics, ", "))
+			objective.Description)
 
 		return h.CompletePrompt(prompt)
 	}
 
-	// For subsequent questions, analyze topic coverage
+	// For subsequent questions, analyze belief coverage
 	var result struct {
-		TopicCoverage map[string]struct {
-			Percentage float32 `json:"percentage"`
-		} `json:"topic_coverage"`
+		BeliefCoverage map[string]struct {
+			Percentage float64 `json:"percentage"`
+		} `json:"belief_coverage"`
 	}
 
-	// Get current completion analysis to determine which topic needs attention
+	// Get current completion analysis to determine which beliefs need attention
 	completion, err := h.client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
@@ -688,25 +689,25 @@ Return only the question, with no additional text.`,
 			Messages: []openai.ChatCompletionMessage{
 				{Role: "system", Content: `You are a JSON-only response bot. Return EXACTLY this JSON structure with no other text:
 {
-    "topic_coverage": {
-        "topic1": {"percentage": 50.0},
-        "topic2": {"percentage": 75.0}
+    "belief_coverage": {
+        "belief_id1": {"percentage": 50.0},
+        "belief_id2": {"percentage": 75.0}
     }
 }
-Replace topic1, topic2 with the actual topics from the input, and calculate real coverage percentages based on the beliefs.`},
-				{Role: "user", Content: fmt.Sprintf(`Analyze these topics: %v
+Replace belief_id1, belief_id2 with the actual belief IDs from the input, and calculate real coverage percentages based on the observations.`},
+				{Role: "user", Content: fmt.Sprintf(`Analyze these target beliefs: %v
 
-For each topic, calculate a coverage percentage (0-100) based on these beliefs:
+For each belief, calculate a coverage percentage (0-100) based on these observations:
 %s
 
 Return the coverage percentages in the specified JSON format.`,
-					strings.Join(objective.Topics, ", "),
+					strings.Join(objective.TargetBeliefIds, ", "),
 					formatInteractionBeliefs(interactions))},
 			},
 		},
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to analyze topic coverage: %w", err)
+		return "", fmt.Errorf("failed to analyze belief coverage: %w", err)
 	}
 
 	// Extract JSON from response if needed
@@ -717,33 +718,32 @@ Return the coverage percentages in the specified JSON format.`,
 	}
 
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		return "", fmt.Errorf("failed to parse topic coverage: %w", err)
+		return "", fmt.Errorf("failed to parse belief coverage: %w", err)
 	}
 
-	// Find the topic with lowest coverage
-	var lowestTopic string
-	var lowestCoverage float32 = 100.0
-	for topic, coverage := range result.TopicCoverage {
+	// Find the belief with lowest coverage
+	var lowestBelief string
+	var lowestCoverage float64 = 100.0
+	for belief, coverage := range result.BeliefCoverage {
 		if coverage.Percentage < lowestCoverage {
-			lowestTopic = topic
+			lowestBelief = belief
 			lowestCoverage = coverage.Percentage
 		}
 	}
 
-	// Generate a focused question for the topic with lowest coverage
-	prompt := fmt.Sprintf(`Given a learning objective to understand beliefs about: %s
-We are currently focusing on the topic: %s (current coverage: %.1f%%)
+	// Generate a focused question for the belief with lowest coverage
+	prompt := fmt.Sprintf(`Given a learning objective to understand: %s
+We are currently focusing on belief: %s (current coverage: %.1f%%)
 
-Generate a focused question to gather more detailed beliefs about %s.
-If previous questions were general, ask about specific aspects or habits.
-If previous questions covered basics, ask about influences and experiences.
+Generate a focused question to gather more detailed information about this belief.
+If previous questions were general, ask about specific aspects or experiences.
+If previous questions covered basics, ask about influences and reasoning.
 
 The question should encourage detailed responses about personal beliefs and experiences.
 Return only the question, with no additional text.`,
 		objective.Description,
-		lowestTopic,
-		lowestCoverage,
-		lowestTopic)
+		lowestBelief,
+		lowestCoverage)
 
 	return h.CompletePrompt(prompt)
 }
@@ -763,7 +763,7 @@ func formatInteractionBeliefs(interactions []models.DialecticalInteraction) stri
 }
 
 // CheckLearningObjectiveCompletion determines how complete our learning objective is based on collected beliefs
-func (h *AIHelper) CheckLearningObjectiveCompletion(lo *models.LearningObjective, selfModel *models.SelfModel) (float32, error) {
+func (h *AIHelper) CheckLearningObjectiveCompletion(lo *models.LearningObjective, selfModel *models.SelfModel) (float64, error) {
 	// Extract all beliefs from the current belief system
 	var beliefs []string
 	for _, belief := range selfModel.BeliefSystem.Beliefs {
@@ -771,68 +771,25 @@ func (h *AIHelper) CheckLearningObjectiveCompletion(lo *models.LearningObjective
 	}
 
 	log.Printf("Total beliefs in belief system: %d", len(beliefs))
-	log.Printf("Topics to cover: %v", lo.Topics)
+	log.Printf("Target beliefs to cover: %v", lo.TargetBeliefIds)
 
 	// Prepare the system prompt for analyzing current belief system
-	systemPrompt := `You are an AI assistant helping to determine the completion percentage of a learning objective focused on belief statements.
+	systemPrompt := `You are an AI assistant helping to determine the completion percentage of a learning objective.
+Given a learning objective and a set of beliefs, determine what percentage (0-100) of the learning objective has been completed.
 
-For each topic, analyze the current belief system in these categories:
-1. Foundational Beliefs (25%)
-   - Basic understanding of the topic
-   - Core principles and values
-2. Practice-Based Beliefs (25%)
-   - Specific habits and routines
-   - Personal methods and approaches
-3. Cause-Effect Beliefs (25%)
-   - Understanding of impacts and consequences
-   - Connections between actions and results
-4. Experience-Based Beliefs (25%)
-   - Personal experiences and observations
-   - Learned insights and adaptations
+Consider:
+1. Coverage of target beliefs
+2. Depth of understanding shown in the beliefs
+3. Evidence and personal experience in the beliefs
 
-Calculate topic coverage based on:
-1. Presence - Each category above contributes 25% to the topic's completion
-2. Quality - For each category, evaluate:
-   - Clear statement of belief ("I believe...") (40%)
-   - Supporting details or examples (30%)
-   - Personal context or reasoning (30%)
-3. Progression - The overall percentage should:
-   - Start at 25% when foundational beliefs are present
-   - Increase as beliefs become more detailed and personal
-   - Reach 100% when all categories have quality beliefs
-
-Important rules for analysis:
-1. Consider the entire belief system as a whole
-2. Each topic's coverage should reflect the depth and breadth of beliefs about that topic
-3. The completion percentage represents how well the current belief system covers the learning objective
-
-You MUST respond with a valid JSON object in EXACTLY this format:
-{
-    "completion_percentage": 45.5,
-    "topic_coverage": {
-        "sleep": {
-            "percentage": 80.0,
-            "covered_categories": ["foundational", "practice-based"],
-            "missing_categories": ["cause-effect", "experience-based"],
-            "belief_quality": {
-                "foundational": 0.9,
-                "practice_based": 0.8,
-                "cause_effect": 0.0,
-                "experience_based": 0.0
-            }
-        }
-    },
-    "explanation": "Brief explanation of the score"
-}
-
-Do not include any other text before or after the JSON object.`
+Return ONLY a number between 0 and 100 representing the completion percentage.`
 
 	// Prepare the user message with the learning objective and current belief system
 	userMsg := fmt.Sprintf(`Learning Objective: %s
-Topics to explore: %v
+Target Beliefs: %v
 
 Current Belief System:
-%s`, lo.Description, lo.Topics, strings.Join(beliefs, "\n"))
+%s`, lo.Description, lo.TargetBeliefIds, strings.Join(beliefs, "\n"))
 
 	// Get completion analysis from OpenAI
 	completion, err := h.client.CreateChatCompletion(
@@ -849,40 +806,22 @@ Current Belief System:
 		return 0, fmt.Errorf("failed to get completion analysis: %w", err)
 	}
 
-	// Parse the response
-	var result struct {
-		CompletionPercentage float32 `json:"completion_percentage"`
-		TopicCoverage        map[string]struct {
-			Percentage        float32            `json:"percentage"`
-			CoveredCategories []string           `json:"covered_categories"`
-			MissingCategories []string           `json:"missing_categories"`
-			BeliefQuality     map[string]float32 `json:"belief_quality"`
-		} `json:"topic_coverage"`
-		Explanation string `json:"explanation"`
+	// Parse the completion percentage
+	responseStr := completion.Choices[0].Message.Content
+	percentage, err := strconv.ParseFloat(strings.TrimSpace(responseStr), 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse completion percentage: %w", err)
 	}
 
-	if err := json.Unmarshal([]byte(completion.Choices[0].Message.Content), &result); err != nil {
-		return 0, fmt.Errorf("failed to parse completion analysis: %w", err)
+	// Ensure percentage is between 0 and 100
+	if percentage < 0 {
+		percentage = 0
+	}
+	if percentage > 100 {
+		percentage = 100
 	}
 
-	// Log detailed analysis for each topic
-	log.Printf("\n=== Learning Objective Completion Analysis ===")
-	log.Printf("Overall Completion: %.1f%%", result.CompletionPercentage)
-	log.Printf("Explanation: %s\n", result.Explanation)
-
-	for topic, coverage := range result.TopicCoverage {
-		log.Printf("\nTopic: %s", topic)
-		log.Printf("Coverage: %.1f%%", coverage.Percentage)
-		log.Printf("Covered Categories: %v", coverage.CoveredCategories)
-		log.Printf("Missing Categories: %v", coverage.MissingCategories)
-		log.Printf("Belief Quality by Category:")
-		for category, quality := range coverage.BeliefQuality {
-			log.Printf("  - %s: %.2f", category, quality)
-		}
-	}
-	log.Printf("\n=== End Analysis ===\n")
-
-	return result.CompletionPercentage, nil
+	return percentage, nil
 }
 
 // GenerateAnswerFromBeliefSystem generates an answer to a question based on the user's belief system and philosophy
