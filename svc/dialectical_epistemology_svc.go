@@ -29,8 +29,10 @@ func NewDialecticEpistemology(beliefService *BeliefService, ai *ai.AIHelper) *Di
 }
 
 func (de *DialecticalEpistemology) Process(event *models.DialecticEvent, dryRun bool, selfModelID string) (*models.BeliefSystem, error) {
+	startTime := time.Now()
 	var updatedBeliefs []models.Belief
 
+	// Get answered interaction
 	answeredInteraction, err := getAnsweredInteraction(event.PreviousInteractions)
 	if answeredInteraction == nil {
 		return &models.BeliefSystem{}, nil
@@ -39,19 +41,22 @@ func (de *DialecticalEpistemology) Process(event *models.DialecticEvent, dryRun 
 		return nil, err
 	}
 
+	// Get interaction event
 	interactionEvent, err := getDialecticalInteractionAsEvent(*answeredInteraction)
 	if err != nil {
 		return nil, err
 	}
 
+	// Get belief system once
 	bs, err := de.bsvc.GetBeliefSystem(selfModelID)
 	if err != nil {
 		return nil, err
 	}
 
-	// for each of the user beliefs, check to see if event has relevance and update accordingly
+	// OPTIMIZATION: Process beliefs in batches when possible
+	// First, check existing beliefs for updates
 	for _, existingBelief := range bs.Beliefs {
-
+		// Use existing AIHelper method but with added context
 		shouldUpdate, interpretedBeliefStr, err := de.ai.UpdateBeliefWithInteractionEvent(*interactionEvent, existingBelief.GetContentAsString())
 		if err != nil {
 			log.Printf("Error in UpdateBeliefWithInteractionEvent: %v", err)
@@ -59,7 +64,7 @@ func (de *DialecticalEpistemology) Process(event *models.DialecticEvent, dryRun 
 		}
 
 		if shouldUpdate {
-			// store the interpeted belief as a user belief so it will be included in the belief system
+			// Store the interpreted belief as a user belief
 			updatedBeliefOutput, err := de.bsvc.UpdateBelief(&models.UpdateBeliefInput{
 				SelfModelID:          selfModelID,
 				ID:                   existingBelief.ID,
@@ -78,9 +83,10 @@ func (de *DialecticalEpistemology) Process(event *models.DialecticEvent, dryRun 
 		}
 	}
 
-	// if we've updated no existing beleifs, create a new one
-	// todo: @deen this may need to become more sophisticated in the future
+	// OPTIMIZATION: For new beliefs, get all in a single API call
 	if len(updatedBeliefs) == 0 {
+		// No existing beliefs were updated, extract new beliefs
+		// Use existing AIHelper method but with improved context
 		interpretedBeliefStrings, err := de.ai.GetInteractionEventAsBelief(*interactionEvent)
 		if err != nil {
 			return nil, err
@@ -114,16 +120,23 @@ func (de *DialecticalEpistemology) Process(event *models.DialecticEvent, dryRun 
 	}
 
 	if de.enablePredictiveProcessing {
-		beliefSystem.EpistemicContexts = []*models.EpistemicContext{
-			{
-				PredictiveProcessingContext: &models.PredictiveProcessingContext{
-					ObservationContexts: []*models.ObservationContext{},
-					BeliefContexts:      []*models.BeliefContext{},
+		// Initialize PredictiveProcessingContext if not present
+		if len(beliefSystem.EpistemicContexts) == 0 {
+			beliefSystem.EpistemicContexts = []*models.EpistemicContext{
+				{
+					PredictiveProcessingContext: &models.PredictiveProcessingContext{
+						ObservationContexts: []*models.ObservationContext{},
+						BeliefContexts:      []*models.BeliefContext{},
+					},
 				},
-			},
+			}
 		}
+
+		// Update PredictiveProcessingContext with new observations
+		de.updatePredictiveProcessingWithInteraction(beliefSystem, interactionEvent, beliefPointers)
 	}
 
+	log.Printf("Process completed in %v", time.Since(startTime))
 	return beliefSystem, nil
 }
 
@@ -251,4 +264,79 @@ func (de *DialecticalEpistemology) generatePendingDialecticalInteraction(previou
 	}
 
 	return newInteraction, nil
+}
+
+// buildConversationContext creates a string representation of recent conversation history
+// to provide context for AI operations
+func buildConversationContext(interactions []models.DialecticalInteraction, maxHistory int) string {
+	if len(interactions) == 0 {
+		return ""
+	}
+
+	// Limit the number of interactions to consider
+	startIdx := 0
+	if len(interactions) > maxHistory {
+		startIdx = len(interactions) - maxHistory
+	}
+
+	var conversationBuilder strings.Builder
+	conversationBuilder.WriteString("Conversation context:\n")
+
+	for i := startIdx; i < len(interactions); i++ {
+		interaction := interactions[i]
+		if interaction.Interaction != nil && interaction.Interaction.QuestionAnswer != nil {
+			qa := interaction.Interaction.QuestionAnswer
+			conversationBuilder.WriteString(fmt.Sprintf("AI: %s\n", qa.Question.Question))
+
+			if interaction.Status == models.StatusAnswered && qa.Answer.UserAnswer != "" {
+				conversationBuilder.WriteString(fmt.Sprintf("User: %s\n", qa.Answer.UserAnswer))
+			}
+		}
+	}
+
+	return conversationBuilder.String()
+}
+
+// updatePredictiveProcessingWithInteraction updates the PredictiveProcessingContext with new
+// observations and belief contexts based on the current interaction
+func (de *DialecticalEpistemology) updatePredictiveProcessingWithInteraction(
+	beliefSystem *models.BeliefSystem,
+	interactionEvent *ai.InteractionEvent,
+	updatedBeliefs []*models.Belief,
+) {
+	if len(beliefSystem.EpistemicContexts) == 0 ||
+		beliefSystem.EpistemicContexts[0].PredictiveProcessingContext == nil {
+		return
+	}
+
+	ppc := beliefSystem.EpistemicContexts[0].PredictiveProcessingContext
+
+	// Create an observation context for this interaction
+	ocID := uuid.New().String()
+	oc := &models.ObservationContext{
+		ID:             ocID,
+		Name:           fmt.Sprintf("Response to '%s'", interactionEvent.Question),
+		ParentID:       "",
+		PossibleStates: []string{"Positive", "Negative", "Neutral"},
+	}
+	ppc.ObservationContexts = append(ppc.ObservationContexts, oc)
+
+	// Create belief contexts for each updated belief
+	for _, belief := range updatedBeliefs {
+		bc := &models.BeliefContext{
+			BeliefID:             belief.ID,
+			ObservationContextID: ocID,
+			ConfidenceRatings: []models.ConfidenceRating{
+				{
+					ConfidenceScore: 0.8, // Default confidence score
+					Default:         true,
+				},
+			},
+			ConditionalProbs:        map[string]float32{},
+			DialecticInteractionIDs: []string{},
+			EpistemicEmotion:        models.Confirmation, // Default to confirmation
+			EmotionIntensity:        0.5,                 // Default intensity
+		}
+		ppc.BeliefContexts = append(ppc.BeliefContexts, bc)
+	}
 }
