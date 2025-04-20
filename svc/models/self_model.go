@@ -87,5 +87,22 @@ type CreatePhilosophyInput struct {
 
 // CreatePhilosophyOutput represents the output after creating a new philosophy
 type CreatePhilosophyOutput struct {
-	Philosophy *Philosophy `json:"philosophy"`
+	Philosophy                      *Philosophy           `json:"philosophy"`
+	ExtrapolatedObservationContexts []*ObservationContext `json:"extrapolated_observation_contexts,omitempty"`
+}
+
+// UpdatePhilosophyInput represents the input for updating an existing philosophy
+// PhilosophyID is required, Description and ExtrapolateContexts are the new values
+// If a field is empty/zero, it will be updated to that value
+// (no partial update logic for now)
+type UpdatePhilosophyInput struct {
+	PhilosophyID        string `json:"philosophy_id"`
+	Description         string `json:"description"`
+	ExtrapolateContexts bool   `json:"extrapolate_contexts"`
+}
+
+// UpdatePhilosophyOutput represents the output after updating a philosophy
+type UpdatePhilosophyOutput struct {
+	Philosophy                      *Philosophy           `json:"philosophy"`
+	ExtrapolatedObservationContexts []*ObservationContext `json:"extrapolated_observation_contexts,omitempty"`
 }

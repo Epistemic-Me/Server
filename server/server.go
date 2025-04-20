@@ -390,8 +390,15 @@ func (s *Server) CreatePhilosophy(ctx context.Context, req *connect.Request[pb.C
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+
+	var protoContexts []*models.ObservationContext
+	for _, oc := range resp.ExtrapolatedObservationContexts {
+		protoContexts = append(protoContexts, oc.ToProto())
+	}
+
 	return connect.NewResponse(&pb.CreatePhilosophyResponse{
-		Philosophy: resp.Philosophy.ToProto(),
+		Philosophy:                      resp.Philosophy.ToProto(),
+		ExtrapolatedObservationContexts: protoContexts,
 	}), nil
 }
 
@@ -493,6 +500,33 @@ func (s *Server) PreprocessQuestionAnswer(ctx context.Context, req *connect.Requ
 
 	return connect.NewResponse(&pb.PreprocessQuestionAnswerResponse{
 		QaPairs: protoPairs,
+	}), nil
+}
+
+func (s *Server) UpdatePhilosophy(ctx context.Context, req *connect.Request[pb.UpdatePhilosophyRequest]) (*connect.Response[pb.UpdatePhilosophyResponse], error) {
+	ctx, err := validateAPIKey(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	input := &svcmodels.UpdatePhilosophyInput{
+		PhilosophyID:        req.Msg.PhilosophyId,
+		Description:         req.Msg.Description,
+		ExtrapolateContexts: req.Msg.ExtrapolateContexts,
+	}
+	resp, err := s.selfModelSvc.UpdatePhilosophy(ctx, input)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	var protoContexts []*models.ObservationContext
+	for _, oc := range resp.ExtrapolatedObservationContexts {
+		protoContexts = append(protoContexts, oc.ToProto())
+	}
+
+	return connect.NewResponse(&pb.UpdatePhilosophyResponse{
+		Philosophy:                      resp.Philosophy.ToProto(),
+		ExtrapolatedObservationContexts: protoContexts,
 	}), nil
 }
 

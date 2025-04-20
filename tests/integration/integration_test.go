@@ -665,3 +665,70 @@ func TestGetBeliefSystemWithOptions(t *testing.T) {
 		})
 	*/
 }
+
+func TestCreateAndUpdatePhilosophyIntegration(t *testing.T) {
+	ctx := context.Background()
+
+	// Create Philosophy
+	createReq := &pb.CreatePhilosophyRequest{
+		Description:         "# Metabolic Health Philosophy\n\n## Experiential Narrative\n[[C: Circadian Rhythm]] [[S: asleep]] → [[S: awake]]\n",
+		ExtrapolateContexts: true,
+	}
+	createResp, err := client.CreatePhilosophy(ctx, connect.NewRequest(createReq))
+	require.NoError(t, err)
+	require.NotNil(t, createResp.Msg.Philosophy)
+	philosophyID := createResp.Msg.Philosophy.Id
+	require.Equal(t, createReq.Description, createResp.Msg.Philosophy.Description)
+	require.Equal(t, createReq.ExtrapolateContexts, createResp.Msg.Philosophy.ExtrapolateContexts)
+	// Assert extrapolated observation contexts
+	require.NotEmpty(t, createResp.Msg.ExtrapolatedObservationContexts)
+	var foundCircadian, foundAsleep bool
+	for _, oc := range createResp.Msg.ExtrapolatedObservationContexts {
+		if oc.Name == "Circadian Rhythm" {
+			foundCircadian = true
+		}
+		if oc.Name == "asleep" {
+			foundAsleep = true
+		}
+	}
+	require.True(t, foundCircadian, "Should extrapolate Circadian Rhythm context")
+	require.True(t, foundAsleep, "Should extrapolate asleep context")
+
+	// Update Philosophy
+	updateReq := &pb.UpdatePhilosophyRequest{
+		PhilosophyId:        philosophyID,
+		Description:         "# Updated Philosophy\n\n## Experiential Narrative\n[[C: Sleep Architecture]] [[S: light-n1]] → [[S: slow-wave]]\n",
+		ExtrapolateContexts: true,
+	}
+	updateResp, err := client.UpdatePhilosophy(ctx, connect.NewRequest(updateReq))
+	require.NoError(t, err)
+	require.NotNil(t, updateResp.Msg.Philosophy)
+	require.Equal(t, updateReq.Description, updateResp.Msg.Philosophy.Description)
+	require.Equal(t, updateReq.ExtrapolateContexts, updateResp.Msg.Philosophy.ExtrapolateContexts)
+	// Assert extrapolated observation contexts
+	require.NotEmpty(t, updateResp.Msg.ExtrapolatedObservationContexts)
+	var foundSleepArch, foundLightN1, foundSlowWave bool
+	for _, oc := range updateResp.Msg.ExtrapolatedObservationContexts {
+		if oc.Name == "Sleep Architecture" {
+			foundSleepArch = true
+		}
+		if oc.Name == "light-n1" {
+			foundLightN1 = true
+		}
+		if oc.Name == "slow-wave" {
+			foundSlowWave = true
+		}
+	}
+	require.True(t, foundSleepArch, "Should extrapolate Sleep Architecture context")
+	require.True(t, foundLightN1, "Should extrapolate light-n1 context")
+	require.True(t, foundSlowWave, "Should extrapolate slow-wave context")
+
+	// Error: update non-existent philosophy
+	badUpdateReq := &pb.UpdatePhilosophyRequest{
+		PhilosophyId:        "non-existent-id",
+		Description:         "desc",
+		ExtrapolateContexts: true,
+	}
+	_, err = client.UpdatePhilosophy(ctx, connect.NewRequest(badUpdateReq))
+	require.Error(t, err)
+}
