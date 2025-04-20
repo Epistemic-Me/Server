@@ -3,6 +3,8 @@ package svc
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"sync"
 
 	"epistemic-me-core/db"
 	"epistemic-me-core/svc/models"
@@ -14,6 +16,8 @@ type SelfModelService struct {
 	kvStore *db.KeyValueStore
 	dsvc    *DialecticService
 	bsvc    *BeliefService
+	cache   map[string][]*models.ObservationContext
+	cacheMu sync.RWMutex
 }
 
 func NewSelfModelService(kvStore *db.KeyValueStore, dsvc *DialecticService, bsvc *BeliefService) *SelfModelService {
@@ -21,6 +25,7 @@ func NewSelfModelService(kvStore *db.KeyValueStore, dsvc *DialecticService, bsvc
 		kvStore: kvStore,
 		dsvc:    dsvc,
 		bsvc:    bsvc,
+		cache:   make(map[string][]*models.ObservationContext),
 	}
 }
 
@@ -123,6 +128,26 @@ func (s *SelfModelService) AddPhilosophy(ctx context.Context, input *models.AddP
 	return &models.AddPhilosophyOutput{UpdatedSelfModel: selfModel}, nil
 }
 
+func extrapolateObservationContexts(description string) []*models.ObservationContext {
+	re := regexp.MustCompile(`\[\[(C|S): ([^\]]+)\]\]`)
+	matches := re.FindAllStringSubmatch(description, -1)
+	unique := make(map[string]struct{})
+	var contexts []*models.ObservationContext
+	for _, m := range matches {
+		if len(m) > 2 {
+			name := m[2]
+			if _, exists := unique[name]; !exists {
+				unique[name] = struct{}{}
+				contexts = append(contexts, &models.ObservationContext{
+					ID:   uuid.New().String(),
+					Name: name,
+				})
+			}
+		}
+	}
+	return contexts
+}
+
 func (s *SelfModelService) CreatePhilosophy(ctx context.Context, input *models.CreatePhilosophyInput) (*models.CreatePhilosophyOutput, error) {
 	philosophy := &models.Philosophy{
 		ID:                  uuid.New().String(),
@@ -135,7 +160,22 @@ func (s *SelfModelService) CreatePhilosophy(ctx context.Context, input *models.C
 		return nil, fmt.Errorf("failed to store philosophy: %v", err)
 	}
 
-	return &models.CreatePhilosophyOutput{Philosophy: philosophy}, nil
+	var extrapolated []*models.ObservationContext
+	if input.ExtrapolateContexts {
+		s.cacheMu.RLock()
+		cached, ok := s.cache[philosophy.ID]
+		s.cacheMu.RUnlock()
+		if ok {
+			extrapolated = cached
+		} else {
+			extrapolated = extrapolateObservationContexts(input.Description)
+			s.cacheMu.Lock()
+			s.cache[philosophy.ID] = extrapolated
+			s.cacheMu.Unlock()
+		}
+	}
+
+	return &models.CreatePhilosophyOutput{Philosophy: philosophy, ExtrapolatedObservationContexts: extrapolated}, nil
 }
 
 // Add this method to update the belief system of a self model
@@ -145,4 +185,52 @@ func (s *SelfModelService) UpdateSelfModelBeliefSystem(ctx context.Context, self
 		return fmt.Errorf("failed to update belief system: %v", err)
 	}
 	return nil
+}
+
+// UpdatePhilosophy updates an existing philosophy by ID.
+func (s *SelfModelService) UpdatePhilosophy(ctx context.Context, input *models.UpdatePhilosophyInput) (*models.UpdatePhilosophyOutput, error) {
+	if input.PhilosophyID == "" {
+		return nil, fmt.Errorf("philosophy ID cannot be empty")
+	}
+
+	storedPhilosophy, err := s.kvStore.Retrieve(input.PhilosophyID, "Philosophy")
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve philosophy: %v", err)
+	}
+
+	philosophy, ok := storedPhilosophy.(*models.Philosophy)
+	if !ok {
+		return nil, fmt.Errorf("invalid philosophy data")
+	}
+
+	philosophy.Description = input.Description
+	philosophy.ExtrapolateContexts = input.ExtrapolateContexts
+
+	err = s.kvStore.Store(philosophy.ID, "Philosophy", *philosophy, 1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store updated philosophy: %v", err)
+	}
+
+	// Invalidate cache on update
+	s.cacheMu.Lock()
+	delete(s.cache, philosophy.ID)
+	s.cacheMu.Unlock()
+
+	var extrapolated []*models.ObservationContext
+	if input.ExtrapolateContexts {
+		extrapolated = extrapolateObservationContexts(input.Description)
+		s.cacheMu.Lock()
+		s.cache[philosophy.ID] = extrapolated
+		s.cacheMu.Unlock()
+	}
+
+	return &models.UpdatePhilosophyOutput{Philosophy: philosophy, ExtrapolatedObservationContexts: extrapolated}, nil
+}
+
+func (s *SelfModelService) Cache() map[string][]*models.ObservationContext {
+	return s.cache
+}
+
+func (s *SelfModelService) CacheMu() *sync.RWMutex {
+	return &s.cacheMu
 }

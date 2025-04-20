@@ -596,3 +596,191 @@ func TestUpdateObservationContext(t *testing.T) {
 	assert.Len(t, ppc.ObservationContexts[0].PossibleStates, 3, "Should now have three possible states")
 	assert.Equal(t, "State3", ppc.ObservationContexts[0].PossibleStates[2], "New state should be added")
 }
+
+func TestExtrapolateObservationContexts_MetabolicHealthMarkdown(t *testing.T) {
+	markdown := `# Metabolic Health Philosophy
+
+## Raison d'être
+To model how a person's day‑to‑day sensations, actions, and environments
+reshape energy, recovery, and long‑term resilience.
+
+---
+
+## Experiential Narrative ✦
+06 : 30 — I surface from dreams; [[C: Circadian Rhythm]] slides from [[S: asleep]]
+to [[S: awake]].  
+A coral‑pink dawn floods the room: [[C: Zeitgeber Exposure]]
+sees [[S: bright-light-day]]; cortisol surges — [[C: Hormonal Pulse]]
+hits [[S: cortisol-peak]].  Core temp climbs toward 37 °C: [[C: Thermoregulation]]
+trends [[S: warm-skin]].  
+My heart‑rate variability sits in [[C: HRV Band]] [[S: balanced-lfhf]];
+inflammation stays [[C: Inflammation Marker]] [[S: low-crp]].
+
+08 : 00 — Keyboard clicks keep [[C: Energy Expenditure]] at [[S: sedentary]];
+I'm still [[C: Nutrient Flux]] [[S: fasted]], glucose stable in
+[[C: Glycaemic State]] [[S: euglycaemic]].
+
+09 : 30 — Espresso triggers an [[S: insulin-spike]]; an
+[[C: Ultradian Cycle]] flips to [[S: interaction-phase]].
+
+10 : 45 — Cycle dips into [[S: recovery-phase]]; box‑breathing nudges
+[[C: Recovery and Stress]] toward [[S: parasympathetic-high]].
+
+12 : 30 — Lunch (quinoa‑bowl) moves [[S: fasted]] → [[S: fed-light]];
+post‑meal glucose rises to [[S: mild-postprandial]];
+[[C: Energy Expenditure]] upgrades to [[S: neat]] during a walk.
+
+15 : 00 — No snack: glucose trends toward [[S: hypo]];
+HRV dips to [[S: low-lfhf]];
+[[C: Recovery and Stress]] tilts [[S: sympathetic-high]];
+temperature cools to [[S: neutral]].
+
+16 : 00 — HIIT pushes [[S: exercise-high]];
+catabolic hormones spike — [[S: catabolic-dominant]];
+thermoregulatory flush maintains [[S: warm-skin]];
+inflammation stays [[S: low-crp]].
+
+18 : 30 — Dinner (steak + rice) → [[S: fed-heavy]],
+[[S: high-postprandial]], second [[S: insulin-spike]].
+
+19 : 30 — Light jog counts as [[S: exercise-low]]; aids glucose clearance.
+
+21 : 00 — Screens dim; [[S: dim-light-evening]];
+cortisol falls to [[S: cortisol-trough]];
+[[C: Nutrient Flux]] drifts to [[S: over-fed]] if dessert appears.
+
+22 : 10 — [[C: Sleep Architecture]] begins:
+[[S: light-n1]] → [[S: light-n2]] → [[S: slow-wave]];
+GH pulses — [[S: gh-pulse]];
+skin cools to [[S: cool-skin]];
+inflammation remains [[S: low-crp]]; whole‑body repair is
+[[S: anabolic-dominant]].
+
+03 : 00 — Brief [[S: awakening]] for water; glucose stable;
+back into [[S: rem]] until dawn.
+
+---
+`
+
+	contexts := models.ExtrapolateObservationContexts(markdown)
+	if len(contexts) == 0 {
+		t.Fatalf("Expected at least one ObservationContext, got 0")
+	}
+
+	// Check that some known contexts and states are present
+	var foundCircadian, foundHRV, foundSleepArch bool
+	var circadianStates, hrvStates, sleepArchStates []string
+	for _, ctx := range contexts {
+		switch ctx.Name {
+		case "Circadian Rhythm":
+			foundCircadian = true
+			circadianStates = ctx.PossibleStates
+		case "HRV Band":
+			foundHRV = true
+			hrvStates = ctx.PossibleStates
+		case "Sleep Architecture":
+			foundSleepArch = true
+			sleepArchStates = ctx.PossibleStates
+		}
+	}
+	if !foundCircadian {
+		t.Errorf("Expected context 'Circadian Rhythm' to be found")
+	}
+	if !foundHRV {
+		t.Errorf("Expected context 'HRV Band' to be found")
+	}
+	if !foundSleepArch {
+		t.Errorf("Expected context 'Sleep Architecture' to be found")
+	}
+	// Check that some expected states are present
+	if foundCircadian && (len(circadianStates) == 0 || !contains(circadianStates, "asleep") || !contains(circadianStates, "awake")) {
+		t.Errorf("Circadian Rhythm should have states 'asleep' and 'awake', got %v", circadianStates)
+	}
+	if foundHRV && (len(hrvStates) == 0 || !contains(hrvStates, "balanced-lfhf")) {
+		t.Errorf("HRV Band should have state 'balanced-lfhf', got %v", hrvStates)
+	}
+	if foundSleepArch && (len(sleepArchStates) == 0 || !contains(sleepArchStates, "light-n1") || !contains(sleepArchStates, "light-n2") || !contains(sleepArchStates, "slow-wave")) {
+		t.Errorf("Sleep Architecture should have states 'light-n1', 'light-n2', 'slow-wave', got %v", sleepArchStates)
+	}
+}
+
+func TestExtrapolateObservationContexts_TreeStructure(t *testing.T) {
+	markdown := `## Experiential Narrative
+06:30 — [[C: Morning Routine]]
+  [[C: Circadian Rhythm]] [[S: asleep]] → [[S: awake]]
+  [[C: Zeitgeber Exposure]] [[S: bright-light-day]]
+    [[C: Hormonal Pulse]] [[S: cortisol-peak]]
+  [[C: HRV Band]] [[S: balanced-lfhf]]
+[[C: Evening Routine]]
+  [[C: Sleep Architecture]] [[S: light-n1]] → [[S: slow-wave]]
+    [[C: GH Pulse]] [[S: gh-pulse]]
+`
+
+	contexts := models.ExtrapolateObservationContexts(markdown)
+	if len(contexts) == 0 {
+		t.Fatalf("Expected at least one ObservationContext, got 0")
+	}
+
+	// Build a map of context name to context for easy lookup
+	ctxByName := make(map[string]*models.ObservationContext)
+	for _, ctx := range contexts {
+		ctxByName[ctx.Name] = ctx
+	}
+
+	// Check parent-child relationships (simulate expected tree)
+	// For this test, let's assume the function is extended to set ParentID based on indentation (2 spaces = child)
+	// Morning Routine is parent of Circadian Rhythm, Zeitgeber Exposure, HRV Band, Hormonal Pulse
+	// Zeitgeber Exposure is parent of Hormonal Pulse
+	// Evening Routine is parent of Sleep Architecture
+	// Sleep Architecture is parent of GH Pulse
+
+	// Helper to get ParentID by name
+	getParent := func(name string) string {
+		if ctx, ok := ctxByName[name]; ok {
+			return ctx.ParentID
+		}
+		return ""
+	}
+
+	// Check parent relationships
+	if getParent("Circadian Rhythm") != ctxByName["Morning Routine"].ID {
+		t.Errorf("Circadian Rhythm should have parent Morning Routine")
+	}
+	if getParent("Zeitgeber Exposure") != ctxByName["Morning Routine"].ID {
+		t.Errorf("Zeitgeber Exposure should have parent Morning Routine")
+	}
+	if getParent("Hormonal Pulse") != ctxByName["Zeitgeber Exposure"].ID {
+		t.Errorf("Hormonal Pulse should have parent Zeitgeber Exposure")
+	}
+	if getParent("HRV Band") != ctxByName["Morning Routine"].ID {
+		t.Errorf("HRV Band should have parent Morning Routine")
+	}
+	if getParent("Sleep Architecture") != ctxByName["Evening Routine"].ID {
+		t.Errorf("Sleep Architecture should have parent Evening Routine")
+	}
+	if getParent("GH Pulse") != ctxByName["Sleep Architecture"].ID {
+		t.Errorf("GH Pulse should have parent Sleep Architecture")
+	}
+
+	// Check states
+	if ctx, ok := ctxByName["Circadian Rhythm"]; ok {
+		if !contains(ctx.PossibleStates, "asleep") || !contains(ctx.PossibleStates, "awake") {
+			t.Errorf("Circadian Rhythm should have states 'asleep' and 'awake', got %v", ctx.PossibleStates)
+		}
+	}
+	if ctx, ok := ctxByName["Hormonal Pulse"]; ok {
+		if !contains(ctx.PossibleStates, "cortisol-peak") {
+			t.Errorf("Hormonal Pulse should have state 'cortisol-peak', got %v", ctx.PossibleStates)
+		}
+	}
+	if ctx, ok := ctxByName["Sleep Architecture"]; ok {
+		if !contains(ctx.PossibleStates, "light-n1") || !contains(ctx.PossibleStates, "slow-wave") {
+			t.Errorf("Sleep Architecture should have states 'light-n1' and 'slow-wave', got %v", ctx.PossibleStates)
+		}
+	}
+	if ctx, ok := ctxByName["GH Pulse"]; ok {
+		if !contains(ctx.PossibleStates, "gh-pulse") {
+			t.Errorf("GH Pulse should have state 'gh-pulse', got %v", ctx.PossibleStates)
+		}
+	}
+}
