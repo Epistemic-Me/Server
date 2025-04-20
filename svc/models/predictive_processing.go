@@ -2,6 +2,10 @@ package models
 
 import (
 	pbmodels "epistemic-me-core/pb/models"
+	"regexp"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
 type PredictiveProcessingContext struct {
@@ -201,4 +205,88 @@ func beliefContextsToProto(contexts []*BeliefContext) []*pbmodels.BeliefContext 
 		result[i] = c.ToProto()
 	}
 	return result
+}
+
+// ExtrapolateObservationContexts parses the Experiential Narrative section of a markdown philosophy description.
+// It extracts [[C: ...]] as ObservationContext names and [[S: ...]] as possible states, using the existing ObservationContext model.
+// Each context gets a generated UUID, and states are added to the most recent context at the current depth. ParentID is set based on indentation (2 spaces = one level).
+// Only the Experiential Narrative section is parsed.
+func ExtrapolateObservationContexts(description string) []*ObservationContext {
+	// Find the Experiential Narrative section
+	expSection := extractExperientialNarrativeSection(description)
+	if expSection == "" {
+		return nil
+	}
+
+	contextRe := regexp.MustCompile(`\[\[C:([^\]]+)\]\]`)
+	stateRe := regexp.MustCompile(`\[\[S:([^\]]+)\]\]`)
+
+	var contexts []*ObservationContext
+	// Stack of most recent context at each depth
+	contextStack := make(map[int]*ObservationContext)
+
+	lines := strings.Split(expSection, "\n")
+	for _, line := range lines {
+		// Count leading spaces for depth (2 spaces = one level)
+		depth := 0
+		for i := 0; i < len(line); i++ {
+			if line[i] == ' ' {
+				depth++
+			} else {
+				break
+			}
+		}
+		depth = depth / 2
+
+		// Find all contexts in the line
+		contextMatches := contextRe.FindAllStringSubmatch(line, -1)
+		for _, match := range contextMatches {
+			ctxName := strings.TrimSpace(match[1])
+			ctx := &ObservationContext{
+				ID:             uuid.New().String(),
+				Name:           ctxName,
+				ParentID:       "",
+				PossibleStates: []string{},
+			}
+			// Set ParentID if there is a context at depth-1
+			if parent, ok := contextStack[depth-1]; ok && depth > 0 {
+				ctx.ParentID = parent.ID
+			}
+			contexts = append(contexts, ctx)
+			contextStack[depth] = ctx
+			// Remove deeper contexts from stack
+			for d := depth + 1; ; d++ {
+				if _, ok := contextStack[d]; ok {
+					delete(contextStack, d)
+				} else {
+					break
+				}
+			}
+		}
+
+		// Find all states in the line
+		stateMatches := stateRe.FindAllStringSubmatch(line, -1)
+		for _, match := range stateMatches {
+			stateName := strings.TrimSpace(match[1])
+			if ctx, ok := contextStack[depth]; ok {
+				ctx.PossibleStates = append(ctx.PossibleStates, stateName)
+			}
+		}
+	}
+
+	return contexts
+}
+
+// extractExperientialNarrativeSection extracts the Experiential Narrative section from the markdown.
+func extractExperientialNarrativeSection(md string) string {
+	start := strings.Index(md, "## Experiential Narrative")
+	if start == -1 {
+		return ""
+	}
+	// Find the next section or end of string
+	end := strings.Index(md[start+1:], "## ")
+	if end == -1 {
+		return md[start:]
+	}
+	return md[start : start+1+end]
 }
